@@ -25,7 +25,7 @@ uint16_t gfxTint(uint16_t rgb565);
 #define C_DGRAY  gfxTint(0x4208)
 #define C_YELLOW gfxTint(0xFFE0)
 #define C_BLUE   gfxTint(0x041F)
-
+#define C_CYAN   gfxTint(0x07FF)
 // ---- Device lifecycle -----------------------------------------------------
 void         gfxBegin(const Settings& s);
 void         gfxSetBrightness(uint8_t pct, bool inverted);

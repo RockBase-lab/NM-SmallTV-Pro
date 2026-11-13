@@ -8,20 +8,23 @@
 
 class TickerMode : public DisplayMode {
  public:
-  const char* id() const override { return "stocks"; }
-  uint8_t     modeConst() const override { return MODE_STOCKS; }
+  TickerMode(uint8_t setIdx = 0, uint8_t modeId = MODE_STOCKS, const char* name = "stocks")
+      : setIdx_(setIdx), modeId_(modeId), name_(name) {}
+
+  const char* id() const override { return name_; }
+  uint8_t     modeConst() const override { return modeId_; }
 
   void begin(const Settings& s) override;
   void service(const Settings& s) override;
   void invalidate(const Settings& s) override;
-  void wake(const Settings& s) override {   // carousel switched back: repaint only
-    needRender_ = true;
-    lastRotate_ = millis();
-  }
+  void wake(const Settings& s) override;
 
  private:
-  void render(const Settings& s);   // draw the current page
+  void render(const Settings& s);
 
+  uint8_t  setIdx_ = 0;
+  uint8_t  modeId_ = MODE_STOCKS;
+  const char* name_ = "stocks";
   uint8_t  curPage_ = 0;
   uint32_t lastRotate_ = 0;
   uint32_t renderedLastOk_ = 0xFFFFFFFF;
@@ -30,3 +33,4 @@ class TickerMode : public DisplayMode {
 };
 
 extern TickerMode g_tickerMode;
+extern TickerMode g_tickerMode2;

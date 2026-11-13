@@ -30,6 +30,7 @@
 #if WITH_TICKER
 #include "TickerMode.h"
 #endif
+#include "features/weather/WeatherMode.h"
 #if WITH_USAGE
 #include "UsageMode.h"
 #endif
@@ -48,7 +49,9 @@
 static DisplayMode* kModes[] = {
 #if WITH_TICKER
   &g_tickerMode,
+  &g_tickerMode2,
 #endif
+  &g_weatherMode,
 #if WITH_USAGE
   &g_usageMode,
 #endif
@@ -73,8 +76,10 @@ static bool     g_carPaused = false;   // button paused the auto-rotation (stays
 
 static bool carouselHas(const Settings& s, const DisplayMode* m) {
   switch (m->modeConst()) {
-    case MODE_STOCKS: return s.carouselTicker;
-    case MODE_USAGE:  return s.carouselUsage;
+    case MODE_STOCKS:  return s.carouselTicker;
+    case MODE_STOCKS2: return s.carouselTicker2;
+    case MODE_WEATHER: return s.carouselWeather;
+    case MODE_USAGE:   return s.carouselUsage;
     case MODE_RADAR:  return s.carouselRadar;
 #if WITH_HA
     case MODE_HA:     return s.carouselHa;
@@ -213,18 +218,41 @@ static void buttonGoHome() {
   }
 }
 
+// Global abort flag for network operations
+volatile bool g_abortFetch = false;
+
 static void buttonNext() {
-#if WITH_HA
-  // Home Assistant mode rotates its own screens: step through them directly.
-  if (g_settings.mode == MODE_HA) { g_haMode.nextPage(); return; }
-#endif
-  if (g_settings.mode != MODE_CAROUSEL || kModeCount == 0) return;
-  g_carPaused = true;                  // manual navigation stops the auto-rotation
-  g_carSwitch = millis();
-  carouselNext(g_settings);            // advance + wake the incoming mode
+  if (kModeCount == 0) return;
+
+  if (g_settings.mode == MODE_CAROUSEL) {
+    g_carPaused = true;
+    g_carSwitch = millis();
+    carouselNext(g_settings);
+    return;
+  }
+
+  // Find current index in kModes
+  int curIdx = -1;
+  for (size_t i = 0; i < kModeCount; i++) {
+    if (kModes[i]->modeConst() == g_settings.mode) {
+      curIdx = (int)i;
+      break;
+    }
+  }
+
+  // Advance to next mode cyclically (Stock 1 -> Stock 2 -> Weather -> ... -> Stock 1)
+  size_t nextIdx = (curIdx >= 0) ? ((curIdx + 1) % kModeCount) : 0;
+  g_settings.mode = kModes[nextIdx]->modeConst();
+  g_abortFetch = false; // Reset abort flag for the new active mode
+  DisplayMode* m = activeMode(g_settings);
+  if (m) {
+    // Only wake to repaint from cache/draw UI; do NOT force-invalidate & refetch!
+    m->wake(g_settings);
+  }
 }
 
 static void buttonAction(uint8_t act) {
+  g_abortFetch = true; // Signal any in-flight network fetch to abort immediately
   switch (act) {
     case BTN_ACT_SCREEN_OFF: buttonBlinkOff();    break;
     case BTN_ACT_HOME:       buttonGoHome();      break;
@@ -281,6 +309,12 @@ static void buttonService() {
                                    : g_settings.button.shortAction);
 }
 #endif
+
+void buttonPoll() {
+#ifdef BTN_PIN
+  buttonService();
+#endif
+}
 
 // Exposed to the web portal (/api/status) so the last reset reason is visible.
 const char* appResetReason() { return g_resetReason.c_str(); }

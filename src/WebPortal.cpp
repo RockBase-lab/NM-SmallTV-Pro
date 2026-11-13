@@ -171,17 +171,21 @@ struct StatusSink : smalltv::Sink {
 
 #if WITH_TICKER
 static smalltv::StatusTicker statusTicker(size_t i) {
-  const StockData& d = stockAt(i);
+  uint8_t c0 = stocksCount(0);
+  uint8_t set = (i < c0) ? 0 : 1;
+  uint8_t idx = (i < c0) ? i : (i - c0);
+  const TickerSettings& ts = (set == 1) ? S->ticker2 : S->ticker;
+  const StockData& d = stockAt(idx, set);
   smalltv::StatusTicker t;
   t.symbol = d.symbol;
   t.valid = d.valid;
   t.error = d.error;
-  if (d.error) t.retryIn = stockRetryInSec(i);   // seconds to the next attempt
+  if (d.error) t.retryIn = stockRetryInSec(idx, set);   // seconds to the next attempt
   if (d.valid) {
     t.price = d.price;
     float chg, pct;
     bool onRange = false;
-    if (stockDisplayChange(d, S->ticker, chg, pct, &onRange)) {
+    if (stockDisplayChange(d, ts, chg, pct, &onRange)) {
       t.hasChange = true;
       t.changePct = pct;                           // as displayed on the device
       t.onRange = onRange;                         // which basis that was
@@ -255,7 +259,7 @@ static void handleStatus() {
     smalltv::writeStatusCrash(out, k);
   }
 #if WITH_TICKER
-  smalltv::writeStatusTickers(out, stocksCount(), statusTicker);
+  smalltv::writeStatusTickers(out, stocksCount(0) + stocksCount(1), statusTicker);
 #endif
 #if WITH_RADAR
   // An empty scope has several possible causes and the screen shows the same
@@ -442,7 +446,7 @@ static void handleImport() {
 static void handleRefresh() {
   if (!requireAuth()) return;
 #if WITH_TICKER
-  stocksForceRefresh();
+  stocksForceRefreshAll();
 #endif
   server.send(200, "application/json", "{\"ok\":true}");
 }

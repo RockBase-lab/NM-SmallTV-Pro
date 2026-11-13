@@ -142,6 +142,8 @@
 #define MODE_NOTIFY    4             // transient overlay: armed over HTTP, never persisted
 #define MODE_THEME     6             // declarative installed clock faces
 #define MODE_HA        5             // Home Assistant screens pushed over MQTT
+#define MODE_STOCKS2   7             // second stock ticker set (Stock 2)
+#define MODE_WEATHER   8             // Weather display
 #define DEFAULT_MODE MODE_STOCKS
 #define DEFAULT_CAROUSEL_SEC 30      // per-mode dwell in carousel
 
@@ -257,16 +259,16 @@
 #define WITH_TICKER 1
 #endif
 #ifndef WITH_USAGE
-#define WITH_USAGE 1
+#define WITH_USAGE 0
 #endif
 #ifndef WITH_RADAR
-#define WITH_RADAR 1
+#define WITH_RADAR 0
 #endif
 #ifndef WITH_NOTIFY
 #define WITH_NOTIFY 1
 #endif
 #ifndef WITH_HA
-#define WITH_HA 1
+#define WITH_HA 0
 #endif
 
 // Claude usage mode: once data stops arriving for this long (PC asleep, daemon
@@ -290,6 +292,7 @@
 #define SRC_YAHOO    1
 #define SRC_CASH     2
 #define SRC_GHUB     3   // static JSON read from a repo's data branch (see below)
+#define SRC_NAVER    4   // Naver Finance mobile API (real-time Korean stocks)
 #define DEFAULT_SOURCE  SRC_YAHOO            // works out of the box, no server
 
 // Yahoo Finance public chart endpoint. A browser-like User-Agent is required —

@@ -180,3 +180,8 @@ struct PlatformCrashRecord {
 void platformCrashRecordBegin();
 bool platformCrashRecordGet(PlatformCrashRecord& out);
 void platformCrashRecordClear();
+
+// Global button responsiveness & fetch abort controls
+extern volatile bool g_abortFetch;
+void buttonPoll();
+

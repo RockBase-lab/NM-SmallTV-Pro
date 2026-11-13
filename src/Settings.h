@@ -38,6 +38,7 @@ struct WifiCred {
 struct TickerSettings {
   String   webhookUrl;    // custom webhook base URL (used by webhook symbols)
   String   range;         // chart timeframe token (e.g. "1d", "5d", "1mo", "1y")
+  String   chartStyle;    // "line" (default) or "candle" 
   uint16_t points;        // sparkline points requested
   uint16_t pollSec;       // refresh period
   uint16_t rotateSec;     // per-symbol on-screen time
@@ -220,7 +221,7 @@ struct Settings {
 
   // --- Carousel (mode == MODE_CAROUSEL): dwell + which features rotate ---
   uint16_t carouselSec;
-  bool carouselTicker, carouselUsage, carouselRadar, carouselHa, carouselTheme;
+  bool carouselTicker, carouselTicker2, carouselUsage, carouselRadar, carouselHa, carouselTheme, carouselWeather;
 
   // --- Shared HTTP / display ---
   uint16_t httpTimeout; // ms
@@ -230,7 +231,8 @@ struct Settings {
   uint8_t  rotation;          // 0..3 screen orientation
 
   // --- Feature slices ---
-  TickerSettings  ticker;
+  TickerSettings  ticker;     // Stock 1
+  TickerSettings  ticker2;    // Stock 2
   UsageSettings   usage;
   RadarSettings   radar;
   HaSettings      ha;        // MQTT broker for HA screens

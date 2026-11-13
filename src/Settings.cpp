@@ -13,12 +13,14 @@ static size_t g_storedSize = 0;
 // Ticker slice
 // ===========================================================================
 static const char* srcToStr(uint8_t s) {
-  return (s == SRC_YAHOO) ? "yahoo"
+  return (s == SRC_NAVER) ? "naver"
+       : (s == SRC_YAHOO) ? "yahoo"
        : (s == SRC_CASH)  ? "cash"
        : (s == SRC_GHUB)  ? "github" : "webhook";
 }
 static uint8_t srcFromStr(const String& s) {
-  return s.equalsIgnoreCase("yahoo")  ? SRC_YAHOO
+  return s.equalsIgnoreCase("naver")  ? SRC_NAVER
+       : s.equalsIgnoreCase("yahoo")  ? SRC_YAHOO
        : s.equalsIgnoreCase("cash")   ? SRC_CASH
        : s.equalsIgnoreCase("github") ? SRC_GHUB : SRC_WEBHOOK;
 }
@@ -26,6 +28,7 @@ static uint8_t srcFromStr(const String& s) {
 void TickerSettings::setDefaults() {
   webhookUrl = "";
   range = DEFAULT_RANGE;
+  chartStyle = "candle";
   points = DEFAULT_POINTS;
   pollSec = DEFAULT_POLL_SEC;
   rotateSec = DEFAULT_ROTATE_SEC;
@@ -54,6 +57,7 @@ void TickerSettings::setDefaults() {
 void TickerSettings::toJson(JsonObject o) const {
   o["webhookUrl"]     = webhookUrl;
   o["range"]          = range;
+  o["chartStyle"]     = chartStyle;
   o["points"]         = points;
   o["pollSec"]        = pollSec;
   o["rotateSec"]      = rotateSec;
@@ -87,6 +91,7 @@ void TickerSettings::fromJson(JsonObjectConst o) {
 
   if (o["webhookUrl"].is<const char*>()) webhookUrl = o["webhookUrl"].as<String>();
   if (o["range"].is<const char*>())      range = o["range"].as<String>();
+  if (o["chartStyle"].is<const char*>()) chartStyle = o["chartStyle"].as<String>();
   if (o["points"].is<int>())             points = constrain((int)o["points"], 0, MAX_SPARK_POINTS);
   // Clamped at both ends: these land in a uint16_t, and the web UI's own
   // min/max are only advisory (the page POSTs JSON, it does not submit a form).
@@ -504,7 +509,7 @@ void Settings::setDefaults() {
   mode = DEFAULT_MODE;
   themeId = "";
   carouselSec = DEFAULT_CAROUSEL_SEC;
-  carouselTicker = carouselUsage = carouselRadar = carouselHa = true;
+  carouselTicker = carouselTicker2 = carouselUsage = carouselRadar = carouselHa = carouselWeather = true;
   carouselTheme = false;   // opt in: needs an installed theme, else the slot shows an error
   httpTimeout = DEFAULT_HTTP_TIMEOUT;
 
@@ -514,6 +519,7 @@ void Settings::setDefaults() {
   rotation = 0;
 
   ticker.setDefaults();
+  ticker2.setDefaults();
   usage.setDefaults();
   radar.setDefaults();
   ha.setDefaults();
@@ -596,13 +602,17 @@ void settingsToJson(const Settings& s, JsonObject root, bool includeSecrets) {
                             : (s.mode == MODE_RADAR)    ? "radar"
                             : (s.mode == MODE_USAGE)    ? "usage"
                             : (s.mode == MODE_HA)       ? "ha"
+                            : (s.mode == MODE_STOCKS2)  ? "stocks2"
+                            : (s.mode == MODE_WEATHER)  ? "weather"
                             : (s.mode == MODE_CAROUSEL) ? "carousel" : "stocks";
   root["carouselSec"]       = s.carouselSec;
   root["carouselTicker"]    = s.carouselTicker;
+  root["carouselTicker2"]   = s.carouselTicker2;
   root["carouselUsage"]     = s.carouselUsage;
   root["carouselRadar"]     = s.carouselRadar;
   root["carouselHa"]        = s.carouselHa;
   root["carouselTheme"]     = s.carouselTheme;
+  root["carouselWeather"]   = s.carouselWeather;
   root["httpTimeout"]       = s.httpTimeout;
   root["brightness"]        = s.brightness;
   root["autoBrightness"]    = s.autoBrightness;
@@ -611,6 +621,7 @@ void settingsToJson(const Settings& s, JsonObject root, bool includeSecrets) {
 
   // Feature slices
   s.ticker.toJson(root["ticker"].to<JsonObject>());
+  s.ticker2.toJson(root["ticker2"].to<JsonObject>());
   s.usage.toJson(root["usage"].to<JsonObject>());
   s.radar.toJson(root["radar"].to<JsonObject>());
   s.ha.toJson(root["ha"].to<JsonObject>(), includeSecrets);
@@ -671,8 +682,10 @@ void settingsApplyJson(Settings& s, JsonObjectConst root) {
            : m.equalsIgnoreCase("radar")    ? MODE_RADAR
            : m.equalsIgnoreCase("usage")    ? MODE_USAGE
            : m.equalsIgnoreCase("ha")       ? MODE_HA
+           : m.equalsIgnoreCase("weather")  ? MODE_WEATHER
            : m.equalsIgnoreCase("carousel") ? MODE_CAROUSEL
-           : m.equalsIgnoreCase("stocks")   ? MODE_STOCKS
+           : (m.equalsIgnoreCase("stocks2") || m.equalsIgnoreCase("stock2")) ? MODE_STOCKS2
+           : (m.equalsIgnoreCase("stocks") || m.equalsIgnoreCase("stock1"))  ? MODE_STOCKS
            : s.mode;   // empty or unknown: a save that names no mode keeps the stored one
   }
   if (root["themeId"].is<const char*>()) {
@@ -686,10 +699,12 @@ void settingsApplyJson(Settings& s, JsonObjectConst root) {
   }
   if (root["carouselSec"].is<int>())      s.carouselSec = constrain((int)root["carouselSec"], 5, 3600);
   if (root["carouselTicker"].is<bool>())  s.carouselTicker = root["carouselTicker"];
+  if (root["carouselTicker2"].is<bool>()) s.carouselTicker2 = root["carouselTicker2"];
   if (root["carouselUsage"].is<bool>())   s.carouselUsage = root["carouselUsage"];
   if (root["carouselRadar"].is<bool>())   s.carouselRadar = root["carouselRadar"];
   if (root["carouselHa"].is<bool>())      s.carouselHa = root["carouselHa"];
   if (root["carouselTheme"].is<bool>())   s.carouselTheme = root["carouselTheme"];
+  if (root["carouselWeather"].is<bool>()) s.carouselWeather = root["carouselWeather"];
 
   if (root["httpTimeout"].is<int>())        s.httpTimeout = constrain((int)root["httpTimeout"], 1000, 20000);
   if (root["brightness"].is<int>())         s.brightness = constrain((int)root["brightness"], 0, 100);
@@ -702,6 +717,7 @@ void settingsApplyJson(Settings& s, JsonObjectConst root) {
   // "pollSec" thus seeds both ticker and usage cadence on first upgrade.
   JsonObjectConst t = root["ticker"].is<JsonObjectConst>() ? root["ticker"].as<JsonObjectConst>() : root;
   s.ticker.fromJson(t);
+  if (root["ticker2"].is<JsonObjectConst>()) s.ticker2.fromJson(root["ticker2"].as<JsonObjectConst>());
   JsonObjectConst u = root["usage"].is<JsonObjectConst>() ? root["usage"].as<JsonObjectConst>() : root;
   s.usage.fromJson(u);
   // Radar has no legacy flat layout; only apply when its nested object is present.

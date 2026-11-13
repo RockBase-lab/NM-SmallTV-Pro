@@ -16,6 +16,14 @@ struct StockData {
   float change;       // absolute change in price units
   float changePct;    // percentage change
   bool  hasChange;    // a change value was provided/derived
+  float prevClose;    // yesterday's closing price
+  int   dateSplitIdx; // index where date changes in sparkline (-1 if none)
+
+  struct Candle {
+    float open, high, low, close;
+  };
+  Candle  candles[MAX_SPARK_POINTS];
+  uint8_t candleCount;
 
   float   spark[MAX_SPARK_POINTS];
   uint8_t sparkCount;
@@ -39,7 +47,10 @@ struct StockData {
     qty = cost = 0;
     price = change = changePct = 0;
     hasChange = false;
+    prevClose = 0;
+    dateSplitIdx = -1;
     sparkCount = 0;
+    candleCount = 0;
     valid = false;
     error = false;
     userNamed = false;

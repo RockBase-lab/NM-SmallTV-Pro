@@ -3,51 +3,85 @@
 #include <ArduinoJson.h>
 #include <math.h>
 
-static StockData g_stocks[MAX_SYMBOLS];
-static uint8_t   g_count = 0;
+struct StockSet {
+  StockData stocks[MAX_SYMBOLS];
+  uint8_t   count = 0;
+  bool      refreshing = false;
+  uint8_t   fetchIdx = 0;
+  uint8_t   fetchPhase = 0;
+};
 
-static bool     g_refreshing = false;
-static uint8_t  g_fetchIdx = 0;
+static StockSet g_sets[NUM_STOCK_SETS];
+static uint8_t  g_serviceSet = 0;
 
 // ---------------------------------------------------------------------------
-void stocksInit(const Settings& s) {
-  g_count = s.ticker.symbolCount;
-  for (uint8_t i = 0; i < g_count; i++) {
-    g_stocks[i].clear();
-    strlcpy(g_stocks[i].symbol, s.ticker.symbols[i].symbol, MAX_SYMBOL_LEN);
-    g_stocks[i].source = s.ticker.symbols[i].source;
-    g_stocks[i].qty  = s.ticker.symbols[i].qty;
-    g_stocks[i].cost = s.ticker.symbols[i].cost;
-    g_stocks[i].userNamed = (s.ticker.symbols[i].name[0] != 0);
-    strlcpy(g_stocks[i].name,
-            g_stocks[i].userNamed ? s.ticker.symbols[i].name : s.ticker.symbols[i].symbol,
+void stocksInit(const Settings& s, uint8_t set) {
+  if (set >= NUM_STOCK_SETS) return;
+  const TickerSettings& ts = (set == 1) ? s.ticker2 : s.ticker;
+  StockSet& ss = g_sets[set];
+  ss.count = ts.symbolCount;
+  for (uint8_t i = 0; i < ss.count; i++) {
+    ss.stocks[i].clear();
+    strlcpy(ss.stocks[i].symbol, ts.symbols[i].symbol, MAX_SYMBOL_LEN);
+    ss.stocks[i].source = ts.symbols[i].source;
+    ss.stocks[i].qty  = ts.symbols[i].qty;
+    ss.stocks[i].cost = ts.symbols[i].cost;
+    ss.stocks[i].userNamed = (ts.symbols[i].name[0] != 0);
+    strlcpy(ss.stocks[i].name,
+            ss.stocks[i].userNamed ? ts.symbols[i].name : ts.symbols[i].symbol,
             MAX_NAME_LEN);
-    g_stocks[i].nextTryMs = millis();     // every symbol is due right away
+    ss.stocks[i].nextTryMs = millis();     // every symbol is due right away
   }
-  g_refreshing = false;
+  ss.refreshing = false;
 }
 
-void stocksForceRefresh() {
+void stocksForceRefresh(uint8_t set) {
+  if (set >= NUM_STOCK_SETS) return;
+  StockSet& ss = g_sets[set];
   uint32_t now = millis();
-  for (uint8_t i = 0; i < g_count; i++) {
-    g_stocks[i].nextTryMs = now;
-    g_stocks[i].fails = 0;                // a manual refresh starts the backoff over
+  for (uint8_t i = 0; i < ss.count; i++) {
+    ss.stocks[i].nextTryMs = now;
+    ss.stocks[i].fails = 0;
   }
-  g_refreshing = false;
+  ss.refreshing = false;
 }
 
-uint8_t          stocksCount()        { return g_count; }
-const StockData& stockAt(uint8_t i)   { return g_stocks[i]; }
+void stocksForceRefreshAll() {
+  for (uint8_t i = 0; i < NUM_STOCK_SETS; i++) stocksForceRefresh(i);
+}
 
-uint32_t stockRetryInSec(uint8_t i) {
-  if (i >= g_count) return 0;
-  int32_t left = (int32_t)(g_stocks[i].nextTryMs - millis());
+void stocksDeferNextFetch(uint8_t set, uint32_t delayMs) {
+  if (set >= NUM_STOCK_SETS) return;
+  StockSet& ss = g_sets[set];
+  uint32_t target = millis() + delayMs;
+  for (uint8_t i = 0; i < ss.count; i++) {
+    if ((int32_t)(target - ss.stocks[i].nextTryMs) > 0) {
+      ss.stocks[i].nextTryMs = target;
+    }
+  }
+  ss.refreshing = false;
+}
+
+uint8_t stocksCount(uint8_t set) {
+  return (set < NUM_STOCK_SETS) ? g_sets[set].count : 0;
+}
+
+const StockData& stockAt(uint8_t i, uint8_t set) {
+  static StockData dummy;
+  if (set >= NUM_STOCK_SETS || i >= g_sets[set].count) return dummy;
+  return g_sets[set].stocks[i];
+}
+
+uint32_t stockRetryInSec(uint8_t i, uint8_t set) {
+  if (set >= NUM_STOCK_SETS || i >= g_sets[set].count) return 0;
+  int32_t left = (int32_t)(g_sets[set].stocks[i].nextTryMs - millis());
   return left > 0 ? (uint32_t)left / 1000UL : 0;
 }
 
-bool stocksAnyValid() {
-  for (uint8_t i = 0; i < g_count; i++)
-    if (g_stocks[i].valid) return true;
+bool stocksAnyValid(uint8_t set) {
+  if (set >= NUM_STOCK_SETS) return false;
+  for (uint8_t i = 0; i < g_sets[set].count; i++)
+    if (g_sets[set].stocks[i].valid) return true;
   return false;
 }
 
@@ -63,6 +97,51 @@ bool stockDisplayChange(const StockData& d, const TickerSettings& t,
   chg = d.change;
   pct = d.changePct;
   return d.hasChange;
+}
+
+// ---- Korean Stock detection & helpers -------------------------------------
+static bool isKoreanCode(const char* sym, char* outCode = nullptr, size_t outSize = 0) {
+  if (!sym) return false;
+  while (*sym == ' ') sym++;
+  char clean[16];
+  strlcpy(clean, sym, sizeof(clean));
+  char* dot = strchr(clean, '.');
+  if (dot) *dot = 0; // strip .KS, .KQ, .KR, etc.
+
+  size_t len = strlen(clean);
+  if (len != 6) return false;
+  for (size_t i = 0; i < 6; i++) {
+    if (!isalnum((unsigned char)clean[i])) return false;
+  }
+  if (outCode && outSize >= 7) {
+    strlcpy(outCode, clean, outSize);
+  }
+  return true;
+}
+
+static const char* lookupKoreanName(const char* code) {
+  if (!code) return nullptr;
+  if (!strcmp(code, "005930")) return "Samsung Elec";
+  if (!strcmp(code, "000660")) return "SK hynix";
+  if (!strcmp(code, "373220")) return "LG Energy";
+  if (!strcmp(code, "207940")) return "Samsung Bio";
+  if (!strcmp(code, "005380")) return "Hyundai Motor";
+  if (!strcmp(code, "068270")) return "Celltrion";
+  if (!strcmp(code, "000270")) return "Kia";
+  if (!strcmp(code, "005490")) return "POSCO";
+  if (!strcmp(code, "035420")) return "NAVER";
+  if (!strcmp(code, "035720")) return "Kakao";
+  if (!strcmp(code, "105560")) return "KB Financial";
+  if (!strcmp(code, "055550")) return "Shinhan Fin";
+  if (!strcmp(code, "012330")) return "Hyundai Mobis";
+  if (!strcmp(code, "028260")) return "Samsung C&T";
+  if (!strcmp(code, "032830")) return "Samsung Life";
+  if (!strcmp(code, "051910")) return "LG Chem";
+  if (!strcmp(code, "006400")) return "Samsung SDI";
+  if (!strcmp(code, "122630")) return "KODEX 2X";
+  if (!strcmp(code, "0195S0")) return "TIGER Hynix2X";
+  if (!strcmp(code, "0195R0")) return "TIGER Sam2X";
+  return nullptr;
 }
 
 // ---- URL helpers ----------------------------------------------------------
@@ -82,19 +161,18 @@ static String urlEncode(const char* src) {
   return out;
 }
 
-static String buildWebhookUrl(const Settings& s, const char* symbol) {
-  String url = s.ticker.webhookUrl;
+static String buildWebhookUrl(const TickerSettings& t, const char* symbol) {
+  String url = t.webhookUrl;
   char sep = (url.indexOf('?') >= 0) ? '&' : '?';
   url += sep;
   url += "symbol=" + urlEncode(symbol);
-  url += "&range=" + urlEncode(s.ticker.range.c_str());
-  url += "&points=" + String(s.ticker.points);
+  url += "&range=" + urlEncode(t.range.c_str());
+  url += "&points=" + String(t.points);
   return url;
 }
 
-// Map the chart timeframe to a sensible Yahoo candle interval (mirrors the
-// reference n8n workflow so the sparkline has a useful number of points).
 static const char* yahooInterval(const String& r) {
+  if (r == "1m" || r == "5m") return "1m";
   if (r == "1d")  return "5m";
   if (r == "5d")  return "30m";
   if (r == "1mo" || r == "3mo" || r == "6mo" || r == "ytd") return "1d";
@@ -103,14 +181,14 @@ static const char* yahooInterval(const String& r) {
   return "1d";
 }
 
-static String buildYahooUrl(const Settings& s, const char* host, const char* symbol) {
-  String range = s.ticker.range;
+static String buildYahooUrl(const TickerSettings& t, const char* host, const char* symbol) {
+  String range = t.range;
   range.toLowerCase();
   if (range.length() == 0) range = "1d";
   String url = F("https://");
   url += host;
   url += F(YAHOO_CHART_PATH);
-  url += urlEncode(symbol);          // e.g. AAPL, NESN.SW, BTC-USD, EURUSD=X
+  url += urlEncode(symbol);
   url += F("?range=");
   url += range;
   url += F("&interval=");
@@ -118,30 +196,20 @@ static String buildYahooUrl(const Settings& s, const char* host, const char* sym
   return url;
 }
 
-// Short, display-safe currency prefix. The built-in bitmap font has no glyphs
-// for symbols like €, so non-USD currencies are shown as their ISO code.
 static void yahooCurrency(const char* code, char* out, size_t n) {
   if (!code || !code[0]) { out[0] = 0; return; }
   if (!strcmp(code, "USD")) { strlcpy(out, "$", n); return; }
-  snprintf(out, n, "%s ", code);     // "CHF 79.73", "EUR 1.08", ...
+  snprintf(out, n, "%s ", code);
 }
 
-// ---- URL builders: cash.ch --------------------------------------------------
-// cash.ch answers hand-written GraphQL sent as a plain GET ?query=... — no
-// auth, no cookies, no required headers (see config.h). The symbol is the
-// cash.ch listing key (valor-marketId-currencyId).
-
-// Daily closes to request per chart timeframe. The server trims to the newest
-// N (max=N) inside a fixed catch-all from/to window, so the device needs no
-// clock; asking for more than cash.ch stores (~6 months) just returns it all.
 static uint16_t cashRangeDays(const String& r) {
-  if (r == "1d")  return 2;          // >=2 points so a line can be drawn
+  if (r == "1d")  return 2;
   if (r == "5d")  return 5;
   if (r == "1mo") return 22;
   if (r == "3mo") return 65;
   if (r == "6mo" || r == "ytd") return 130;
   if (r == "1y")  return 260;
-  return 400;                        // 2y/5y/max: everything available
+  return 400;
 }
 
 static String buildCashUrl(const String& query) {
@@ -158,17 +226,15 @@ static String buildCashQuoteUrl(const char* symbol) {
   return buildCashUrl(q);
 }
 
-static String buildCashChartUrl(const Settings& s, const char* symbol) {
+static String buildCashChartUrl(const TickerSettings& t, const char* symbol) {
   String q = F("query{integration{solid{chart(listingKey:\"");
   q += symbol;
   q += F("\" frequency:\"1d\" from:\"2020-01-01\" to:\"2100-01-01\" max:\"");
-  q += String(cashRangeDays(s.ticker.range));
+  q += String(cashRangeDays(t.range));
   q += F("\"){timeserie{prices{close}}}}}}");
   return buildCashUrl(q);
 }
 
-// ---- URL builder: GitHub static quotes ------------------------------------
-// The per-symbol file published by the quotes workflow. Same JSON as a webhook.
 static String buildGithubUrl(const char* symbol) {
   String url = F(GH_QUOTES_BASE);
   url += urlEncode(symbol);
@@ -176,9 +242,493 @@ static String buildGithubUrl(const char* symbol) {
   return url;
 }
 
+static const char* naverTimeframe(const String& r) {
+  if (r == "1m" || r == "5m" || r == "30m" || r == "60m") return "minute";
+  if (r == "1w" || r == "1wk" || r == "week") return "week";
+  if (r == "1mo" || r == "3mo" || r == "6mo" || r == "1y" || r == "month") return "month";
+  return "day";
+}
+
+static uint16_t naverCount(const String& r) {
+  if (r == "1m")  return 25;
+  if (r == "5m")  return 35;
+  if (r == "30m") return 45;
+  if (r == "60m") return 60;
+  if (r == "1d")  return 20;
+  if (r == "5d")  return 5;
+  if (r == "1mo") return 20;
+  if (r == "3mo") return 60;
+  if (r == "6mo") return 120;
+  if (r == "1y")  return 240;
+  return 25;
+}
+
+static bool fetchNaverForeign(const Settings& s, const TickerSettings& ts, const char* symbol, StockData& d) {
+  if (g_abortFetch) return false;
+
+  // 1. Basic quote
+  String quoteUrl = F("https://api.stock.naver.com/stock/");
+  quoteUrl += symbol;
+  quoteUrl += F("/basic");
+
+  std::unique_ptr<NetClient> client(platformMakeSecureClient(2048, nullptr, 512, true));
+  if (!client) return false;
+
+  HTTPClient http;
+  http.setTimeout((s.httpTimeout > 2500) ? 2500 : s.httpTimeout);
+  http.setReuse(false);
+  http.useHTTP10(true);
+  if (!http.begin(*client, quoteUrl)) return false;
+  http.setUserAgent(F("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"));
+  http.addHeader("Accept", "application/json");
+
+  int code = http.GET();
+  if (code != HTTP_CODE_OK || g_abortFetch) {
+    http.end();
+    return false;
+  }
+
+  String payload = http.getString();
+  http.end();
+
+  JsonDocument filter;
+  filter["closePrice"] = true;
+  filter["compareToPreviousClosePrice"] = true;
+  filter["fluctuationsRatio"] = true;
+  filter["stockName"] = true;
+  filter["currencyType"]["code"] = true;
+
+  JsonDocument doc;
+  DeserializationError err = deserializeJson(doc, payload.c_str(), DeserializationOption::Filter(filter));
+  if (err) return false;
+
+  const char* priceStr = doc["closePrice"] | "";
+  if (!priceStr[0]) return false;
+
+  char pbuf[32];
+  size_t pi = 0;
+  for (size_t i = 0; priceStr[i] && pi < sizeof(pbuf)-1; i++) {
+    if (priceStr[i] != ',') pbuf[pi++] = priceStr[i];
+  }
+  pbuf[pi] = 0;
+  float price = atof(pbuf);
+  if (price <= 0) return false;
+  d.price = price;
+
+  const char* diffStr = doc["compareToPreviousClosePrice"] | "0";
+  pi = 0;
+  for (size_t i = 0; diffStr[i] && pi < sizeof(pbuf)-1; i++) {
+    if (diffStr[i] != ',') pbuf[pi++] = diffStr[i];
+  }
+  pbuf[pi] = 0;
+  float diff = atof(pbuf);
+
+  const char* pctStr = doc["fluctuationsRatio"] | "0";
+  float pct = atof(pctStr);
+
+  d.change = diff;
+  d.changePct = pct;
+  d.hasChange = true;
+  d.prevClose = price - diff;
+
+  const char* cur = doc["currencyType"]["code"] | "USD";
+  if (!strcmp(cur, "USD")) strlcpy(d.currency, "$", sizeof(d.currency));
+  else snprintf(d.currency, sizeof(d.currency), "%s ", cur);
+
+  if (!d.userNamed) {
+    const char* nm = doc["stockName"] | symbol;
+    strlcpy(d.name, nm, MAX_NAME_LEN);
+  }
+
+  String rUpper = ts.range;
+  rUpper.toUpperCase();
+  strlcpy(d.rangeLabel, rUpper.c_str(), sizeof(d.rangeLabel));
+
+  if (g_abortFetch) return false;
+
+  // 2. Day candle chart
+  String chartUrl = F("https://api.stock.naver.com/chart/foreign/item/");
+  chartUrl += symbol;
+  chartUrl += F("?periodType=dayCandle");
+
+  std::unique_ptr<NetClient> chartClient(platformMakeSecureClient(2048, nullptr, 512, true));
+  if (chartClient && http.begin(*chartClient, chartUrl)) {
+    http.setTimeout((s.httpTimeout > 2500) ? 2500 : s.httpTimeout);
+    http.setUserAgent(F("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"));
+    int ccode = http.GET();
+    if (ccode == HTTP_CODE_OK && !g_abortFetch) {
+      String chartPayload = http.getString();
+      JsonDocument cfilter;
+      cfilter["priceInfos"][0]["openPrice"] = true;
+      cfilter["priceInfos"][0]["highPrice"] = true;
+      cfilter["priceInfos"][0]["lowPrice"] = true;
+      cfilter["priceInfos"][0]["closePrice"] = true;
+
+      JsonDocument cdoc;
+      if (!deserializeJson(cdoc, chartPayload.c_str(), DeserializationOption::Filter(cfilter))) {
+        JsonArrayConst arr = cdoc["priceInfos"].as<JsonArrayConst>();
+        if (!arr.isNull() && arr.size() > 0) {
+          uint16_t total = arr.size();
+          uint16_t want = ts.points;
+          if (want > MAX_SPARK_POINTS) want = MAX_SPARK_POINTS;
+          if (want < 2) want = 20;
+
+          d.sparkCount = 0;
+          d.candleCount = 0;
+          uint16_t startIdx = (total > want) ? (total - want) : 0;
+          for (uint16_t i = startIdx; i < total; i++) {
+            JsonObjectConst pt = arr[i];
+            float op = pt["openPrice"] | 0.0f;
+            float hi = pt["highPrice"] | 0.0f;
+            float lo = pt["lowPrice"] | 0.0f;
+            float cl = pt["closePrice"] | 0.0f;
+            if (cl > 0) {
+              if (d.sparkCount < MAX_SPARK_POINTS) d.spark[d.sparkCount++] = cl;
+              if (d.candleCount < MAX_SPARK_POINTS) d.candles[d.candleCount++] = {op, hi, lo, cl};
+            }
+          }
+          if (d.sparkCount > 0) {
+            d.spark[d.sparkCount - 1] = d.price;
+            if (d.candleCount > 0) {
+              d.candles[d.candleCount - 1].close = d.price;
+              if (d.price > d.candles[d.candleCount - 1].high) d.candles[d.candleCount - 1].high = d.price;
+              if (d.price < d.candles[d.candleCount - 1].low)  d.candles[d.candleCount - 1].low = d.price;
+            }
+          }
+        }
+      }
+    }
+    http.end();
+  }
+
+  d.valid = true;
+  d.error = false;
+  d.lastOkMs = millis();
+  return true;
+}
+
+static bool fetchNaverMinute(const Settings& s, const TickerSettings& ts, const char* cleanCode, StockData& d) {
+  String url = F("https://api.stock.naver.com/chart/domestic/item/");
+  url += cleanCode;
+  url += F("/minute?range=1");
+
+  std::unique_ptr<NetClient> client(platformMakeSecureClient(2048, nullptr, 512, true));
+  if (!client) return false;
+
+  HTTPClient http;
+  http.setTimeout((s.httpTimeout > 2500) ? 2500 : s.httpTimeout);
+  http.setReuse(false);
+  http.useHTTP10(true);
+  if (!http.begin(*client, url)) return false;
+  http.setUserAgent(F("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"));
+  http.addHeader("Accept", "application/json");
+
+  int code = http.GET();
+  if (code != HTTP_CODE_OK || g_abortFetch) {
+    http.end();
+    return false;
+  }
+
+  WiFiClient* stream = (WiFiClient*)http.getStreamPtr();
+  if (!stream) {
+    http.end();
+    return false;
+  }
+
+  // Target points from user setting (e.g. 20, 30, 40 points)
+  uint8_t targetPoints = (ts.points >= 5 && ts.points <= MAX_SPARK_POINTS) ? ts.points : 30;
+
+  // Resample interval: 1m -> 1, 5m -> 5, 30m -> 30, 60m -> 60
+  int interval = 1;
+  if (ts.range == "5m") interval = 5;
+  else if (ts.range == "30m") interval = 30;
+  else if (ts.range == "60m") interval = 60;
+
+  // Temporary ring buffer for candles
+  StockData::Candle ring[MAX_SPARK_POINTS];
+  uint8_t ringCount = 0;
+  uint8_t ringHead = 0;
+
+  // Stream parsing line by line / buffer scanning
+  // JSON format: [{"localDateTime":"...","currentPrice":...,"openPrice":...,"highPrice":...,"lowPrice":...,"accumulatedTradingVolume":...},...]
+  float curGroupOpen = 0, curGroupHigh = -1e9f, curGroupLow = 1e9f, curGroupClose = 0;
+  int groupCount = 0;
+
+  char buf[256];
+  uint32_t lastPoll = millis();
+  while (http.connected() || stream->available()) {
+    if (g_abortFetch) {
+      http.end();
+      return false;
+    }
+    if (millis() - lastPoll > 40) {
+      buttonPoll();
+      lastPoll = millis();
+      if (g_abortFetch) {
+        http.end();
+        return false;
+      }
+    }
+
+    int len = stream->readBytesUntil('{', buf, sizeof(buf) - 1);
+    if (len < 0) break;
+    int objLen = stream->readBytesUntil('}', buf, sizeof(buf) - 1);
+    if (objLen <= 0) continue;
+    buf[objLen] = 0;
+
+    // Search for currentPrice, openPrice, highPrice, lowPrice
+    char* pCur = strstr(buf, "\"currentPrice\":");
+    char* pOpen = strstr(buf, "\"openPrice\":");
+    char* pHigh = strstr(buf, "\"highPrice\":");
+    char* pLow = strstr(buf, "\"lowPrice\":");
+
+    if (pCur && pOpen && pHigh && pLow) {
+      float cl = atof(pCur + 15);
+      float op = atof(pOpen + 12);
+      float hi = atof(pHigh + 12);
+      float lo = atof(pLow + 11);
+
+      if (cl > 0) {
+        if (groupCount == 0) curGroupOpen = op;
+        if (hi > curGroupHigh) curGroupHigh = hi;
+        if (lo < curGroupLow)  curGroupLow = lo;
+        curGroupClose = cl;
+        groupCount++;
+
+        if (groupCount >= interval) {
+          // Push candle to ring buffer
+          StockData::Candle c = {curGroupOpen, curGroupHigh, curGroupLow, curGroupClose};
+          if (ringCount < targetPoints) {
+            ring[ringCount++] = c;
+          } else {
+            ring[ringHead] = c;
+            ringHead = (ringHead + 1) % targetPoints;
+          }
+          groupCount = 0;
+          curGroupHigh = -1e9f;
+          curGroupLow = 1e9f;
+        }
+      }
+    }
+  }
+  http.end();
+
+  // If leftover in group, push it
+  if (groupCount > 0) {
+    StockData::Candle c = {curGroupOpen, curGroupHigh, curGroupLow, curGroupClose};
+    if (ringCount < targetPoints) {
+      ring[ringCount++] = c;
+    } else {
+      ring[ringHead] = c;
+      ringHead = (ringHead + 1) % targetPoints;
+    }
+  }
+
+  // Populate d.candles & d.spark in chronological order
+  d.sparkCount = 0;
+  d.candleCount = 0;
+  d.dateSplitIdx = -1;
+
+  for (uint8_t i = 0; i < ringCount; i++) {
+    uint8_t idx = (ringHead + i) % ringCount;
+    d.candles[d.candleCount++] = ring[idx];
+    d.spark[d.sparkCount++] = ring[idx].close;
+  }
+
+  if (d.sparkCount > 0) {
+    d.spark[d.sparkCount - 1] = d.price;
+    if (d.candleCount > 0) {
+      d.candles[d.candleCount - 1].close = d.price;
+      if (d.price > d.candles[d.candleCount - 1].high) d.candles[d.candleCount - 1].high = d.price;
+      if (d.price < d.candles[d.candleCount - 1].low)  d.candles[d.candleCount - 1].low = d.price;
+    }
+  }
+
+  return (d.candleCount >= 2);
+}
+
+static bool fetchNaver(const Settings& s, const TickerSettings& ts, const char* cleanCode, StockData& d) {
+  if (g_abortFetch) return false;
+
+  // Step 1: Real-time basic quote
+  String quoteUrl = F("https://m.stock.naver.com/api/stock/");
+  quoteUrl += cleanCode;
+  quoteUrl += F("/basic");
+
+  std::unique_ptr<NetClient> client(platformMakeSecureClient(2048, nullptr, 512, true));
+  if (!client) return false;
+
+  HTTPClient http;
+  http.setTimeout((s.httpTimeout > 2500) ? 2500 : s.httpTimeout);
+  http.setReuse(false);
+  http.useHTTP10(true);
+  if (!http.begin(*client, quoteUrl)) return false;
+  http.setUserAgent(F("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"));
+  http.addHeader("Accept", "application/json");
+
+  int code = http.GET();
+  if (code != HTTP_CODE_OK || g_abortFetch) {
+    http.end();
+    return false;
+  }
+
+  String payload = http.getString();
+  http.end();
+
+  JsonDocument filter;
+  filter["closePrice"] = true;
+  filter["compareToPreviousClosePrice"] = true;
+  filter["fluctuationsRatio"] = true;
+  filter["stockName"] = true;
+
+  JsonDocument doc;
+  DeserializationError err = deserializeJson(doc, payload.c_str(), DeserializationOption::Filter(filter));
+  if (err) return false;
+
+  const char* priceStr = doc["closePrice"] | "";
+  if (!priceStr[0]) return false;
+
+  char pbuf[32];
+  size_t pi = 0;
+  for (size_t i = 0; priceStr[i] && pi < sizeof(pbuf)-1; i++) {
+    if (priceStr[i] != ',') pbuf[pi++] = priceStr[i];
+  }
+  pbuf[pi] = 0;
+  float price = atof(pbuf);
+  if (price <= 0) return false;
+  d.price = price;
+
+  const char* diffStr = doc["compareToPreviousClosePrice"] | "0";
+  pi = 0;
+  for (size_t i = 0; diffStr[i] && pi < sizeof(pbuf)-1; i++) {
+    if (diffStr[i] != ',') pbuf[pi++] = diffStr[i];
+  }
+  pbuf[pi] = 0;
+  float diff = atof(pbuf);
+
+  const char* pctStr = doc["fluctuationsRatio"] | "0";
+  float pct = atof(pctStr);
+
+  d.change = diff;
+  d.changePct = pct;
+  d.hasChange = true;
+  d.prevClose = price - diff;
+
+  strlcpy(d.currency, "KRW ", sizeof(d.currency));
+
+  if (!d.userNamed) {
+    const char* kn = lookupKoreanName(cleanCode);
+    if (kn) {
+      strlcpy(d.name, kn, MAX_NAME_LEN);
+    } else {
+      strlcpy(d.name, cleanCode, MAX_NAME_LEN);
+    }
+  }
+
+  String rUpper = ts.range;
+  rUpper.toUpperCase();
+  strlcpy(d.rangeLabel, rUpper.c_str(), sizeof(d.rangeLabel));
+
+  // Step 2: Check if minute timeframe (1m, 5m, 30m, 60m)
+  bool isMinute = (ts.range == "1m" || ts.range == "5m" || ts.range == "30m" || ts.range == "60m");
+  if (isMinute) {
+    if (fetchNaverMinute(s, ts, cleanCode, d)) {
+      d.valid = true;
+      d.error = false;
+      d.lastOkMs = millis();
+      return true;
+    }
+  }
+
+  // Step 2 (fallback / day/week/month): Historical chart points via fchart.stock.naver.com (EUC-KR XML)
+  uint16_t want = ts.points;
+  if (want > MAX_SPARK_POINTS) want = MAX_SPARK_POINTS;
+  if (want < 2) want = 20;
+
+  const char* tf = naverTimeframe(ts.range);
+  uint16_t cnt = naverCount(ts.range);
+  if (cnt < want) cnt = want;
+
+  String chartUrl = F("https://fchart.stock.naver.com/sise.nhn?symbol=");
+  chartUrl += cleanCode;
+  chartUrl += F("&timeframe=");
+  chartUrl += tf;
+  chartUrl += F("&count=");
+  chartUrl += String(cnt);
+  chartUrl += F("&requestType=0");
+
+  if (g_abortFetch) return false;
+
+  std::unique_ptr<NetClient> chartClient(platformMakeSecureClient(2048, nullptr, 512, true));
+  if (chartClient && http.begin(*chartClient, chartUrl)) {
+    http.setTimeout((s.httpTimeout > 2500) ? 2500 : s.httpTimeout);
+    http.setUserAgent(F(YAHOO_USER_AGENT));
+    int ccode = http.GET();
+    if (ccode == HTTP_CODE_OK && !g_abortFetch) {
+      String chartXml = http.getString();
+      d.sparkCount = 0;
+      d.candleCount = 0;
+      d.dateSplitIdx = -1;
+
+      // Parse <item data="YYYYMMDD|open|high|low|close|vol" />
+      int idx = 0;
+      char lastDate[10] = "";
+      while ((idx = chartXml.indexOf("<item data=\"", idx)) >= 0) {
+        idx += 12; // length of '<item data="'
+        int endQ = chartXml.indexOf('"', idx);
+        if (endQ < 0) break;
+        String line = chartXml.substring(idx, endQ);
+        idx = endQ;
+
+        // split by '|'
+        int p1 = line.indexOf('|');
+        if (p1 < 0) continue;
+        int p2 = line.indexOf('|', p1 + 1);
+        if (p2 < 0) continue;
+        int p3 = line.indexOf('|', p2 + 1);
+        if (p3 < 0) continue;
+        int p4 = line.indexOf('|', p3 + 1);
+        if (p4 < 0) continue;
+        int p5 = line.indexOf('|', p4 + 1);
+
+        float op = line.substring(p1 + 1, p2).toFloat();
+        float hi = line.substring(p2 + 1, p3).toFloat();
+        float lo = line.substring(p3 + 1, p4).toFloat();
+        String closePart = (p5 >= 0) ? line.substring(p4 + 1, p5) : line.substring(p4 + 1);
+        float cl = closePart.toFloat();
+
+        if (d.sparkCount < MAX_SPARK_POINTS && cl > 0) {
+          String datePart = line.substring(0, p1);
+          if (lastDate[0] && datePart != lastDate && d.dateSplitIdx < 0) {
+            d.dateSplitIdx = d.sparkCount;
+          }
+          strlcpy(lastDate, datePart.c_str(), sizeof(lastDate));
+          d.spark[d.sparkCount++] = cl;
+          if (d.candleCount < MAX_SPARK_POINTS) {
+            d.candles[d.candleCount++] = {op, hi, lo, cl};
+          }
+        }
+      }
+      if (d.sparkCount > 0) {
+        d.spark[d.sparkCount - 1] = d.price;
+        if (d.candleCount > 0) {
+          d.candles[d.candleCount - 1].close = d.price;
+          if (d.price > d.candles[d.candleCount - 1].high) d.candles[d.candleCount - 1].high = d.price;
+          if (d.price < d.candles[d.candleCount - 1].low) d.candles[d.candleCount - 1].low = d.price;
+        }
+      }
+    }
+    http.end();
+  }
+
+  d.valid = true;
+  d.error = false;
+  d.lastOkMs = millis();
+  return true;
+}
+
 // ---- parse: custom webhook contract ---------------------------------------
-static bool parseWebhook(const Settings& s, StockData& d, Stream& stream) {
-  // Filter so unexpected/large fields don't blow up the heap.
+static bool parseWebhook(const TickerSettings& ts, StockData& d, Stream& stream) {
   JsonDocument filter;
   filter["symbol"] = true;
   filter["name"] = true;
@@ -206,7 +756,7 @@ static bool parseWebhook(const Settings& s, StockData& d, Stream& stream) {
     strlcpy(d.name, doc["name"].as<const char*>(), MAX_NAME_LEN);
   strlcpy(d.currency, doc["currency"] | "", sizeof(d.currency));
 
-  const char* rng = doc["range"] | s.ticker.range.c_str();
+  const char* rng = doc["range"] | ts.range.c_str();
   strlcpy(d.rangeLabel, rng, sizeof(d.rangeLabel));
 
   bool hasChg = doc["change"].is<float>() || doc["change"].is<int>();
@@ -215,18 +765,19 @@ static bool parseWebhook(const Settings& s, StockData& d, Stream& stream) {
   if (hasChg) d.change = doc["change"].as<float>();
   if (hasPct) d.changePct = doc["changePct"].as<float>();
   if (d.hasChange) {
-    if (!hasPct && hasChg) {               // derive % from absolute change
+    if (!hasPct && hasChg) {
       float prev = price - d.change;
       d.changePct = (prev != 0) ? (d.change / prev * 100.0f) : 0;
-    } else if (hasPct && !hasChg) {        // derive absolute change from %
+    } else if (hasPct && !hasChg) {
       d.change = price * d.changePct / (100.0f + d.changePct);
     }
+    d.prevClose = price - d.change;
   }
 
   d.sparkCount = 0;
   if (doc["spark"].is<JsonArrayConst>()) {
     for (JsonVariantConst v : doc["spark"].as<JsonArrayConst>()) {
-      if (!v.is<float>() && !v.is<int>()) continue;   // skip nulls, like the other parsers
+      if (!v.is<float>() && !v.is<int>()) continue;
       if (d.sparkCount >= MAX_SPARK_POINTS) break;
       d.spark[d.sparkCount++] = v.as<float>();
     }
@@ -239,9 +790,7 @@ static bool parseWebhook(const Settings& s, StockData& d, Stream& stream) {
 }
 
 // ---- parse: Yahoo Finance chart payload -----------------------------------
-static bool parseYahoo(const Settings& s, StockData& d, Stream& stream) {
-  // Keep only the handful of fields we need; the full payload is large and the
-  // `meta` object alone has many nested members we don't care about.
+static bool parseYahoo(const TickerSettings& ts, StockData& d, Stream& stream) {
   JsonDocument filter;
   JsonObject fmeta = filter["chart"]["result"][0]["meta"].to<JsonObject>();
   fmeta["regularMarketPrice"] = true;
@@ -250,7 +799,11 @@ static bool parseYahoo(const Settings& s, StockData& d, Stream& stream) {
   fmeta["currency"]           = true;
   fmeta["shortName"]          = true;
   fmeta["longName"]           = true;
-  filter["chart"]["result"][0]["indicators"]["quote"][0]["close"] = true;
+  JsonObject fq = filter["chart"]["result"][0]["indicators"]["quote"][0].to<JsonObject>();
+  fq["open"] = true;
+  fq["high"] = true;
+  fq["low"] = true;
+  fq["close"] = true;
 
   JsonDocument doc;
   DeserializationError err = deserializeJson(
@@ -259,7 +812,7 @@ static bool parseYahoo(const Settings& s, StockData& d, Stream& stream) {
 
   JsonObjectConst res  = doc["chart"]["result"][0];
   JsonObjectConst meta = res["meta"];
-  if (meta.isNull()) return false;                 // bad symbol => result null
+  if (meta.isNull()) return false;
   if (!meta["regularMarketPrice"].is<float>() &&
       !meta["regularMarketPrice"].is<int>()) return false;
 
@@ -282,6 +835,7 @@ static bool parseYahoo(const Settings& s, StockData& d, Stream& stream) {
     prev = meta["previousClose"].as<float>();
 
   if (!isnan(prev) && prev != 0) {
+    d.prevClose = prev;
     d.change = price - prev;
     d.changePct = d.change / prev * 100.0f;
     d.hasChange = true;
@@ -289,39 +843,52 @@ static bool parseYahoo(const Settings& s, StockData& d, Stream& stream) {
     d.hasChange = false;
   }
 
-  String rl = s.ticker.range;
+  String rl = ts.range;
   rl.toUpperCase();
   strlcpy(d.rangeLabel, rl.c_str(), sizeof(d.rangeLabel));
 
-  // Sparkline from indicators.quote[0].close (oldest -> newest; may hold nulls).
-  // Downsample on the fly to at most `points` evenly-spaced samples.
   d.sparkCount = 0;
+  d.candleCount = 0;
+  JsonArrayConst opens  = res["indicators"]["quote"][0]["open"];
+  JsonArrayConst highs  = res["indicators"]["quote"][0]["high"];
+  JsonArrayConst lows   = res["indicators"]["quote"][0]["low"];
   JsonArrayConst closes = res["indicators"]["quote"][0]["close"];
-  uint16_t want = s.ticker.points;
+  uint16_t want = ts.points;
   if (want > MAX_SPARK_POINTS) want = MAX_SPARK_POINTS;
   if (!closes.isNull() && want >= 2) {
     uint16_t valid = 0;
     for (JsonVariantConst v : closes) if (!v.isNull()) valid++;
     if (valid >= 2) {
-      if (valid <= want) {
-        for (JsonVariantConst v : closes) {
-          if (v.isNull()) continue;
-          if (d.sparkCount >= MAX_SPARK_POINTS) break;
-          d.spark[d.sparkCount++] = v.as<float>();
+      uint16_t totalCount = closes.size();
+      uint16_t i = 0, k = 0;
+      float last = 0;
+      for (uint16_t idx = 0; idx < totalCount; idx++) {
+        JsonVariantConst vc = closes[idx];
+        if (vc.isNull()) continue;
+        last = vc.as<float>();
+        float op = (!opens.isNull() && !opens[idx].isNull()) ? opens[idx].as<float>() : last;
+        float hi = (!highs.isNull() && !highs[idx].isNull()) ? highs[idx].as<float>() : last;
+        float lo = (!lows.isNull() && !lows[idx].isNull())   ? lows[idx].as<float>()  : last;
+
+        uint16_t target = (valid <= want) ? i : (uint16_t)(((uint32_t)k * (valid - 1) + (want - 1) / 2) / (want - 1));
+        if (i == target && (valid <= want || k < want)) {
+          if (d.sparkCount < MAX_SPARK_POINTS) {
+            d.spark[d.sparkCount++] = last;
+          }
+          if (d.candleCount < MAX_SPARK_POINTS) {
+            d.candles[d.candleCount++] = {op, hi, lo, last};
+          }
+          k++;
         }
-      } else {
-        uint16_t i = 0, k = 0;
-        float last = 0;
-        for (JsonVariantConst v : closes) {
-          if (v.isNull()) continue;
-          last = v.as<float>();
-          // k-th output maps to valid-index round(k*(valid-1)/(want-1)).
-          uint16_t target =
-              (uint16_t)(((uint32_t)k * (valid - 1) + (want - 1) / 2) / (want - 1));
-          if (i == target && k < want) { d.spark[d.sparkCount++] = last; k++; }
-          i++;
+        i++;
+      }
+      if (d.sparkCount > 0) {
+        d.spark[d.sparkCount - 1] = d.price;
+        if (d.candleCount > 0) {
+          d.candles[d.candleCount - 1].close = d.price;
+          if (d.price > d.candles[d.candleCount - 1].high) d.candles[d.candleCount - 1].high = d.price;
+          if (d.price < d.candles[d.candleCount - 1].low)  d.candles[d.candleCount - 1].low = d.price;
         }
-        if (d.sparkCount > 0) d.spark[d.sparkCount - 1] = last;  // pin newest
       }
     }
   }
@@ -333,16 +900,13 @@ static bool parseYahoo(const Settings& s, StockData& d, Stream& stream) {
 }
 
 // ---- parse: cash.ch quote ---------------------------------------------------
-// {"data":{"quoteList":{"quoteList":{"edges":[{"node":{"lval":"1086.51",
-//  "iNetVperprV":"7.36","perfPercentage":"0.68","mCur":"USD",...}}]}}}}
-// Numeric fields arrive as JSON *strings*, so read them as text and atof().
-static bool parseCashQuote(const Settings& s, StockData& d, Stream& stream) {
+static bool parseCashQuote(const TickerSettings& ts, StockData& d, Stream& stream) {
   JsonDocument filter;
   JsonObject node =
       filter["data"]["quoteList"]["quoteList"]["edges"][0]["node"].to<JsonObject>();
-  node["lval"]           = true;   // last value (price)
-  node["iNetVperprV"]    = true;   // absolute day change
-  node["perfPercentage"] = true;   // day change in %
+  node["lval"]           = true;
+  node["iNetVperprV"]    = true;
+  node["perfPercentage"] = true;
   node["mCur"]           = true;
   node["mShortName"]     = true;
 
@@ -352,7 +916,7 @@ static bool parseCashQuote(const Settings& s, StockData& d, Stream& stream) {
   if (err) return false;
 
   JsonObjectConst n = doc["data"]["quoteList"]["quoteList"]["edges"][0]["node"];
-  const char* lval = n["lval"] | "";       // empty => unknown key / no fix yet
+  const char* lval = n["lval"] | "";
   if (!lval[0]) return false;
   float price = atof(lval);
   if (isnan(price) || price <= 0) return false;
@@ -371,13 +935,14 @@ static bool parseCashQuote(const Settings& s, StockData& d, Stream& stream) {
   if (d.hasChange) {
     d.change    = atof(chg);
     d.changePct = pct[0] ? atof(pct) : 0;
-    if (!pct[0]) {                          // derive % from the absolute change
+    if (!pct[0]) {
       float prev = price - d.change;
       d.changePct = (prev != 0) ? (d.change / prev * 100.0f) : 0;
     }
+    d.prevClose = price - d.change;
   }
 
-  String rl = s.ticker.range;
+  String rl = ts.range;
   rl.toUpperCase();
   strlcpy(d.rangeLabel, rl.c_str(), sizeof(d.rangeLabel));
 
@@ -388,10 +953,7 @@ static bool parseCashQuote(const Settings& s, StockData& d, Stream& stream) {
 }
 
 // ---- parse: cash.ch daily-close series --------------------------------------
-// {"data":{"integration":{"solid":{"chart":{"timeserie":{"prices":
-//  [{"close":998.45},...]}}}}}} — closes are real JSON numbers here (unlike
-// the quote), oldest -> newest. Downsampling mirrors the Yahoo parser.
-static bool parseCashChart(const Settings& s, StockData& d, Stream& stream) {
+static bool parseCashChart(const TickerSettings& ts, StockData& d, Stream& stream) {
   JsonDocument filter;
   filter["data"]["integration"]["solid"]["chart"]["timeserie"]["prices"][0]["close"] = true;
 
@@ -402,16 +964,16 @@ static bool parseCashChart(const Settings& s, StockData& d, Stream& stream) {
 
   JsonArrayConst prices =
       doc["data"]["integration"]["solid"]["chart"]["timeserie"]["prices"];
-  if (prices.isNull()) return false;         // unknown key / empty series
+  if (prices.isNull()) return false;
 
-  uint16_t want = s.ticker.points;
+  uint16_t want = ts.points;
   if (want > MAX_SPARK_POINTS) want = MAX_SPARK_POINTS;
-  if (want < 2) return true;                 // chart not wanted; keep quote data
+  if (want < 2) return true;
 
   uint16_t valid = 0;
   for (JsonObjectConst p : prices)
     if (p["close"].is<float>() || p["close"].is<int>()) valid++;
-  if (valid < 2) return false;               // keep the previous sparkline
+  if (valid < 2) return false;
 
   d.sparkCount = 0;
   if (valid <= want) {
@@ -426,44 +988,40 @@ static bool parseCashChart(const Settings& s, StockData& d, Stream& stream) {
     for (JsonObjectConst p : prices) {
       if (!p["close"].is<float>() && !p["close"].is<int>()) continue;
       last = p["close"].as<float>();
-      // k-th output maps to valid-index round(k*(valid-1)/(want-1)).
       uint16_t target =
           (uint16_t)(((uint32_t)k * (valid - 1) + (want - 1) / 2) / (want - 1));
       if (i == target && k < want) { d.spark[d.sparkCount++] = last; k++; }
       i++;
     }
-    if (d.sparkCount > 0) d.spark[d.sparkCount - 1] = last;  // pin newest
+    if (d.sparkCount > 0) d.spark[d.sparkCount - 1] = last;
   }
   return true;
 }
 
 // ---- one HTTP(S) GET + parse ----------------------------------------------
-enum ParseKind : uint8_t { PARSE_WEBHOOK, PARSE_YAHOO, PARSE_CASH_QUOTE, PARSE_CASH_CHART, PARSE_GITHUB };
+enum ParseKind : uint8_t {
+  PARSE_WEBHOOK,
+  PARSE_YAHOO,
+  PARSE_CASH_QUOTE,
+  PARSE_CASH_CHART,
+  PARSE_GITHUB,
+  PARSE_NAVER
+};
 
-// cash.ch is the only host we let negotiate ECDHE, and only the first handshake
-// pays for it: this session resumes the rest for ~23 h.
 static TlsSession g_cashSession;
 
-static bool fetchUrl(const Settings& s, const String& url, ParseKind kind, StockData& d) {
+static bool fetchUrl(const Settings& s, const TickerSettings& ts, const String& url, ParseKind kind, StockData& d) {
+  if (g_abortFetch) return false;
   bool https = url.startsWith("https://");
   bool cash = (kind == PARSE_CASH_QUOTE || kind == PARSE_CASH_CHART);
 
   std::unique_ptr<NetClient> client;
   if (https) {
-    // Per-source TLS shaping (ESP8266; the ESP32 ignores the hints):
-    //  - cash.ch: must do ECDHE. Keep it cheap — 512 B buffers (it honors MFLN)
-    //    and session resumption, and require a large CONTIGUOUS free block up
-    //    front so a fragmented heap skips the fetch instead of crashing inside
-    //    the handshake. The full cipher list (default) is left on for it.
-    //  - Yahoo / GitHub / webhook: forced to the cheap static-RSA suites, so
-    //    those handshakes stay as light as the old BASIC build.
     if (cash) {
-      if (platformMaxFreeBlock() < 16000) return false;   // largest contiguous block, not total
+      if (platformMaxFreeBlock() < 16000) return false;
       client.reset(platformMakeSecureClient(512, &g_cashSession, 512, /*cheapCiphers=*/false));
     } else {
-      // raw.githubusercontent.com sends a ~4 KB cert record and won't negotiate
-      // MFLN, so it needs a bigger receive buffer than Yahoo's small records.
-      uint16_t rx = (kind == PARSE_GITHUB) ? GH_QUOTES_RXBUF : 2048;
+      uint16_t rx = (kind == PARSE_GITHUB) ? GH_QUOTES_RXBUF : 4096;
       if (ESP.getFreeHeap() < (uint32_t)rx + 12000) return false;
       client.reset(platformMakeSecureClient(rx, nullptr, 512, /*cheapCiphers=*/true));
     }
@@ -472,21 +1030,18 @@ static bool fetchUrl(const Settings& s, const String& url, ParseKind kind, Stock
   }
 
   HTTPClient http;
-  http.setTimeout(s.httpTimeout);
+  http.setTimeout((s.httpTimeout > 2500) ? 2500 : s.httpTimeout);
   http.setReuse(false);
-  // HTTP/1.0 so the server can't reply with chunked framing: the parsers read
-  // the raw stream via getStream(), which neither core de-chunks. Yahoo chunks
-  // its HTTP/1.1 responses, which broke Yahoo tickers on the ESP32 targets.
   http.useHTTP10(true);
   if (!http.begin(*client, url)) return false;
   http.addHeader("Accept", "application/json");
-  if (kind == PARSE_YAHOO) {
-    http.setUserAgent(F(YAHOO_USER_AGENT));   // empty UA => HTTP 429 from Yahoo
+  if (kind == PARSE_YAHOO || kind == PARSE_NAVER) {
+    http.setUserAgent(F(YAHOO_USER_AGENT));
     http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
   } else if (kind == PARSE_GITHUB) {
-    http.setUserAgent(F(FW_NAME));            // GitHub rejects an empty UA
+    http.setUserAgent(F(FW_NAME));
   } else if (kind != PARSE_WEBHOOK) {
-    http.setUserAgent(F(CASH_USER_AGENT));    // cash.ch requires none; sent to be identifiable
+    http.setUserAgent(F(CASH_USER_AGENT));
   }
 
   int code = http.GET();
@@ -497,117 +1052,119 @@ static bool fetchUrl(const Settings& s, const String& url, ParseKind kind, Stock
 
   bool ok;
   switch (kind) {
-    case PARSE_YAHOO:      ok = parseYahoo(s, d, http.getStream());     break;
-    case PARSE_CASH_QUOTE: ok = parseCashQuote(s, d, http.getStream()); break;
-    case PARSE_CASH_CHART: ok = parseCashChart(s, d, http.getStream()); break;
-    default:               ok = parseWebhook(s, d, http.getStream());   break;  // webhook + github: same JSON
+    case PARSE_NAVER:      ok = false;                                       break;
+    case PARSE_YAHOO:      ok = parseYahoo(ts, d, http.getStream());        break;
+    case PARSE_CASH_QUOTE: ok = parseCashQuote(ts, d, http.getStream());    break;
+    case PARSE_CASH_CHART: ok = parseCashChart(ts, d, http.getStream());    break;
+    default:               ok = parseWebhook(ts, d, http.getStream());      break;
   }
   http.end();
   return ok;
 }
 
 // ---- fetch one symbol, one network request per call -----------------------
-// A symbol may need several requests (Yahoo mirror retry; cash.ch quote, its
-// retry, then the chart). Each is a separate step so only ONE TLS handshake
-// runs per service() call: a full-BearSSL ECDHE handshake takes ~1 s on the
-// ESP8266, and chaining two or three in one loop() iteration starved the web
-// server and tripped the watchdog. g_fetchPhase tracks the step for g_fetchIdx.
-static uint8_t g_fetchPhase = 0;
+static bool stepSymbol(const Settings& s, const TickerSettings& ts, StockData& d, uint8_t& fetchPhase) {
+  if (g_abortFetch) return false;
+  g_abortFetch = false;
+  char cleanCode[8];
+  bool isKr = isKoreanCode(d.symbol, cleanCode, sizeof(cleanCode));
 
-// Returns true when this symbol is finished (caller advances to the next).
-static bool stepSymbol(const Settings& s, StockData& d) {
+  if (d.source == SRC_NAVER) {
+    if (isKr) {
+      if (!fetchNaver(s, ts, cleanCode, d)) d.error = true;
+    } else {
+      // Foreign stock on Naver (e.g. SOXX.O, SPY, NVDA.O)
+      if (!fetchNaverForeign(s, ts, d.symbol, d)) d.error = true;
+    }
+    return true;
+  }
+
+  if (isKr) {
+    if (!fetchNaver(s, ts, cleanCode, d)) d.error = true;
+    return true;
+  }
+
   if (d.source == SRC_YAHOO) {
-    if (g_fetchPhase == 0) {
-      if (fetchUrl(s, buildYahooUrl(s, YAHOO_CHART_HOST1, d.symbol), PARSE_YAHOO, d)) return true;
-      g_fetchPhase = 1;                 // transient drop: retry the mirror next tick
+    if (fetchPhase == 0) {
+      if (fetchUrl(s, ts, buildYahooUrl(ts, YAHOO_CHART_HOST1, d.symbol), PARSE_YAHOO, d)) return true;
+      fetchPhase = 1;
       return false;
     }
-    if (!fetchUrl(s, buildYahooUrl(s, YAHOO_CHART_HOST2, d.symbol), PARSE_YAHOO, d)) d.error = true;
+    if (!fetchUrl(s, ts, buildYahooUrl(ts, YAHOO_CHART_HOST2, d.symbol), PARSE_YAHOO, d)) d.error = true;
     return true;
   }
 
   if (d.source == SRC_CASH) {
-    if (g_fetchPhase == 0) {            // quote: price + day change (~200 B)
-      if (fetchUrl(s, buildCashQuoteUrl(d.symbol), PARSE_CASH_QUOTE, d)) { g_fetchPhase = 2; return false; }
-      g_fetchPhase = 1;                 // retry the quote next tick
+    if (fetchPhase == 0) {
+      if (fetchUrl(s, ts, buildCashQuoteUrl(d.symbol), PARSE_CASH_QUOTE, d)) { fetchPhase = 2; return false; }
+      fetchPhase = 1;
       return false;
     }
-    if (g_fetchPhase == 1) {
-      if (!fetchUrl(s, buildCashQuoteUrl(d.symbol), PARSE_CASH_QUOTE, d)) { d.error = true; return true; }
-      g_fetchPhase = 2;
+    if (fetchPhase == 1) {
+      if (!fetchUrl(s, ts, buildCashQuoteUrl(d.symbol), PARSE_CASH_QUOTE, d)) { d.error = true; return true; }
+      fetchPhase = 2;
       return false;
     }
-    // phase 2: sparkline series; its failure is non-fatal (stale chart beats
-    // none). Also fetched with the chart hidden when the range-based change
-    // needs the series' first point — but not when nothing on the device
-    // would show it (cash TLS requests are expensive on the ESP8266).
-    if ((s.ticker.showChart || (s.ticker.changeOnRange && s.ticker.showChange)) &&
-        s.ticker.points >= 2)
-      fetchUrl(s, buildCashChartUrl(s, d.symbol), PARSE_CASH_CHART, d);
+    if ((ts.showChart || (ts.changeOnRange && ts.showChange)) && ts.points >= 2)
+      fetchUrl(s, ts, buildCashChartUrl(ts, d.symbol), PARSE_CASH_CHART, d);
     return true;
   }
 
-  if (d.source == SRC_GHUB) {           // static per-symbol JSON from the repo
-    if (!fetchUrl(s, buildGithubUrl(d.symbol), PARSE_GITHUB, d)) d.error = true;
+  if (d.source == SRC_GHUB) {
+    if (!fetchUrl(s, ts, buildGithubUrl(d.symbol), PARSE_GITHUB, d)) d.error = true;
     return true;
   }
 
-  if (s.ticker.webhookUrl.length() < 8) { d.error = true; return true; }
-  if (!fetchUrl(s, buildWebhookUrl(s, d.symbol), PARSE_WEBHOOK, d)) d.error = true;
+  if (ts.webhookUrl.length() < 8) { d.error = true; return true; }
+  if (!fetchUrl(s, ts, buildWebhookUrl(ts, d.symbol), PARSE_WEBHOOK, d)) d.error = true;
   return true;
 }
 
-// How long until this symbol is fetched again. A good fetch waits the poll
-// interval; a failed one comes back on a short, doubling backoff (typically a
-// cash fetch skipped because the heap was momentarily too fragmented for TLS,
-// which recovers within seconds). The backoff is capped at the poll interval so
-// a genuinely dead symbol settles into the normal cadence and keeps retrying
-// there — it is never given up on.
-static uint32_t symbolPeriodMs(const Settings& s, const StockData& d) {
-  uint32_t poll = (uint32_t)s.ticker.pollSec * 1000UL;
-  if (!d.error || d.fails > TICKER_RETRY_MAX) return poll;   // ladder spent -> normal cadence
+static uint32_t symbolPeriodMs(const TickerSettings& ts, const StockData& d) {
+  uint32_t poll = (uint32_t)ts.pollSec * 1000UL;
+  if (!d.error || d.fails > TICKER_RETRY_MAX) return poll;
   uint32_t back = (uint32_t)TICKER_RETRY_SEC * 1000UL;
-  for (uint8_t i = 1; i < d.fails; i++) back <<= 1;          // 12 s, 24, 48, 96
-  return back < poll ? back : poll;                          // never slower than a good fetch
+  for (uint8_t i = 1; i < d.fails; i++) back <<= 1;
+  return back < poll ? back : poll;
 }
 
-// True once the symbol's own due time has passed (millis()-safe subtraction).
 static bool symbolDue(const StockData& d) {
   return (int32_t)(millis() - d.nextTryMs) >= 0;
 }
 
 // ---------------------------------------------------------------------------
 void stocksService(const Settings& s) {
-  if (g_count == 0) return;
+  for (uint8_t tryCount = 0; tryCount < NUM_STOCK_SETS; tryCount++) {
+    uint8_t set = g_serviceSet;
+    g_serviceSet = (g_serviceSet + 1) % NUM_STOCK_SETS;
+    const TickerSettings& ts = (set == 1) ? s.ticker2 : s.ticker;
+    StockSet& ss = g_sets[set];
+    if (ss.count == 0) continue;
 
-  // A pass starts as soon as ANY symbol is due, and visits only the symbols
-  // that are due. A failing ticker on its 12 s backoff therefore no longer
-  // drags the healthy ones through an extra TLS handshake each time round.
-  if (!g_refreshing) {
-    uint8_t first = g_count;
-    for (uint8_t i = 0; i < g_count; i++)
-      if (symbolDue(g_stocks[i])) { first = i; break; }
-    if (first >= g_count) return;
-    g_refreshing = true;
-    g_fetchIdx = first;
-    g_fetchPhase = 0;
-  }
-
-  while (g_fetchIdx < g_count && !symbolDue(g_stocks[g_fetchIdx])) g_fetchIdx++;
-
-  // One network request per call so net/web/display keep getting serviced
-  // between the (slow, on the ESP8266) TLS handshakes.
-  if (g_fetchIdx < g_count) {
-    StockData& d = g_stocks[g_fetchIdx];
-    if (stepSymbol(s, d)) {          // symbol finished -> schedule it, move on
-      if (d.error) { if (d.fails < 250) d.fails++; }
-      else         { d.fails = 0; }
-      d.nextTryMs = millis() + symbolPeriodMs(s, d);
-      g_fetchIdx++;
-      g_fetchPhase = 0;
+    if (!ss.refreshing) {
+      uint8_t first = ss.count;
+      for (uint8_t i = 0; i < ss.count; i++)
+        if (symbolDue(ss.stocks[i])) { first = i; break; }
+      if (first >= ss.count) continue;
+      ss.refreshing = true;
+      ss.fetchIdx = first;
+      ss.fetchPhase = 0;
     }
-    return;
-  }
 
-  g_refreshing = false;
+    while (ss.fetchIdx < ss.count && !symbolDue(ss.stocks[ss.fetchIdx])) ss.fetchIdx++;
+
+    if (ss.fetchIdx < ss.count) {
+      StockData& d = ss.stocks[ss.fetchIdx];
+      if (stepSymbol(s, ts, d, ss.fetchPhase)) {
+        if (d.error) { if (d.fails < 250) d.fails++; }
+        else         { d.fails = 0; }
+        d.nextTryMs = millis() + symbolPeriodMs(ts, d);
+        ss.fetchIdx++;
+        ss.fetchPhase = 0;
+      }
+      return;
+    }
+
+    ss.refreshing = false;
+  }
 }
