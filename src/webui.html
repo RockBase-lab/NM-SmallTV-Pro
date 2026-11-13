@@ -56,8 +56,8 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
  <button data-t="status" class="active">Status</button>
  <button data-t="wifi">WiFi</button>
  <button data-t="display">Display</button>
- <button data-t="ticker">Stock 1</button>
- <button data-t="ticker2">Stock 2</button>
+ <button data-t="ticker">Stock 1 (Domestic)</button>
+ <button data-t="ticker2">Stock 2 (Overseas)</button>
  <button data-t="weather">Weather</button>
  <button data-t="update">System</button>
 </nav>
@@ -228,7 +228,7 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
 
  <!-- TICKER (feature) -->
  <section id="ticker" class="tab">
-  <div class="card"><h2>Live data</h2><div id="tickBox" class="muted">-</div>
+  <div class="card"><h2>Live data (Stock 1 - Domestic / 국내주식)</h2><div id="tickBox" class="muted">-</div>
    <button class="btn sec" style="margin-top:10px" onclick="refreshNow()">Refresh data now</button>
    <small class="hint">What the device holds right now for each ticker. Green is a good fetch, red means the last fetch failed and the device is retrying it on its own.</small></div>
   <div class="card"><h2>Rotation &amp; data</h2>
@@ -300,7 +300,7 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
 
   <!-- TICKER 2 (feature) -->
   <section id="ticker2" class="tab">
-   <div class="card"><h2>Live data (Stock 2)</h2><div id="tickBox2" class="muted">-</div>
+   <div class="card"><h2>Live data (Stock 2 - Overseas / 해외주식)</h2><div id="tickBox2" class="muted">-</div>
     <button class="btn sec" style="margin-top:10px" onclick="refreshNow()">Refresh data now</button>
     <small class="hint">What the device holds right now for Stock 2 tickers.</small></div>
    <div class="card"><h2>Rotation &amp; data</h2>
@@ -682,7 +682,9 @@ function loadConfig(){return j('/api/config').then(function(c){C=c;
 function esc(s){return (''+(s==null?'':s)).replace(/[<>&"]/g,function(c){return {'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]})}
 function symHintFor(v, which){which=which||1;var h=$(which===2?'symHint2':'symHint');if(!h)return;
  h.innerHTML=(v==='naver'
-  ?'<b>Naver Finance (한국 주식 실시간)</b>: 6자리 종목코드(예: <code>005930</code> 삼성전자, <code>000660</code> SK하이닉스)를 입력하면 실시간 주가, 분봉 차트, 어제 종가선이 표시됩니다.'
+  ?(which===2
+    ?'<b>Naver Finance (미국/해외 주식 실시간)</b>: 네이버 미국 종목코드(예: <code>NVDA.O</code> 엔비디아, <code>SOXX.O</code> 필라델피아반도체, <code>SPY</code> S&amp;P500, <code>TSM</code>, <code>AAPL.O</code>)를 입력하세요. 정규장은 물론 <b>프리마켓/애프터마켓</b> 실시간 거래가 및 캔들 차트가 반영됩니다.'
+    :'<b>Naver Finance (한국 국내주식 실시간)</b>: 6자리 종목코드(예: <code>005930</code> 삼성전자, <code>000660</code> SK하이닉스, <code>122630</code> KODEX레버리지)를 입력하면 실시간 주가, 분봉 캔들 차트, 어제 종가선이 표시됩니다.')
   :v==='cash'
   ?'<b>cash.ch</b>: fetched directly by the device. The symbol is a listing key like <code>123456789-246-333</code>; the finder below turns a cash.ch link, ISIN, or name into one.'
    +(C.chip==='esp8266'?' <b>On this ESP8266</b>, cash.ch\'s TLS is tight on this chip &mdash; if it proves unstable, use the <b>GitHub</b> source for the same listing key instead. The ESP32 boards fetch cash.ch directly.':'')
@@ -879,10 +881,12 @@ function scanPick(ssid){var rows=document.querySelectorAll('#wifiTable tr');var 
 // symbols
 function renderSyms(arr, which){which=which||1;var tid=which===2?'symTable2':'symTable';var t=$(tid);if(!t)return;t.innerHTML='';arr.forEach(function(o){addRow(o,which)});if(!arr.length)addRow({},which)}
 function addRow(o, which){which=which||1;var tid=which===2?'symTable2':'symTable';var t=$(tid);var tr=document.createElement('tr');tr.className='symrow';
- tr.innerHTML='<td style="width:24%"><input class="s" type="text" placeholder="005930" value="'+esc(o.symbol||'')+'"></td>'+
-  '<td><input class="n" type="text" placeholder="name" value="'+esc(o.name||'')+'"></td>'+
+ var phSymbol = (which===2) ? "NVDA.O" : "005930";
+ var phName = (which===2) ? "NVIDIA" : "SAMSUNG";
+ tr.innerHTML='<td style="width:24%"><input class="s" type="text" placeholder="'+phSymbol+'" value="'+esc(o.symbol||'')+'"></td>'+
+  '<td><input class="n" type="text" placeholder="'+phName+'" value="'+esc(o.name||'')+'"></td>'+
   '<td style="width:118px"><select class="src" onchange="symHintFor(this.value,'+which+')">'+
-   '<option value="naver">Naver (한국)</option><option value="yahoo">Yahoo Finance</option><option value="cash">cash.ch</option><option value="github">GitHub</option><option value="webhook">Webhook</option></select></td>'+
+   '<option value="naver">Naver '+(which===2?'(해외)':'(국내)')+'</option><option value="yahoo">Yahoo Finance</option><option value="cash">cash.ch</option><option value="github">GitHub</option><option value="webhook">Webhook</option></select></td>'+
   '<td style="width:58px"><input class="q" type="number" step="any" min="0" placeholder="qty" value="'+(o.qty>0?o.qty:'')+'"></td>'+
   '<td style="width:70px"><input class="c" type="number" step="any" min="0" placeholder="cost" value="'+(o.cost>0?o.cost:'')+'"></td>'+
   '<td style="width:34px"><button class="btn sec" style="padding:6px 10px" onclick="this.closest(\'tr\').remove()">&times;</button></td>';

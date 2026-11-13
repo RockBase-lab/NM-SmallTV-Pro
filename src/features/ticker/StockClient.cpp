@@ -297,12 +297,22 @@ static bool fetchNaverForeign(const Settings& s, const TickerSettings& ts, const
   filter["fluctuationsRatio"] = true;
   filter["stockName"] = true;
   filter["currencyType"]["code"] = true;
+  filter["marketStatus"] = true;
+  filter["overMarketPriceInfo"]["overMarketStatus"] = true;
+  filter["overMarketPriceInfo"]["overPrice"] = true;
+  filter["overMarketPriceInfo"]["compareToPreviousClosePrice"] = true;
+  filter["overMarketPriceInfo"]["fluctuationsRatio"] = true;
 
   JsonDocument doc;
   DeserializationError err = deserializeJson(doc, payload.c_str(), DeserializationOption::Filter(filter));
   if (err) return false;
 
-  const char* priceStr = doc["closePrice"] | "";
+  // 1-1. Check Pre-Market / After-Market first
+  const char* overStatus = doc["overMarketPriceInfo"]["overMarketStatus"] | "";
+  const char* overPriceStr = doc["overMarketPriceInfo"]["overPrice"] | "";
+  bool useOverMarket = (!strcmp(overStatus, "OPEN") && overPriceStr[0] != 0);
+
+  const char* priceStr = useOverMarket ? overPriceStr : (doc["closePrice"] | "");
   if (!priceStr[0]) return false;
 
   char pbuf[32];
@@ -315,7 +325,9 @@ static bool fetchNaverForeign(const Settings& s, const TickerSettings& ts, const
   if (price <= 0) return false;
   d.price = price;
 
-  const char* diffStr = doc["compareToPreviousClosePrice"] | "0";
+  const char* diffStr = useOverMarket ? 
+    (doc["overMarketPriceInfo"]["compareToPreviousClosePrice"] | "0") :
+    (doc["compareToPreviousClosePrice"] | "0");
   pi = 0;
   for (size_t i = 0; diffStr[i] && pi < sizeof(pbuf)-1; i++) {
     if (diffStr[i] != ',') pbuf[pi++] = diffStr[i];
@@ -323,7 +335,9 @@ static bool fetchNaverForeign(const Settings& s, const TickerSettings& ts, const
   pbuf[pi] = 0;
   float diff = atof(pbuf);
 
-  const char* pctStr = doc["fluctuationsRatio"] | "0";
+  const char* pctStr = useOverMarket ?
+    (doc["overMarketPriceInfo"]["fluctuationsRatio"] | "0") :
+    (doc["fluctuationsRatio"] | "0");
   float pct = atof(pctStr);
 
   d.change = diff;
@@ -346,10 +360,14 @@ static bool fetchNaverForeign(const Settings& s, const TickerSettings& ts, const
 
   if (g_abortFetch) return false;
 
-  // 2. Day candle chart
+  // 2. Candle chart (dayCandle, or weekCandle if user selected weekly/monthly)
   String chartUrl = F("https://api.stock.naver.com/chart/foreign/item/");
   chartUrl += symbol;
-  chartUrl += F("?periodType=dayCandle");
+  if (ts.range == "1w" || ts.range == "5d" || ts.range == "1mo" || ts.range == "3mo") {
+    chartUrl += F("?periodType=weekCandle");
+  } else {
+    chartUrl += F("?periodType=dayCandle");
+  }
 
   std::unique_ptr<NetClient> chartClient(platformMakeSecureClient(2048, nullptr, 512, true));
   if (chartClient && http.begin(*chartClient, chartUrl)) {
@@ -375,6 +393,7 @@ static bool fetchNaverForeign(const Settings& s, const TickerSettings& ts, const
 
           d.sparkCount = 0;
           d.candleCount = 0;
+          d.dateSplitIdx = -1;
           uint16_t startIdx = (total > want) ? (total - want) : 0;
           for (uint16_t i = startIdx; i < total; i++) {
             JsonObjectConst pt = arr[i];
@@ -386,6 +405,10 @@ static bool fetchNaverForeign(const Settings& s, const TickerSettings& ts, const
               if (d.sparkCount < MAX_SPARK_POINTS) d.spark[d.sparkCount++] = cl;
               if (d.candleCount < MAX_SPARK_POINTS) d.candles[d.candleCount++] = {op, hi, lo, cl};
             }
+          }
+          // The last candle represents today / latest trading session
+          if (d.candleCount >= 2) {
+            d.dateSplitIdx = d.candleCount - 1;
           }
           if (d.sparkCount > 0) {
             d.spark[d.sparkCount - 1] = d.price;
@@ -533,6 +556,11 @@ static bool fetchNaverMinute(const Settings& s, const TickerSettings& ts, const 
     uint8_t idx = (ringHead + i) % ringCount;
     d.candles[d.candleCount++] = ring[idx];
     d.spark[d.sparkCount++] = ring[idx].close;
+  }
+
+  // The latest candle represents the current minute candle
+  if (d.candleCount >= 2) {
+    d.dateSplitIdx = d.candleCount - 1;
   }
 
   if (d.sparkCount > 0) {
