@@ -222,6 +222,7 @@ struct Settings {
   // --- Carousel (mode == MODE_CAROUSEL): dwell + which features rotate ---
   uint16_t carouselSec;
   bool carouselTicker, carouselTicker2, carouselUsage, carouselRadar, carouselHa, carouselTheme, carouselWeather;
+  uint16_t weatherPollMin; // Weather refresh interval in minutes (default 10)
 
   // --- Shared HTTP / display ---
   uint16_t httpTimeout; // ms

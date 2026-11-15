@@ -54,17 +54,40 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
 <header><svg class="logo" viewBox="0 0 64 64" aria-hidden="true"><g fill="none" stroke="var(--acc)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="13" width="50" height="38" rx="6"/><polyline points="15,38 23,30 30,34 37,22 44,28 50,20"/><path d="M24 51v6M40 51v6M20 57h8M36 57h8"/></g></svg><span id="dot" class="dot"></span><h1>SmallTV</h1><span id="chip" class="chip" style="display:none"></span><span id="hi" class="muted"></span></header>
 <nav>
  <button data-t="status" class="active">Status</button>
- <button data-t="wifi">WiFi</button>
- <button data-t="display">Display</button>
+ <button data-t="general">General</button>
  <button data-t="ticker">Stock 1 (Domestic)</button>
  <button data-t="ticker2">Stock 2 (Overseas)</button>
  <button data-t="weather">Weather</button>
+ <button data-t="display">Display</button>
+ <button data-t="wifi">WiFi</button>
  <button data-t="update">System</button>
 </nav>
 <main>
  <!-- STATUS -->
  <section id="status" class="tab active">
   <div class="card"><h2>Device</h2><div id="statusBox" class="muted">Loading...</div></div>
+ </section>
+
+ <!-- GENERAL (Mode & Carousel) -->
+ <section id="general" class="tab">
+  <div class="card"><h2>Mode (작동 모드)</h2>
+   <label>What this device shows (화면 표시 모드)</label>
+   <select id="mode" onchange="modeChanged()">
+    <option value="stocks">Stock 1 (Domestic / 국내주식)</option>
+    <option value="stocks2">Stock 2 (Overseas / 해외주식)</option>
+    <option value="weather">Weather (날씨)</option>
+    <option value="carousel">Carousel (rotate modes / 자동 순환)</option>
+   </select>
+   <div id="carouselRow">
+    <label>Switch mode every (순환 주기, 분)</label><input id="carouselMin" type="number" min="0.5" max="120" step="0.5" placeholder="예: 1 또는 3">
+    <label style="margin-top:12px;margin-bottom:6px">Rotate through apps (순환에 포함할 앱 선택)</label>
+    <div class="chk"><input id="carouselTicker" type="checkbox"><label>Stock 1 (국내주식)</label></div>
+    <div class="chk"><input id="carouselTicker2" type="checkbox"><label>Stock 2 (해외주식)</label></div>
+    <div class="chk"><input id="carouselWeather" type="checkbox"><label>Weather (날씨)</label></div>
+   </div>
+   <small class="hint">Carousel(자동 순환) 모드를 선택하면 아래 체크된 앱들이 설정한 순환 주기(초)마다 번갈아가며 자동으로 화면에 표시됩니다. 특정 앱만 고정하고 싶다면 원하는 모드를 선택하세요.</small>
+  </div>
+  <button class="btn" onclick="saveAll()">Save settings</button>
  </section>
 
  <!-- WIFI -->
@@ -111,22 +134,6 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
 
  <!-- DISPLAY (shared) -->
  <section id="display" class="tab">
-  <div class="card"><h2>Mode</h2>
-   <label>What this device shows</label>
-   <select id="mode" onchange="modeChanged()">
-    <option value="stocks">Stock 1</option>
-    <option value="stocks2">Stock 2</option>
-    <option value="weather">Weather</option>
-    <option value="carousel">Carousel (rotate modes)</option>
-   </select>
-   <div id="carouselRow">
-    <label>Switch mode every (s)</label><input id="carouselSec" type="number" min="5" max="3600">
-    <div class="chk"><input id="carouselTicker" type="checkbox"><label>Stock 1</label></div>
-    <div class="chk"><input id="carouselTicker2" type="checkbox"><label>Stock 2</label></div>
-    <div class="chk"><input id="carouselWeather" type="checkbox"><label>Weather</label></div>
-   </div>
-   <small class="hint">Each name here is the tab that configures it. Pick the active feature, then set it up in its own tab. Carousel rotates through the ticked features.</small>
-  </div>
   <div class="card" id="themeCard"><h2>Theme clocks</h2>
    <label>Installed theme</label><select id="themeSelect" onchange="themeChoiceChanged()"></select>
    <div style="margin-top:12px"><button class="btn" id="themeUseBtn" onclick="selectTheme()">Use theme</button>
@@ -320,10 +327,8 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
       <select id="range_2">
        <option value="1m">1 min (1분)</option><option value="5m">5 min (5분)</option>
        <option value="30m">30 min (30분)</option><option value="60m">60 min (60분)</option>
-       <option value="1d">1 day (1일)</option><option value="5d">5 days (5일)</option>
-       <option value="1mo">1 month (1달)</option><option value="3mo">3 months (3달)</option>
-       <option value="6mo">6 months (6달)</option><option value="1y">1 year (1년)</option>
-       <option value="ytd">Year to date</option><option value="max">Max</option>
+       <option value="1d">1 day (1일봉)</option><option value="1w">1 week (주봉)</option>
+       <option value="1mo">1 month (월봉)</option><option value="1y">1 year (연봉)</option>
       </select></div>
      <div><label>Chart points</label><input id="points_2" type="number" min="0" max="60"></div>
     </div>
@@ -361,6 +366,11 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
  (feature) -->
   <!-- WEATHER (feature) -->
   <section id="weather" class="tab">
+   <div class="card"><h2>Weather Data Refresh (날씨 데이터 갱신 주기)</h2>
+    <label>Refresh weather every (날씨 데이터 갱신 주기, 분)</label>
+    <input id="weatherPollMin" type="number" min="1" max="1440" step="1" placeholder="10">
+    <small class="hint">wttr.in에서 실시간 날씨 데이터를 가져오는 주기(분 단위, 기본 10분)입니다.</small>
+   </div>
    <div class="card"><h2>Weather Location (날씨 위치 설정)</h2>
     <label>Location coordinates</label>
     <div class="row">
@@ -389,6 +399,7 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
      <button class="btn sec" onclick="setLoc(33.4996, 126.5312, 'Jeju')">제주 (Jeju)</button>
     </div>
    </div>
+   <button class="btn" onclick="saveAll()">Save settings</button>
   </section>
 
   <!-- UPDATE -->
@@ -627,7 +638,8 @@ function loadConfig(){return j('/api/config').then(function(c){C=c;
  sc('sunEnabled',!!ck.sunEnabled); sv('sunLow',ck.sunLow!=null?ck.sunLow:5); $('slVal')&&($('slVal').textContent=(ck.sunLow!=null?ck.sunLow:5));
  sv('sunRise',ck.sunRise!=null?ck.sunRise:60); sv('sunSet',ck.sunSet!=null?ck.sunSet:60); sv('sunOverlap',ck.sunOverlap||0);
  $('mode').value=c.mode||'stocks'; modeChanged();
- sv('carouselSec',c.carouselSec||30);
+ var cSec = c.carouselSec || 60; sv('carouselMin', Math.round((cSec / 60) * 10) / 10);
+ sv('weatherPollMin', c.weatherPollMin || 10);
  sc('carouselTicker',c.carouselTicker!==false); sc('carouselTicker2',c.carouselTicker2!==false); sc('carouselWeather',c.carouselWeather!==false); sc('carouselUsage',c.carouselUsage!==false); sc('carouselRadar',c.carouselRadar!==false);
  sc('carouselHa',c.carouselHa!==false); sc('carouselTheme',c.carouselTheme===true);
  // HA / MQTT slice
@@ -748,7 +760,8 @@ function authRemove(){
 // password end
 function collect(){
  var o={
-  carouselSec:parseInt(gv('carouselSec'))||30,
+  carouselSec:Math.max(5, Math.round((parseFloat(gv('carouselMin')) || 1) * 60)),
+  weatherPollMin:parseInt(gv('weatherPollMin')) || 10,
   brightness:parseInt(gv('brightness'))||0,
   rotation:parseInt(gv('rotation')),
   autoBrightness:gc('autoBrightness'),

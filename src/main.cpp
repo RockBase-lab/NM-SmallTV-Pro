@@ -29,8 +29,10 @@
 
 #if WITH_TICKER
 #include "TickerMode.h"
+#include "features/ticker/StockClient.h"
 #endif
 #include "features/weather/WeatherMode.h"
+#include "features/weather/WeatherClient.h"
 #if WITH_USAGE
 #include "UsageMode.h"
 #endif
@@ -243,6 +245,12 @@ static void buttonNext() {
   // Advance to next mode cyclically (Stock 1 -> Stock 2 -> Weather -> ... -> Stock 1)
   size_t nextIdx = (curIdx >= 0) ? ((curIdx + 1) % kModeCount) : 0;
   g_settings.mode = kModes[nextIdx]->modeConst();
+
+  // Defer network fetches for 800ms so rapid clicking cycles apps instantly with 0ms network latency
+  stocksDeferNextFetch(0, 800);
+  stocksDeferNextFetch(1, 800);
+  weatherDeferNextFetch(800);
+
   g_abortFetch = false; // Reset abort flag for the new active mode
   DisplayMode* m = activeMode(g_settings);
   if (m) {
@@ -266,24 +274,27 @@ static void buttonAction(uint8_t act) {
 
 static void buttonService() {
   static bool     inited   = false;
+  static uint16_t curBaseline = 0;
   static uint16_t thrDown  = 0;       // press  when median < thrDown
   static uint16_t thrUp    = 0;       // release when median > thrUp (hysteresis band)
   static uint8_t  sensSeen = 0;       // sensitivity the thresholds were computed for
   static bool     stable   = false;   // confirmed (debounced) button state
   static uint8_t  run      = 0;       // consecutive samples disagreeing with 'stable'
   static uint32_t downAt   = 0;
+  static uint32_t lastBaseUpdate = 0;
 
   // Calibrate (or recalibrate when the web UI changes the sensitivity).
   if (!inited || sensSeen != g_settings.button.sensitivity) {
     uint32_t sum = 0;
     for (int i = 0; i < 16; i++) { sum += touchRead(BTN_PIN); delay(2); }
-    uint16_t baseline = sum / 16;
+    curBaseline = sum / 16;
     uint8_t s = g_settings.button.sensitivity;
-    thrDown = (uint16_t)((uint32_t)baseline * s / 100);
+    thrDown = (uint16_t)((uint32_t)curBaseline * s / 100);
     uint8_t up = s + 5; if (up > 99) up = 99;            // ~5 % hysteresis band
-    thrUp = (uint16_t)((uint32_t)baseline * up / 100);
+    thrUp = (uint16_t)((uint32_t)curBaseline * up / 100);
     sensSeen = s;
     inited = true;
+    lastBaseUpdate = millis();
   }
 
   // ESP32 touchRead() emits isolated low-going glitch samples; a median of three
@@ -295,15 +306,32 @@ static void buttonService() {
   uint16_t m = a > b ? (b > c ? b : (a > c ? c : a))
                      : (a > c ? a : (b > c ? c : b));
 
+  // Slow EMA tracking of idle baseline to adapt to temperature / humidity / power supply drift
+  if (!stable && m > thrUp && (millis() - lastBaseUpdate > 500)) {
+    lastBaseUpdate = millis();
+    // Smoothly adjust baseline towards higher idle values
+    if (m > curBaseline || curBaseline - m < 15) {
+      curBaseline = (curBaseline * 7 + m) / 8;
+      uint8_t s = g_settings.button.sensitivity;
+      thrDown = (uint16_t)((uint32_t)curBaseline * s / 100);
+      uint8_t up = s + 5; if (up > 99) up = 99;
+      thrUp = (uint16_t)((uint32_t)curBaseline * up / 100);
+    }
+  }
+
   bool wantDown = stable ? (m < thrUp) : (m < thrDown);
   if (wantDown == stable) { run = 0; return; }
 
-  // Integrator debounce: require BTN_CONFIRM consecutive agreeing samples before
-  // flipping the confirmed state, so a short burst of noise is ignored too.
-  if (++run < BTN_CONFIRM) return;
+  // Integrator debounce: require 2 consecutive agreeing samples before
+  // flipping the confirmed state, so response is fast and responsive.
+  if (++run < 2) return;
   run = 0;
   stable = wantDown;
-  if (stable) { downAt = millis(); return; }   // press start: decide on release
+  if (stable) {
+    downAt = millis();
+    g_abortFetch = true; // Signal in-flight fetch to abort immediately on touch contact
+    return;
+  }
   uint32_t held = millis() - downAt;
   buttonAction(held >= BTN_LONG_MS ? g_settings.button.longAction
                                    : g_settings.button.shortAction);
@@ -523,6 +551,11 @@ void loop() {
     if (restore) m->wake(g_settings);
     m->service(g_settings);
   }
+
+  // Background polling for inactive features so switching apps is instantaneous:
+  // stocksService self-times every ticker's schedule (shared across Stock 1 & Stock 2)
+  stocksService(g_settings);
+  weatherService(g_settings);
 
   delay(5);
 }

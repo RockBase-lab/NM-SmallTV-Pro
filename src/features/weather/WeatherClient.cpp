@@ -59,15 +59,12 @@ const WeatherData& weatherGet() {
   return g_weather;
 }
 
-static bool fetchOpenMeteo(float lat, float lon, uint16_t timeoutMs, WeatherData& d) {
+static bool fetchWttr(float lat, float lon, uint16_t timeoutMs, WeatherData& d) {
   if (g_abortFetch) return false;
 
-  // Use plain HTTP for ultra-fast, zero-TLS-overhead fetch
-  String url = F("http://api.open-meteo.com/v1/forecast?latitude=");
-  url += String(lat, 4);
-  url += F("&longitude=");
-  url += String(lon, 4);
-  url += F("&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min&timezone=auto");
+  // wttr.in format=j2 provides compact 3KB JSON containing current + daily min/max
+  char url[128];
+  snprintf(url, sizeof(url), "http://wttr.in/%.4f,%.4f?format=j2", lat, lon);
 
   std::unique_ptr<WiFiClient> client(new WiFiClient());
   if (!client) return false;
@@ -78,7 +75,7 @@ static bool fetchOpenMeteo(float lat, float lon, uint16_t timeoutMs, WeatherData
   http.setReuse(false);
   http.useHTTP10(true);
   if (!http.begin(*client, url)) return false;
-  http.setUserAgent(F(FW_NAME));
+  http.setUserAgent(F("curl/7.88.1"));
   http.addHeader("Accept", "application/json");
 
   int code = http.GET();
@@ -91,27 +88,41 @@ static bool fetchOpenMeteo(float lat, float lon, uint16_t timeoutMs, WeatherData
   http.end();
 
   JsonDocument filter;
-  filter["current"]["temperature_2m"] = true;
-  filter["current"]["relative_humidity_2m"] = true;
-  filter["current"]["weather_code"] = true;
-  filter["current"]["wind_speed_10m"] = true;
-  filter["daily"]["temperature_2m_max"] = true;
-  filter["daily"]["temperature_2m_min"] = true;
+  filter["current_condition"][0]["temp_C"] = true;
+  filter["current_condition"][0]["humidity"] = true;
+  filter["current_condition"][0]["windspeedKmph"] = true;
+  filter["current_condition"][0]["weatherDesc"][0]["value"] = true;
+  filter["weather"][0]["maxtempC"] = true;
+  filter["weather"][0]["mintempC"] = true;
 
   JsonDocument doc;
   DeserializationError err = deserializeJson(doc, payload.c_str(), DeserializationOption::Filter(filter));
   if (err) return false;
 
-  JsonObjectConst cur = doc["current"];
+  JsonObjectConst cur = doc["current_condition"][0];
   if (cur.isNull()) return false;
 
-  d.temp = cur["temperature_2m"].as<float>();
-  d.humidity = cur["relative_humidity_2m"].as<uint8_t>();
-  d.weatherCode = cur["weather_code"].as<uint8_t>();
-  d.windSpeed = cur["wind_speed_10m"].as<float>();
+  const char* tempStr = cur["temp_C"] | "0";
+  d.temp = atof(tempStr);
 
-  d.tempMax = doc["daily"]["temperature_2m_max"][0] | d.temp;
-  d.tempMin = doc["daily"]["temperature_2m_min"][0] | d.temp;
+  const char* humStr = cur["humidity"] | "0";
+  d.humidity = atoi(humStr);
+
+  const char* windStr = cur["windspeedKmph"] | "0";
+  d.windSpeed = atof(windStr);
+
+  const char* descStr = cur["weatherDesc"][0]["value"] | "Clear";
+  d.weatherCode = 0;
+  if (strstr(descStr, "Cloud") || strstr(descStr, "Overcast")) d.weatherCode = 2;
+  else if (strstr(descStr, "Rain") || strstr(descStr, "Drizzle")) d.weatherCode = 61;
+  else if (strstr(descStr, "Snow")) d.weatherCode = 71;
+  else if (strstr(descStr, "Mist") || strstr(descStr, "Fog") || strstr(descStr, "Haze")) d.weatherCode = 45;
+  else if (strstr(descStr, "Thunder")) d.weatherCode = 95;
+
+  const char* maxStr = doc["weather"][0]["maxtempC"] | tempStr;
+  const char* minStr = doc["weather"][0]["mintempC"] | tempStr;
+  d.tempMax = atof(maxStr);
+  d.tempMin = atof(minStr);
 
   d.valid = true;
   d.error = false;
@@ -130,20 +141,22 @@ void weatherService(const Settings& s) {
     lon = 126.9784f; // Default Seoul
   }
 
+  uint32_t pollInterval = (uint32_t)(s.weatherPollMin ? s.weatherPollMin : 10) * 60000UL;
+
   g_abortFetch = false;
   g_fetching = true;
-  if (fetchOpenMeteo(lat, lon, s.httpTimeout, g_weather)) {
+  if (fetchWttr(lat, lon, s.httpTimeout, g_weather)) {
     g_weather.valid = true;
     g_weather.error = false;
     g_weather.lastOkMs = millis();
     g_weather.fails = 0;
-    g_weather.nextTryMs = millis() + 600000UL; // 10 minutes interval
+    g_weather.nextTryMs = millis() + pollInterval;
   } else {
     g_weather.error = true;
     if (g_weather.fails < 250) g_weather.fails++;
     uint32_t back = 15000UL; // 15 sec backoff
     for (uint8_t i = 1; i < g_weather.fails; i++) back <<= 1;
-    if (back > 600000UL) back = 600000UL;
+    if (back > pollInterval) back = pollInterval;
     g_weather.nextTryMs = millis() + back;
   }
   g_fetching = false;

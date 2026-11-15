@@ -263,6 +263,177 @@ static uint16_t naverCount(const String& r) {
   return 25;
 }
 
+
+static bool fetchNaverForeignMinute(const Settings& s, const TickerSettings& ts, const char* symbol, StockData& d) {
+  String url = F("https://api.stock.naver.com/chart/foreign/item/");
+  url += symbol;
+  url += F("?periodType=day");
+
+  std::unique_ptr<NetClient> client(platformMakeSecureClient(2048, nullptr, 512, true));
+  if (!client) return false;
+
+  HTTPClient http;
+  http.setTimeout((s.httpTimeout > 2500) ? 2500 : s.httpTimeout);
+  http.setReuse(false);
+  http.useHTTP10(true);
+  if (!http.begin(*client, url)) return false;
+  http.setUserAgent(F("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"));
+  http.addHeader("Accept", "application/json");
+
+  int code = http.GET();
+  if (code != HTTP_CODE_OK || g_abortFetch) {
+    http.end();
+    return false;
+  }
+
+  WiFiClient* stream = (WiFiClient*)http.getStreamPtr();
+  if (!stream) {
+    http.end();
+    return false;
+  }
+
+  uint8_t targetPoints = (ts.points >= 5 && ts.points <= MAX_SPARK_POINTS) ? ts.points : 30;
+  int interval = 1;
+  if (ts.range == "5m") interval = 5;
+  else if (ts.range == "30m") interval = 30;
+  else if (ts.range == "60m") interval = 60;
+
+  StockData::Candle todayRing[MAX_SPARK_POINTS];
+  uint8_t todayCount = 0;
+  StockData::Candle yestRing[MAX_SPARK_POINTS];
+  uint8_t yestCount = 0;
+
+  float curGroupOpen = 0, curGroupHigh = -1e9f, curGroupLow = 1e9f, curGroupClose = 0;
+  int groupCount = 0;
+  bool inYesterday = false;
+
+  char buf[256];
+  uint32_t lastPoll = millis();
+
+  while (http.connected() || stream->available()) {
+    if (g_abortFetch) {
+      http.end();
+      return false;
+    }
+    if (millis() - lastPoll > 30) {
+      buttonPoll();
+      lastPoll = millis();
+      if (g_abortFetch) {
+        http.end();
+        return false;
+      }
+    }
+
+    int len = stream->readBytesUntil('{', buf, sizeof(buf) - 1);
+    if (len < 0) break;
+    buf[len] = 0;
+
+    // Detect switch from priceInfos (today) to lastPriceInfos (yesterday)
+    if (!inYesterday && strstr(buf, "lastPriceInfos") != nullptr) {
+      if (groupCount > 0) {
+        StockData::Candle c = {curGroupOpen, curGroupHigh, curGroupLow, curGroupClose};
+        if (todayCount < MAX_SPARK_POINTS) todayRing[todayCount++] = c;
+      }
+      inYesterday = true;
+      curGroupOpen = curGroupClose = 0;
+      curGroupHigh = -1e9f;
+      curGroupLow = 1e9f;
+      groupCount = 0;
+    }
+
+    int objLen = stream->readBytesUntil('}', buf, sizeof(buf) - 1);
+    if (objLen <= 0) continue;
+    buf[objLen] = 0;
+
+    char* pCur = strstr(buf, "\"currentPrice\":");
+    if (!pCur) pCur = strstr(buf, "\"closePrice\":");
+    if (!pCur) continue;
+
+    float cl = atof(pCur + (strstr(pCur, "\"currentPrice\":") ? 15 : 13));
+    if (cl <= 0) continue;
+
+    char* pOpen = strstr(buf, "\"openPrice\":");
+    char* pHigh = strstr(buf, "\"highPrice\":");
+    char* pLow  = strstr(buf, "\"lowPrice\":");
+
+    float op = pOpen ? atof(pOpen + 12) : cl;
+    float hi = pHigh ? atof(pHigh + 12) : cl;
+    float lo = pLow  ? atof(pLow + 11)  : cl;
+
+    if (groupCount == 0) curGroupOpen = op;
+    if (hi > curGroupHigh) curGroupHigh = hi;
+    if (lo < curGroupLow)  curGroupLow = lo;
+    curGroupClose = cl;
+    groupCount++;
+
+    if (groupCount >= interval) {
+      StockData::Candle c = {curGroupOpen, curGroupHigh, curGroupLow, curGroupClose};
+      if (inYesterday) {
+        if (yestCount < MAX_SPARK_POINTS) yestRing[yestCount++] = c;
+      } else {
+        if (todayCount < MAX_SPARK_POINTS) todayRing[todayCount++] = c;
+      }
+      groupCount = 0;
+      curGroupHigh = -1e9f;
+      curGroupLow = 1e9f;
+    }
+  }
+  http.end();
+
+  if (groupCount > 0) {
+    StockData::Candle c = {curGroupOpen, curGroupHigh, curGroupLow, curGroupClose};
+    if (inYesterday) {
+      if (yestCount < MAX_SPARK_POINTS) yestRing[yestCount++] = c;
+    } else {
+      if (todayCount < MAX_SPARK_POINTS) todayRing[todayCount++] = c;
+    }
+  }
+
+  // Combine: targetPoints
+  uint8_t todayTaken = (todayCount > targetPoints) ? targetPoints : todayCount;
+  uint8_t remYest = targetPoints - todayTaken;
+  uint8_t yestTaken = (yestCount > remYest) ? remYest : yestCount;
+
+  d.sparkCount = 0;
+  d.candleCount = 0;
+  d.dateSplitIdx = -1;
+
+  // Add yesterday candles (tail of yestRing)
+  if (yestTaken > 0) {
+    uint8_t startYest = yestCount - yestTaken;
+    for (uint8_t i = startYest; i < yestCount; i++) {
+      d.candles[d.candleCount++] = yestRing[i];
+      d.spark[d.sparkCount++] = yestRing[i].close;
+    }
+  }
+
+  // Date boundary line
+  if (yestTaken > 0 && todayTaken > 0) {
+    d.dateSplitIdx = d.candleCount;
+  }
+
+  // Add today candles (tail of todayRing)
+  if (todayTaken > 0) {
+    uint8_t startToday = todayCount - todayTaken;
+    for (uint8_t i = startToday; i < todayCount; i++) {
+      d.candles[d.candleCount++] = todayRing[i];
+      d.spark[d.sparkCount++] = todayRing[i].close;
+    }
+  }
+
+  // Update latest point with live price
+  if (d.sparkCount > 0) {
+    d.spark[d.sparkCount - 1] = d.price;
+    if (d.candleCount > 0) {
+      d.candles[d.candleCount - 1].close = d.price;
+      if (d.price > d.candles[d.candleCount - 1].high) d.candles[d.candleCount - 1].high = d.price;
+      if (d.price < d.candles[d.candleCount - 1].low)  d.candles[d.candleCount - 1].low = d.price;
+    }
+  }
+
+  return (d.candleCount >= 2);
+}
+
 static bool fetchNaverForeign(const Settings& s, const TickerSettings& ts, const char* symbol, StockData& d) {
   if (g_abortFetch) return false;
 
@@ -360,10 +531,25 @@ static bool fetchNaverForeign(const Settings& s, const TickerSettings& ts, const
 
   if (g_abortFetch) return false;
 
-  // 2. Candle chart (dayCandle, or weekCandle if user selected weekly/monthly)
+  // Check if minute timeframe (1m, 5m, 30m, 60m)
+  bool isMinute = (ts.range == "1m" || ts.range == "5m" || ts.range == "30m" || ts.range == "60m");
+  if (isMinute) {
+    if (fetchNaverForeignMinute(s, ts, symbol, d)) {
+      d.valid = true;
+      d.error = false;
+      d.lastOkMs = millis();
+      return true;
+    }
+  }
+
+  // 2. Candle chart (dayCandle, weekCandle, monthCandle, yearCandle)
   String chartUrl = F("https://api.stock.naver.com/chart/foreign/item/");
   chartUrl += symbol;
-  if (ts.range == "1w" || ts.range == "5d" || ts.range == "1mo" || ts.range == "3mo") {
+  if (ts.range == "1y" || ts.range == "year") {
+    chartUrl += F("?periodType=yearCandle");
+  } else if (ts.range == "1mo" || ts.range == "month") {
+    chartUrl += F("?periodType=monthCandle");
+  } else if (ts.range == "1w" || ts.range == "week" || ts.range == "5d") {
     chartUrl += F("?periodType=weekCandle");
   } else {
     chartUrl += F("?periodType=dayCandle");

@@ -511,6 +511,7 @@ void Settings::setDefaults() {
   carouselSec = DEFAULT_CAROUSEL_SEC;
   carouselTicker = carouselTicker2 = carouselUsage = carouselRadar = carouselHa = carouselWeather = true;
   carouselTheme = false;   // opt in: needs an installed theme, else the slot shows an error
+  weatherPollMin = 10;
   httpTimeout = DEFAULT_HTTP_TIMEOUT;
 
   brightness = DEFAULT_BRIGHTNESS;
@@ -613,6 +614,7 @@ void settingsToJson(const Settings& s, JsonObject root, bool includeSecrets) {
   root["carouselHa"]        = s.carouselHa;
   root["carouselTheme"]     = s.carouselTheme;
   root["carouselWeather"]   = s.carouselWeather;
+  root["weatherPollMin"]    = s.weatherPollMin ? s.weatherPollMin : 10;
   root["httpTimeout"]       = s.httpTimeout;
   root["brightness"]        = s.brightness;
   root["autoBrightness"]    = s.autoBrightness;
@@ -705,6 +707,7 @@ void settingsApplyJson(Settings& s, JsonObjectConst root) {
   if (root["carouselHa"].is<bool>())      s.carouselHa = root["carouselHa"];
   if (root["carouselTheme"].is<bool>())   s.carouselTheme = root["carouselTheme"];
   if (root["carouselWeather"].is<bool>()) s.carouselWeather = root["carouselWeather"];
+  if (root["weatherPollMin"].is<int>())   s.weatherPollMin = constrain((int)root["weatherPollMin"], 1, 1440);
 
   if (root["httpTimeout"].is<int>())        s.httpTimeout = constrain((int)root["httpTimeout"], 1000, 20000);
   if (root["brightness"].is<int>())         s.brightness = constrain((int)root["brightness"], 0, 100);

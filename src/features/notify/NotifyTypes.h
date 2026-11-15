@@ -39,6 +39,21 @@ static const NotifyType notify_types[] = {
   {"alert",   "ALERT",     0xF800, NOTIFY_ANIM_ID_BANG,     45, NOTIFY_PRIO_HIGH},
   {"done",    "TASK DONE", 0xDBAA, NOTIFY_ANIM_ID_JUMPING,  20, NOTIFY_PRIO_LOW},
   {"waiting", "NEEDS YOU", 0xDBAA, NOTIFY_ANIM_ID_WAVING,   20, NOTIFY_PRIO_MED},
+  {"yahoo",   "YAHOO!",    0x07E0, NOTIFY_ANIM_ID_YAHOO,    15, NOTIFY_PRIO_LOW},
+  {"chicken", "CHEERING",  0xFFE0, NOTIFY_ANIM_ID_CHICKEN,  15, NOTIFY_PRIO_LOW},
+  {"busy",    "WORKING",   0xFC00, NOTIFY_ANIM_ID_BUSY,     20, NOTIFY_PRIO_MED},
+  {"cry",     "ERROR",     0xF800, NOTIFY_ANIM_ID_CRY,      25, NOTIFY_PRIO_HIGH},
+  {"beer",    "PARTY!",    0x07E0, NOTIFY_ANIM_ID_BEER,     15, NOTIFY_PRIO_LOW},
+  {"mailbox", "MAIL",      0x067F, NOTIFY_ANIM_ID_MAILBOX,  20, NOTIFY_PRIO_LOW},
+  {"mail",    "MAIL",      0x067F, NOTIFY_ANIM_ID_MAILBOX,  20, NOTIFY_PRIO_LOW},
+  {"phone",   "CALL",      0xFBE4, NOTIFY_ANIM_ID_PHONE,    20, NOTIFY_PRIO_MED},
+  {"call",    "CALL",      0xFBE4, NOTIFY_ANIM_ID_PHONE,    20, NOTIFY_PRIO_MED},
+  {"telegram","TELEGRAM",  0x051F, NOTIFY_ANIM_ID_TELEGRAM, 20, NOTIFY_PRIO_LOW},
+  {"tg",      "TELEGRAM",  0x051F, NOTIFY_ANIM_ID_TELEGRAM, 20, NOTIFY_PRIO_LOW},
+  {"sms",     "NEW SMS",   0x266C, NOTIFY_ANIM_ID_SMS,      20, NOTIFY_PRIO_MED},
+  {"message", "MESSAGE",   0x266C, NOTIFY_ANIM_ID_SMS,      20, NOTIFY_PRIO_MED},
+  {"msg",     "MESSAGE",   0x266C, NOTIFY_ANIM_ID_SMS,      20, NOTIFY_PRIO_MED},
+  {"black",   "SMS",       0x266C, NOTIFY_ANIM_ID_SMS,      15, NOTIFY_PRIO_LOW},
 };
 #define NOTIFY_TYPE_COUNT (sizeof(notify_types) / sizeof(notify_types[0]))
 #define NOTIFY_TYPE_DEFAULT 0   // "info": what a request with no type at all gets

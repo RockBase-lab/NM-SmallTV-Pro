@@ -154,6 +154,15 @@ const NotifyAnimEntry notify_anim_table[NOTIFY_ANIM_ID_COUNT] = {
   {"warn",    nullptr,                            pxWarn,  24, 24, 4, 220},
   {"bang",    nullptr,                            pxBang,  24, 24, 4,  80},
   {"pulse",   nullptr,                            pxPulse, 24, 24, 8,  90},
+  {"yahoo",   &notify_anims[NOTIFY_ANIM_YAHOO],   nullptr,  0,  0, 0,   0},
+  {"chicken", &notify_anims[NOTIFY_ANIM_CHICKEN], nullptr,  0,  0, 0,   0},
+  {"busy",    &notify_anims[NOTIFY_ANIM_BUSY],    nullptr,  0,  0, 0,   0},
+  {"cry",     &notify_anims[NOTIFY_ANIM_CRY],     nullptr,  0,  0, 0,   0},
+  {"beer",    &notify_anims[NOTIFY_ANIM_BEER],    nullptr,  0,  0, 0,   0},
+  {"mailbox", &notify_anims[NOTIFY_ANIM_MAILBOX], nullptr,  0,  0, 0,   0},
+  {"phone",   &notify_anims[NOTIFY_ANIM_PHONE],   nullptr,  0,  0, 0,   0},
+  {"telegram",&notify_anims[NOTIFY_ANIM_TELEGRAM],nullptr,  0,  0, 0,   0},
+  {"sms",     &notify_anims[NOTIFY_ANIM_SMS],     nullptr,  0,  0, 0,   0},
 };
 
 uint8_t notifyAnimW(const NotifyAnimEntry& e) {
@@ -199,5 +208,23 @@ int notifyAnimFind(const char* name) {
   // Scripts written against that still work.
   if (!strcasecmp(name, "done"))    return NOTIFY_ANIM_ID_JUMPING;
   if (!strcasecmp(name, "waiting")) return NOTIFY_ANIM_ID_WAVING;
+    if (!strcasecmp(name, "ring"))    return NOTIFY_ANIM_ID_PHONE;
+  if (!strcasecmp(name, "mailbox")) return NOTIFY_ANIM_ID_MAILBOX;
+  if (!strcasecmp(name, "phone"))   return NOTIFY_ANIM_ID_PHONE;
+  if (!strcasecmp(name, "telegram"))return NOTIFY_ANIM_ID_TELEGRAM;
+  if (!strcasecmp(name, "beer_chicken")) return NOTIFY_ANIM_ID_BEER;
+  if (!strcasecmp(name, "busy_coffee")) return NOTIFY_ANIM_ID_BUSY;
+  if (!strcasecmp(name, "crying_bbu")) return NOTIFY_ANIM_ID_CRY;
+  if (!strcasecmp(name, "cheering_chicken")) return NOTIFY_ANIM_ID_CHICKEN;
+  if (!strcasecmp(name, "yahoo_stars")) return NOTIFY_ANIM_ID_YAHOO;
+if (!strcasecmp(name, "mail"))    return NOTIFY_ANIM_ID_MAILBOX;
+  if (!strcasecmp(name, "call"))    return NOTIFY_ANIM_ID_PHONE;
+  if (!strcasecmp(name, "tg"))      return NOTIFY_ANIM_ID_TELEGRAM;
+  if (!strcasecmp(name, "sms"))     return NOTIFY_ANIM_ID_SMS;
+  if (!strcasecmp(name, "message")) return NOTIFY_ANIM_ID_SMS;
+  if (!strcasecmp(name, "msg"))     return NOTIFY_ANIM_ID_SMS;
+  if (!strcasecmp(name, "text"))    return NOTIFY_ANIM_ID_SMS;
+  if (!strcasecmp(name, "black"))   return NOTIFY_ANIM_ID_SMS;
+  if (!strcasecmp(name, "dark"))    return NOTIFY_ANIM_ID_SMS;
   return -1;
 }
