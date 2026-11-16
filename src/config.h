@@ -13,12 +13,21 @@
 // Firmware identity
 // ---------------------------------------------------------------------------
 #define FW_NAME     "smalltv-mod"
-#define FW_VERSION  "3.6.0"
+#define FW_VERSION  "3.10.0"
 
 // Project / update references (shown in the web UI; used by the GitHub self-update)
-#define REPO_URL      "https://github.com/giovi321/smalltv-mod"
-#define REPO_OWNER    "giovi321"
-#define REPO_NAME     "smalltv-mod"
+//
+// These point at this fork, not at the upstream it was forked from
+// (giovi321/smalltv-mod), and that is the whole point: the self-updater asks
+// REPO_OWNER/REPO_NAME for the newest release and downloads UPDATE_ASSET from
+// it. Left on upstream, "Update now" would offer an upstream release and, if
+// installed, replace this image with one that lacks the fork's features (the
+// burn-in refreshing engine, the Naver/Yahoo dual stock screens, the HD notify
+// engine). Bump FW_VERSION together with each tagged release here, so the
+// comparison against the fork's own latest tag stays meaningful.
+#define REPO_URL      "https://github.com/twoarchi/smalltv-pro-mod"
+#define REPO_OWNER    "twoarchi"
+#define REPO_NAME     "smalltv-pro-mod"
 // Release asset the GitHub self-updater pulls, and the short variant name shown
 // in the web UI. One app image per target, plus a second one for the two boards
 // that ship a stripped or extended build of the same hardware: the ESP8266
@@ -326,9 +335,11 @@
 // yourself from a fork: .github/scripts/fetch-quotes.mjs + quotes-config.json
 // are the example fetcher and symbol list, and the docs
 // (reference/data-sources) show an example scheduled workflow that pushes them
-// to a `data` branch — point REPO_OWNER/REPO_NAME at that fork. raw sends a
-// ~4 KB certificate record and does not negotiate MFLN, so this path uses a
-// larger TLS buffer.
+// to a `data` branch — point REPO_OWNER/REPO_NAME at the repo that publishes
+// them. In this fork those two are the self-update repo as well, so a GitHub
+// ticker source resolves only once that workflow runs here. raw sends a ~4 KB
+// certificate record and does not negotiate MFLN, so this path uses a larger
+// TLS buffer.
 #define GH_QUOTES_BASE "https://raw.githubusercontent.com/" REPO_OWNER "/" REPO_NAME "/data/quotes/"
 #define GH_QUOTES_RXBUF 5120
 #define CASH_GQL_HOST   "www.cash.ch"
