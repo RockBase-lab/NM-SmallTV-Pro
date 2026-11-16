@@ -1100,7 +1100,7 @@ function haNote(c){
 function showStatus(s){
  $('dot').className='dot'+(s.connected?' ok':'');
  $('hi').textContent=s.mode==='ap'?'setup mode':(s.ip||'');
- var cn=$('clockNow'); if(cn){var ne=!!(C.clock&&(C.clock.nightEnabled||C.clock.sunEnabled))||C.mode==='theme'||C.mode==='timer'||!!(C.wg&&C.wg.enabled)||(C.burnin&&C.burnin.enabled&&C.burnin.triggerType==='time');var ns=s.night?'  · night mode active':(s.nightHeld?'  · night mode waiting for NTP':'');cn.textContent=!ne?'Clock: enable timer mode, night mode, the sun schedule, or WireGuard to start NTP':('Clock: '+(s.synced?(s.time||'synced')+(s.tz?' ('+s.tz+')':''):'waiting for NTP...')+ns);}
+ var cn=$('clockNow'); if(cn){var ne=!!(C.clock&&(C.clock.nightEnabled||C.clock.sunEnabled))||C.mode==='theme'||C.mode==='timer'||!!(C.wg&&C.wg.enabled)||(C.burnin&&C.burnin.enabled&&C.burnin.triggerType==='time');var ns=s.night?'  · night mode active':(s.nightHeld?'  · night mode waiting for NTP':'');cn.textContent=!ne?'Clock: enable night mode, the sun schedule, a theme clock, or WireGuard to start NTP':('Clock: '+(s.synced?(s.time||'synced')+(s.tz?' ('+s.tz+')':''):'waiting for NTP...')+ns);}
  var sn=$('sunNow'),st=sunNowText(C.clock,s); if(sn&&st!==null)sn.textContent=st;
  var fw=$('fwVer'); if(fw)fw.textContent=s.fw+' '+s.version;
  // Surface the result of a boot-time GitHub update (ESP8266) once on first load,
