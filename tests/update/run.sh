@@ -1,9 +1,10 @@
 #!/bin/sh
 # Native tests for the manual firmware upload on the ESP8266: the rule that
 # says whether the core's update buffer fits into the largest free block
-# (src/UpdateBuffer.h), the page showing the refusal text, and a check that
-# WebPortal.cpp uses the rule before Update.begin(). Needs a C++ compiler and
-# node; no libraries.
+# (src/UpdateBuffer.h), the page showing the refusal text, a check that
+# WebPortal.cpp uses the rule before Update.begin(), and a check that the
+# firmware's update identity and release asset names are this fork's.
+# Needs a C++ compiler and node; no libraries.
 set -eu
 cd "$(dirname "$0")/../.."
 c++ -std=c++11 -Wall -Wextra -Werror -g -Isrc \
@@ -11,4 +12,5 @@ c++ -std=c++11 -Wall -Wextra -Werror -g -Isrc \
 /tmp/smalltv-update-buffer-tests
 node tests/update/test_webui.js
 node tests/update/test_wiring.js
+node tests/update/test_identity.js
 echo "update tests: all passed"

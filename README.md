@@ -89,6 +89,23 @@ If flashing from scratch or recovering a bricked device:
 esptool.py --chip esp32 --port COM3 --baud 921600 write_flash 0x0 firmware.factory_v3.10.0_public_release.bin
 ```
 
+### On-device update (Update tab)
+
+The **Update from GitHub** card asks `twoarchi/smalltv-pro-mod` for its newest
+release and installs the asset named `smalltv-mod-firmware-esp32-pro.bin`. It
+never asks the upstream project, so an upstream release can no longer offer
+itself to this device and, installed, replace the modded image.
+
+A release therefore has to carry that asset name. A tag built by CI attaches it
+automatically (the `release` job uploads `dist/`, where the 8 MB image is
+staged under that name); a release uploaded by hand has to attach it too,
+alongside the versioned `firmware_v<tag>_public_release.bin` names. v3.10.0 was
+uploaded by hand before this change and carries only the versioned names, so
+the card answers `check failed: no matching asset` and installs nothing —
+manual upload (Option A) is unaffected. Attaching a Pro image built from this
+commit or later under the standard name makes the card work as is, and every
+later CI tag release keeps it working.
+
 ---
 
 ## 🛠️ Building from Source
