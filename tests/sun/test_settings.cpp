@@ -8,6 +8,7 @@
 #include <ArduinoJson.h>
 #include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 // Stand-ins the real Settings.cpp links against (as in tests/fuzz/fuzz_parsers.cpp).
@@ -92,8 +93,15 @@ static void testRoundTrip() {
   apply(g, "{\"clock\":{\"lat\":-33.8688,\"lon\":151.2093},\"radar\":{\"useDevice\":false,\"lat\":52.3676,\"lon\":4.9041}}");
   JsonDocument gd;
   settingsToJson(g, gd.to<JsonObject>(), true);
-  char text[2048];
-  serializeJson(gd, text, sizeof(text));
+  // The buffer comes from the document. A fixed 2048 cut the tail once the
+  // settings grew (the burn-in slice), and a cut text still parses the values
+  // before the cut while the whole text no longer parses at all, so the failure
+  // read as "the file text does not parse" rather than "the buffer is too small".
+  size_t tn = measureJson(gd);
+  char* text = static_cast<char*>(malloc(tn + 1));
+  CHECK(text != nullptr, "buffer for %zu bytes", tn);
+  if (!text) return;
+  CHECK(serializeJson(gd, text, tn + 1) == tn, "file text written whole: %zu bytes", tn);
   JsonDocument gd2;
   CHECK(!deserializeJson(gd2, text), "file text parses");
   Settings g2;
@@ -104,6 +112,7 @@ static void testRoundTrip() {
   CHECK(fabsf(g2.radar.lat - 52.3676f) < 5e-5f && fabsf(g2.radar.lon - 4.9041f) < 5e-5f,
         "radar location keeps 4 decimals: %.5f %.5f", g2.radar.lat, g2.radar.lon);
   CHECK(strstr(text, "151.2093") != nullptr, "the file text carries 4 decimals: %s", text);
+  free(text);
   // The web API output (no secrets) carries them too, for the settings page.
   JsonDocument api;
   settingsToJson(s, api.to<JsonObject>(), false);

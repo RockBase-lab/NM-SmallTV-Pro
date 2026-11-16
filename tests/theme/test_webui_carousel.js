@@ -19,7 +19,7 @@ const BOX={ticker:'carouselTicker',usage:'carouselUsage',radar:'carouselRadar',h
 function makePage(ticked){
  const els={};
  const add=(id,props)=>{els[id]=Object.assign({id},props)};
- add('mode',{value:'carousel'});add('carouselSec',{value:'45'});
+ add('mode',{value:'carousel'});add('carouselMin',{value:'1'});  // the page's dwell field is minutes
  add('brightness',{value:'80'});add('rotation',{value:'0'});
  add('hostname',{value:'smalltv-test'});add('apSsid',{value:'SmallTV-Test'});
  for(const f of FEATS){
@@ -55,7 +55,7 @@ function makePage(ticked){
  for(const f of ['ticker','usage','radar','ha'])
   assert.ok(!(BOX[f] in o),BOX[f]+' must not be sent, got '+o[BOX[f]]);
  assert.strictEqual(o.carouselTheme,true,'carouselTheme');
- assert.strictEqual(o.carouselSec,45);
+ assert.strictEqual(o.carouselSec,60,'1 min -> 60 s');
  assert.strictEqual(o.mode,'carousel');
  assert.strictEqual(o.hostname,'smalltv-test');
 }
@@ -68,5 +68,13 @@ function makePage(ticked){
  assert.ok(!('carouselTheme' in o),'carouselTheme must not be sent');
  assert.strictEqual(o.carouselTicker,true);assert.strictEqual(o.carouselUsage,false);
  assert.strictEqual(o.carouselRadar,true);assert.strictEqual(o.carouselHa,false);
+}
+// The page holds the dwell in minutes; collect() still sends seconds.
+{
+ const {ctx,els}=makePage({ticker:true,usage:true,radar:true,ha:true,theme:true});
+ els.carouselMin.value='0.5';
+ assert.strictEqual(ctx.collect().carouselSec,30,'0.5 min -> 30 s');
+ els.carouselMin.value='45';
+ assert.strictEqual(ctx.collect().carouselSec,2700,'45 min -> 2700 s');
 }
 console.log('carousel flag tests passed');

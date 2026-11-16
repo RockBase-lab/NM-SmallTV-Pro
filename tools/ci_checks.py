@@ -4,12 +4,15 @@
   size    Compare each env's firmware.bin with its OTA app slot and fail when
           the free space drops below a threshold.
   assets  Check that every UPDATE_ASSET string in src/config.h is a file name
-          that the workflow stages into dist/.
+          that the workflow stages into dist/, except the variants the caller
+          declares not published with --not-published (a name there must be a
+          real UPDATE_ASSET and must not also be staged).
 
 Run from the repo root:
 
   python3 tools/ci_checks.py size
   python3 tools/ci_checks.py assets
+  python3 tools/ci_checks.py assets --not-published smalltv-mod-firmware-c2.bin
 
 Where the numbers come from (nothing is hardcoded per env):
   - The env list and each env's partition table or linker script come from
@@ -105,17 +108,21 @@ def cmd_size(args):
         if name not in envs:
             bad.append("%s: not an env in platformio.ini" % name)
             continue
+        # The image first: with --allow-missing an env that was not built is
+        # skipped before its slot is looked up, so a gate run over unbuilt envs
+        # does not need that family's framework installed (the ESP8266 slot
+        # comes from the framework's linker script).
+        binp = os.path.join(args.build_dir, name, "firmware.bin")
+        if not os.path.isfile(binp):
+            if args.allow_missing:
+                rows.append((name, None, "-", None, "-", "skipped (no firmware.bin)"))
+            else:
+                bad.append("%s: %s is missing" % (name, binp))
+            continue
         try:
             slot, source = env_slot(envs[name], pio_home)
         except (ValueError, OSError) as e:
             bad.append("%s: %s" % (name, e))
-            continue
-        binp = os.path.join(args.build_dir, name, "firmware.bin")
-        if not os.path.isfile(binp):
-            if args.allow_missing:
-                rows.append((name, None, slot, None, source, "skipped (no firmware.bin)"))
-            else:
-                bad.append("%s: %s is missing" % (name, binp))
             continue
         size = os.path.getsize(binp)
         free = slot - size
@@ -158,16 +165,33 @@ def cmd_assets(args):
         print("::error::asset check: no `copy <src> dist/<name>` lines found in %s"
               % args.workflow)
         return 1
+    declared = [n.strip() for n in args.not_published.split(",") if n.strip()]
     bad = False
-    for a in wanted:
-        ok = a in staged
-        print("%-40s %s" % (a, "staged" if ok else "NOT STAGED"))
-        if not ok:
+    # A name that is not an UPDATE_ASSET, or one that is both retired and
+    # staged, means the two sides have drifted: fail rather than let the list
+    # quietly stop protecting anything.
+    for n in declared:
+        if n not in wanted:
             bad = True
-            print("::error::asset check: UPDATE_ASSET \"%s\" in %s is not staged "
-                  "into dist/ by %s (staged: %s). A device on that variant would "
-                  "find no matching release asset and could never self-update."
-                  % (a, args.config_h, args.workflow, ", ".join(sorted(staged))))
+            print("::error::asset check: --not-published names \"%s\", which is not an "
+                  "UPDATE_ASSET in %s" % (n, args.config_h))
+        elif n in staged:
+            bad = True
+            print("::error::asset check: \"%s\" is both --not-published and staged into "
+                  "dist/ by %s; one of the two is stale" % (n, args.workflow))
+    for a in wanted:
+        if a in staged:
+            print("%-40s %s" % (a, "staged"))
+            continue
+        print("%-40s %s" % (a, "not published" if a in declared else "NOT STAGED"))
+        if a in declared:
+            continue
+        bad = True
+        print("::error::asset check: UPDATE_ASSET \"%s\" in %s is not staged "
+              "into dist/ by %s (staged: %s) and is not declared with "
+              "--not-published. A device on that variant would find no matching "
+              "release asset and could never self-update."
+              % (a, args.config_h, args.workflow, ", ".join(sorted(staged))))
     return 1 if bad else 0
 
 
@@ -188,6 +212,10 @@ def main():
     a = sub.add_parser("assets", help="UPDATE_ASSET names vs dist/ copy lines")
     a.add_argument("--config-h", default="src/config.h")
     a.add_argument("--workflow", default=".github/workflows/build.yml")
+    a.add_argument("--not-published", default="",
+                   help="comma separated UPDATE_ASSET names whose variant is "
+                        "deliberately not built or released; each must be a real "
+                        "UPDATE_ASSET and must not be staged")
     a.set_defaults(fn=cmd_assets)
 
     args = p.parse_args()

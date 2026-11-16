@@ -7,10 +7,13 @@
 set -eu
 cd "$(dirname "$0")/../.."
 JSON_INCLUDE=${THEME_JSON_INCLUDE:-.pio/libdeps/smalltv_esp32_8mb/ArduinoJson/src}
+# WITH_HA defaults to 0 in src/config.h (the shipping images compile Home Assistant
+# out), and HaBoot.h/MqttClient.h declare nothing without it. This test is about
+# that code, so it compiles it in.
 # Settings.cpp and the three HA sources are built against the stand-in core
 # headers of the fuzz target (tests/fuzz/shim) plus tests/ha/shim.
 c++ -std=c++11 -Wall -Wextra -Werror -Wno-unused-parameter -g \
-  -DSMALLTV_ESP8266 -DARDUINOJSON_USE_DOUBLE=0 -DARDUINOJSON_ENABLE_ARDUINO_STRING=1 \
+  -DSMALLTV_ESP8266 -DWITH_HA=1 -DARDUINOJSON_USE_DOUBLE=0 -DARDUINOJSON_ENABLE_ARDUINO_STRING=1 \
   -include tests/ha/host_core.h \
   -Itests/ha/shim -Itests/fuzz/shim -Isrc -Isrc/features/ha -Isrc/features/theme -I"$JSON_INCLUDE" \
   tests/ha/test_ha_alloc.cpp src/features/ha/HaBoot.cpp src/features/ha/HaScreens.cpp \
