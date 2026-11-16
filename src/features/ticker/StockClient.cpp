@@ -407,7 +407,7 @@ static bool fetchNaverForeignMinute(const Settings& s, const TickerSettings& ts,
     }
   }
 
-  // Date boundary line
+  // Date boundary line: drawn precisely where yesterday ends and today's session begins
   if (yestTaken > 0 && todayTaken > 0) {
     d.dateSplitIdx = d.candleCount;
   }
@@ -592,10 +592,7 @@ static bool fetchNaverForeign(const Settings& s, const TickerSettings& ts, const
               if (d.candleCount < MAX_SPARK_POINTS) d.candles[d.candleCount++] = {op, hi, lo, cl};
             }
           }
-          // The last candle represents today / latest trading session
-          if (d.candleCount >= 2) {
-            d.dateSplitIdx = d.candleCount - 1;
-          }
+          d.dateSplitIdx = -1;
           if (d.sparkCount > 0) {
             d.spark[d.sparkCount - 1] = d.price;
             if (d.candleCount > 0) {
@@ -744,10 +741,8 @@ static bool fetchNaverMinute(const Settings& s, const TickerSettings& ts, const 
     d.spark[d.sparkCount++] = ring[idx].close;
   }
 
-  // The latest candle represents the current minute candle
-  if (d.candleCount >= 2) {
-    d.dateSplitIdx = d.candleCount - 1;
-  }
+  // Intraday minute candles are all from today, so no date boundary line is drawn.
+  d.dateSplitIdx = -1;
 
   if (d.sparkCount > 0) {
     d.spark[d.sparkCount - 1] = d.price;
@@ -863,6 +858,13 @@ static bool fetchNaver(const Settings& s, const TickerSettings& ts, const char* 
   uint16_t cnt = naverCount(ts.range);
   if (cnt < want) cnt = want;
 
+  // If minute candles requested but unavailable (e.g. pre-market 08:00-09:00 or market closed),
+  // fallback to daily candles ('day') because fchart 'minute' is unaggregated and lacks OHLC (nulls).
+  if (isMinute) {
+    tf = "day";
+    cnt = want;
+  }
+
   String chartUrl = F("https://fchart.stock.naver.com/sise.nhn?symbol=");
   chartUrl += cleanCode;
   chartUrl += F("&timeframe=");
@@ -911,11 +913,14 @@ static bool fetchNaver(const Settings& s, const TickerSettings& ts, const char* 
         String closePart = (p5 >= 0) ? line.substring(p4 + 1, p5) : line.substring(p4 + 1);
         float cl = closePart.toFloat();
 
+        // Safety fallback against nulls or zero prices
+        if (op <= 0) op = cl;
+        if (hi <= 0) hi = cl;
+        if (lo <= 0) lo = cl;
+
         if (d.sparkCount < MAX_SPARK_POINTS && cl > 0) {
           String datePart = line.substring(0, p1);
-          if (lastDate[0] && datePart != lastDate && d.dateSplitIdx < 0) {
-            d.dateSplitIdx = d.sparkCount;
-          }
+          d.dateSplitIdx = -1;
           strlcpy(lastDate, datePart.c_str(), sizeof(lastDate));
           d.spark[d.sparkCount++] = cl;
           if (d.candleCount < MAX_SPARK_POINTS) {
