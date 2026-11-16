@@ -26,6 +26,7 @@
 #if WITH_NOTIFY
 #include "NotifyMode.h"
 #endif
+#include "BurninWiper.h"
 
 #if WITH_TICKER
 #include "TickerMode.h"
@@ -330,6 +331,10 @@ static void buttonService() {
   if (stable) {
     downAt = millis();
     g_abortFetch = true; // Signal in-flight fetch to abort immediately on touch contact
+    if (burninActive()) {
+      burninDismiss();
+      return;
+    }
     return;
   }
   uint32_t held = millis() - downAt;
@@ -441,6 +446,7 @@ void setup() {
   mqttBegin(g_settings);   // arms the client; the connect itself runs from loop()
 #endif
 
+  burninInit();
   Serial.println("[boot] modes");
   for (size_t i = 0; i < kModeCount; i++) kModes[i]->begin(g_settings);
   Serial.println("[boot] done");
@@ -543,8 +549,22 @@ void loop() {
     if (g_carSwitch) g_carSwitch += g_notifyMode.heldMs();
   }
 #else
-  const bool restore = false;
+  bool restore = false;
 #endif
+
+  // Screen burn-in prevention
+  static bool wasBurnin = false;
+  burninService(g_settings);
+  if (burninActive()) {
+    wasBurnin = true;
+    delay(5);
+    return;
+  }
+  if (wasBurnin) {
+    wasBurnin = false;
+    if (g_carSwitch) g_carSwitch += burninHeldMs();
+    restore = true;
+  }
 
   DisplayMode* m = activeMode(g_settings);
   if (m) {

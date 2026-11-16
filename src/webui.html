@@ -87,6 +87,42 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
    </div>
    <small class="hint">Carousel(자동 순환) 모드를 선택하면 아래 체크된 앱들이 설정한 순환 주기(초)마다 번갈아가며 자동으로 화면에 표시됩니다. 특정 앱만 고정하고 싶다면 원하는 모드를 선택하세요.</small>
   </div>
+  <div class="card" id="burninCard"><h2>Screen Refresh &amp; Burn-in Prevention (화면 번인 방지)</h2>
+   <div class="chk"><input id="burninEnabled" type="checkbox" onchange="burninToggled()"><label>Enable screen refresh (화면 번인 방지 화면 전환 사용)</label></div>
+   <div id="burninSettings">
+    <label>Trigger mode (실행 방식)</label>
+    <select id="burninTriggerType" onchange="burninTriggerChanged()">
+     <option value="interval">Every N minutes (정해진 주기마다)</option>
+     <option value="time">Daily at set time (매일 지정 시각에)</option>
+    </select>
+    <div id="burninIntervalRow">
+     <label>Run every (실행 주기, 분)</label>
+     <input id="burninIntervalMin" type="number" min="1" max="1440" step="1" placeholder="예: 60 (1시간마다) 또는 30 (30분마다)">
+     <small class="hint">시계가 동기화되어 있을 때는 매 정각(00분) 및 지정 분 간격에 맞춰 깔끔하게 자동 실행됩니다.</small>
+    </div>
+    <div id="burninTimeRow" style="display:none">
+     <label>Run daily at (실행 시각, HH:MM)</label>
+     <input id="burninTimeStr" type="text" placeholder="예: 12:00 또는 15:30" maxlength="5">
+     <small class="hint">하루에 한 번 지정된 시각(24시간 형식)에 화면 전환 효과를 실행합니다.</small>
+    </div>
+    <label style="margin-top:12px">Display duration (화면 유지 시간, 초)</label>
+    <input id="burninDurationSec" type="number" min="1" max="300" step="1" placeholder="예: 10 (초)">
+    <label style="margin-top:12px">Transition effect (화면 전환 효과)</label>
+    <select id="burninEffect">
+     <option value="matrix">Matrix Rain (매트릭스 레인 - 레트로 감성 디지털 코드 비)</option>
+     <option value="rainbow">Rainbow Bars (레인보우 컬러 바 - RGB 서브픽셀 균등 에이징)</option>
+     <option value="starfield">3D Starfield (3D 별빛 우주 - 3차원 공간 비행 워프)</option>
+     <option value="black">Deep Black (완전 블랙 - 액정 전하 방전 및 완전 휴식)</option>
+     <option value="white">Pure White (화이트 클리어 - LCD 잔상 복원 표준, 서브픽셀 100% 활성화)</option>
+     <option value="snow">TV Snow (아날로그 노이즈 - 레트로 TV 지지직 노이즈)</option>
+     <option value="mascot">Animated Mascot (마스코트 애니메이션 - 귀여운 닭/캐릭터)</option>
+    </select>
+    <div style="margin-top:14px">
+     <button class="btn sec" type="button" onclick="previewBurnin()">Preview now (지금 바로 미리보기, 5초)</button>
+    </div>
+   </div>
+   <small class="hint">주식 차트나 고정된 UI가 장시간 표시될 때 발생하는 IPS LCD 액정의 잔상(Image Retention) 및 번인 현상을 방지하기 위해, 앱 자동 순환과는 별개로 주기적으로 화면을 전환하여 액정 소자를 리프레시합니다. 화면 전환 중 기기 상단 터치 버튼을 누르면 즉시 원래 화면으로 복귀합니다.</small>
+  </div>
   <button class="btn" onclick="saveAll()">Save settings</button>
  </section>
 
@@ -512,6 +548,26 @@ function placePick(){var p=PLACES[parseInt(gv('locRes'))]; if(!p)return;
  sv('locLat',p.latitude.toFixed(4)); sv('locLon',p.longitude.toFixed(4))}
 function sunToggled(){if(gc('sunEnabled'))sc('autoBrightness',false)}
 function autoToggled(){if(gc('autoBrightness'))sc('sunEnabled',false)}
+function burninToggled(){
+ var on = gc('burninEnabled');
+ var el = $('burninSettings');
+ if (el) el.style.display = on ? '' : 'none';
+}
+function burninTriggerChanged(){
+ var t = gv('burninTriggerType') || 'interval';
+ var isInt = (t === 'interval');
+ if ($('burninIntervalRow')) $('burninIntervalRow').style.display = isInt ? '' : 'none';
+ if ($('burninTimeRow')) $('burninTimeRow').style.display = isInt ? 'none' : '';
+}
+function previewBurnin(){
+ var eff = gv('burninEffect') || 'matrix';
+ toast('Previewing ' + eff + ' on device for 5s...');
+ j('/api/burnin/preview', {
+  method: 'POST',
+  headers: {'Content-Type': 'application/json'},
+  body: JSON.stringify({effect: eff, durationSec: 5})
+ }).catch(function(e){ toast('Preview failed: ' + e.message); });
+}
 function radarLocChanged(){var d=gc('radarUseDevice'); $('radarLat').disabled=d; $('radarLon').disabled=d}
 // The line under the schedule, from the settings (c) and the status reply (s).
 // null: the schedule is off, leave the hint alone. s.bl is the backlight level
@@ -642,6 +698,16 @@ function loadConfig(){return j('/api/config').then(function(c){C=c;
  sv('weatherPollMin', c.weatherPollMin || 10);
  sc('carouselTicker',c.carouselTicker!==false); sc('carouselTicker2',c.carouselTicker2!==false); sc('carouselWeather',c.carouselWeather!==false); sc('carouselUsage',c.carouselUsage!==false); sc('carouselRadar',c.carouselRadar!==false);
  sc('carouselHa',c.carouselHa!==false); sc('carouselTheme',c.carouselTheme===true);
+ // burn-in slice
+ var bn=c.burnin||{};
+ sc('burninEnabled',bn.enabled!==false);
+ sv('burninTriggerType',bn.triggerType||'interval');
+ sv('burninIntervalMin',bn.intervalMin||60);
+ sv('burninTimeStr',bn.timeStr||'12:00');
+ sv('burninDurationSec',bn.durationSec||10);
+ sv('burninEffect',bn.effect||'matrix');
+ burninToggled();
+ burninTriggerChanged();
  // HA / MQTT slice
  var h=c.ha||{};
  sv('haBrokerHost',h.brokerHost); sv('haBrokerPort',h.brokerPort||1883);
@@ -767,6 +833,14 @@ function collect(){
   autoBrightness:gc('autoBrightness'),
   backlightInverted:gc('backlightInverted'),
   hostname:gv('hostname'), apSsid:gv('apSsid'),
+  burnin:{
+   enabled:gc('burninEnabled'),
+   triggerType:gv('burninTriggerType')||'interval',
+   intervalMin:parseInt(gv('burninIntervalMin'))||60,
+   timeStr:gv('burninTimeStr')||'12:00',
+   durationSec:parseInt(gv('burninDurationSec'))||10,
+   effect:gv('burninEffect')||'matrix'
+  },
   display:{colorOrder:gv('colorOrder')||'auto', invert:gc('colorInvert'),
    rGain:parseInt(gv('rGain'))||100, gGain:parseInt(gv('gGain'))||100, bGain:parseInt(gv('bGain'))||100},
   wifi:collectWifi()};

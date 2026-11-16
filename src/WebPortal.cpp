@@ -17,6 +17,7 @@
 #if WITH_NOTIFY
 #include "NotifyMode.h"
 #endif
+#include "BurninWiper.h"
 #include "Clock.h"
 #include "WgClient.h"
 #if WITH_THEME
@@ -586,6 +587,23 @@ static void handleNotify() {
 }
 #endif
 
+static void handleBurninPreview() {
+  if (!requireAuth()) return;
+  if (!server.hasArg("plain")) {
+    server.send(400, "text/plain", "no body");
+    return;
+  }
+  JsonDocument doc;
+  if (deserializeJson(doc, server.arg("plain"))) {
+    server.send(400, "text/plain", "bad json");
+    return;
+  }
+  const char* eff = doc["effect"] | "matrix";
+  uint16_t dur = doc["durationSec"] | 5;
+  burninTriggerPreview(eff, dur);
+  server.send(200, "application/json", "{\"status\":\"ok\"}");
+}
+
 // ---- OTA ------------------------------------------------------------------
 #if defined(SMALLTV_FAMILY_ESP8266)
 // The core's updater asks for one buffer in one piece and gives up if the
@@ -706,6 +724,7 @@ void webPortalBegin(Settings& settings) {
   server.on("/api/notify", HTTP_POST, handleNotify);     // full-screen attention overlay
 #endif
   server.on("/update", HTTP_POST, handleUpdateDone, handleUpdateUpload);
+  server.on("/api/burnin/preview", HTTP_POST, handleBurninPreview);
 
   // Common captive-portal probe endpoints
   server.on("/generate_204", handleNotFound);

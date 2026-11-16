@@ -204,6 +204,20 @@ struct ButtonSettings {
   void fromJson(JsonObjectConst o);
 };
 
+// ---- Burn-in prevention slice ---------------------------------------------
+struct BurninSettings {
+  bool     enabled;
+  String   triggerType;     // "interval" or "time"
+  uint16_t intervalMin;     // interval in minutes (default 60)
+  String   timeStr;         // "HH:MM" (default "12:00")
+  uint16_t durationSec;     // duration in seconds (default 10)
+  String   effect;          // "matrix", "rainbow", "starfield", "black", "white", "snow", "mascot"
+
+  void setDefaults();
+  void toJson(JsonObject o) const;
+  void fromJson(JsonObjectConst o);
+};
+
 // ---- Top-level settings ----------------------------------------------------
 struct Settings {
   // --- WiFi station networks (the device joins one of these) ---
@@ -242,6 +256,7 @@ struct Settings {
   WgSettings      wg;        // WireGuard tunnel (ESP32 targets)
   AuthSettings    auth;      // optional web UI password
   ButtonSettings  button;    // physical button behaviour (boards with BTN_PIN)
+  BurninSettings  burnin;    // screen refresh / burn-in prevention slice
 
   void setDefaults();
 };
