@@ -272,6 +272,36 @@ void BurninSettings::fromJson(JsonObjectConst o) {
 }
 
 // ===========================================================================
+// App timer slice
+// ===========================================================================
+void AppTimerSettings::setDefaults() {
+  items[0] = { true, "06:00", "weather" };
+  items[1] = { true, "09:00", "stocks"  };
+  items[2] = { true, "15:30", "weather" };
+  items[3] = { true, "23:30", "stocks2" };
+}
+
+void AppTimerSettings::toJson(JsonArray arr) const {
+  for (uint8_t i = 0; i < 4; i++) {
+    JsonObject o = arr.add<JsonObject>();
+    o["enabled"] = items[i].enabled;
+    o["time"]    = items[i].time;
+    o["app"]     = items[i].app;
+  }
+}
+
+void AppTimerSettings::fromJson(JsonArrayConst arr) {
+  uint8_t idx = 0;
+  for (JsonObjectConst o : arr) {
+    if (idx >= 4) break;
+    if (o["enabled"].is<bool>())        items[idx].enabled = o["enabled"].as<bool>();
+    if (o["time"].is<const char*>())    items[idx].time    = o["time"].as<String>();
+    if (o["app"].is<const char*>())     items[idx].app     = o["app"].as<String>();
+    idx++;
+  }
+}
+
+// ===========================================================================
 // Web UI password slice
 // ===========================================================================
 void AuthSettings::setDefaults() {
@@ -560,6 +590,7 @@ void Settings::setDefaults() {
   auth.setDefaults();
   button.setDefaults();
   burnin.setDefaults();
+  timers.setDefaults();
 }
 
 // ---------------------------------------------------------------------------
@@ -630,13 +661,15 @@ void settingsToJson(const Settings& s, JsonObject root, bool includeSecrets) {
 
   // Mode + shared HTTP/display
   root["themeId"] = s.themeId;
-  root["mode"]              = (s.mode == MODE_THEME)    ? "theme"
+  root["mode"]              = (s.mode == MODE_CAROUSEL) ? "carousel"
+                            : (s.mode == MODE_TIMER)    ? "timer"
+                            : (s.mode == MODE_THEME)    ? "theme"
                             : (s.mode == MODE_RADAR)    ? "radar"
                             : (s.mode == MODE_USAGE)    ? "usage"
                             : (s.mode == MODE_HA)       ? "ha"
                             : (s.mode == MODE_STOCKS2)  ? "stocks2"
                             : (s.mode == MODE_WEATHER)  ? "weather"
-                            : (s.mode == MODE_CAROUSEL) ? "carousel" : "stocks";
+                            : (s.mode == MODE_STOCKS)   ? "stocks" : "timer";
   root["carouselSec"]       = s.carouselSec;
   root["carouselTicker"]    = s.carouselTicker;
   root["carouselTicker2"]   = s.carouselTicker2;
@@ -664,6 +697,7 @@ void settingsToJson(const Settings& s, JsonObject root, bool includeSecrets) {
   s.auth.toJson(root["auth"].to<JsonObject>(), includeSecrets);
   s.button.toJson(root["button"].to<JsonObject>());
   s.burnin.toJson(root["burnin"].to<JsonObject>());
+  s.timers.toJson(root["timers"].to<JsonArray>());
 }
 
 // Apply only the keys that are present (partial update friendly). Accepts both
@@ -712,12 +746,13 @@ void settingsApplyJson(Settings& s, JsonObjectConst root) {
 
   if (root["mode"].is<const char*>()) {
     String m = root["mode"].as<String>();
-    s.mode = m.equalsIgnoreCase("theme")    ? MODE_THEME
+    s.mode = m.equalsIgnoreCase("timer")    ? MODE_TIMER
+           : m.equalsIgnoreCase("carousel") ? MODE_CAROUSEL
+           : m.equalsIgnoreCase("theme")    ? MODE_THEME
            : m.equalsIgnoreCase("radar")    ? MODE_RADAR
            : m.equalsIgnoreCase("usage")    ? MODE_USAGE
            : m.equalsIgnoreCase("ha")       ? MODE_HA
            : m.equalsIgnoreCase("weather")  ? MODE_WEATHER
-           : m.equalsIgnoreCase("carousel") ? MODE_CAROUSEL
            : (m.equalsIgnoreCase("stocks2") || m.equalsIgnoreCase("stock2")) ? MODE_STOCKS2
            : (m.equalsIgnoreCase("stocks") || m.equalsIgnoreCase("stock1"))  ? MODE_STOCKS
            : s.mode;   // empty or unknown: a save that names no mode keeps the stored one
@@ -765,6 +800,7 @@ void settingsApplyJson(Settings& s, JsonObjectConst root) {
   if (root["auth"].is<JsonObjectConst>()) s.auth.fromJson(root["auth"].as<JsonObjectConst>());
   if (root["button"].is<JsonObjectConst>()) s.button.fromJson(root["button"].as<JsonObjectConst>());
   if (root["burnin"].is<JsonObjectConst>()) s.burnin.fromJson(root["burnin"].as<JsonObjectConst>());
+  if (root["timers"].is<JsonArrayConst>())   s.timers.fromJson(root["timers"].as<JsonArrayConst>());
 
   // The sun schedule and the light sensor each pick the brightness alone: not
   // both. Whichever this save turned on wins; if both arrive on (or both were

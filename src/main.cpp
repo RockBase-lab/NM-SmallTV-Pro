@@ -107,6 +107,51 @@ static void carouselNext(const Settings& s) {
   }
 }
 
+// Global abort flag for network operations
+volatile bool g_abortFetch = false;
+
+static uint8_t modeFromApp(const String& app) {
+  if (app.equalsIgnoreCase("stocks2") || app.equalsIgnoreCase("stock2")) return MODE_STOCKS2;
+  if (app.equalsIgnoreCase("weather")) return MODE_WEATHER;
+  return MODE_STOCKS;
+}
+
+static uint8_t resolveTimerMode(const Settings& s) {
+  struct tm now;
+  if (!clockNow(now)) {
+    for (uint8_t i = 0; i < 4; i++) {
+      if (s.timers.items[i].enabled) return modeFromApp(s.timers.items[i].app);
+    }
+    return MODE_STOCKS;
+  }
+
+  int curMin = now.tm_hour * 60 + now.tm_min;
+  int minElapsed = 9999;
+  uint8_t selectedMode = MODE_STOCKS;
+  bool found = false;
+
+  for (uint8_t i = 0; i < 4; i++) {
+    const AppTimerItem& item = s.timers.items[i];
+    if (!item.enabled) continue;
+
+    int tH = 0, tM = 0;
+    if (sscanf(item.time.c_str(), "%d:%d", &tH, &tM) < 2) continue;
+    int tMin = constrain(tH, 0, 23) * 60 + constrain(tM, 0, 59);
+
+    int elapsed = (curMin >= tMin) ? (curMin - tMin) : (curMin + 1440 - tMin);
+    if (elapsed < minElapsed) {
+      minElapsed = elapsed;
+      selectedMode = modeFromApp(item.app);
+      found = true;
+    }
+  }
+
+  if (!found) return MODE_STOCKS;
+  return selectedMode;
+}
+
+static uint8_t g_lastTimerMode = 255;
+
 static DisplayMode* activeMode(const Settings& s) {
   if (s.mode == MODE_CAROUSEL && kModeCount > 0) {
     if (g_carSwitch == 0) g_carSwitch = millis();
@@ -118,6 +163,22 @@ static DisplayMode* activeMode(const Settings& s) {
       carouselNext(s);
     }
     return kModes[g_carIdx];
+  }
+  if (s.mode == MODE_TIMER && kModeCount > 0) {
+    uint8_t target = resolveTimerMode(s);
+    if (target != g_lastTimerMode) {
+      g_lastTimerMode = target;
+      for (size_t i = 0; i < kModeCount; i++) {
+        if (kModes[i]->modeConst() == target) {
+          kModes[i]->wake(s);
+          return kModes[i];
+        }
+      }
+    }
+    for (size_t i = 0; i < kModeCount; i++) {
+      if (kModes[i]->modeConst() == target) return kModes[i];
+    }
+    return kModes[0];
   }
   for (size_t i = 0; i < kModeCount; i++)
     if (kModes[i]->modeConst() == s.mode) return kModes[i];
@@ -221,9 +282,6 @@ static void buttonGoHome() {
   }
 }
 
-// Global abort flag for network operations
-volatile bool g_abortFetch = false;
-
 static void buttonNext() {
   if (kModeCount == 0) return;
 
@@ -236,8 +294,9 @@ static void buttonNext() {
 
   // Find current index in kModes
   int curIdx = -1;
+  uint8_t curConst = (g_settings.mode == MODE_TIMER) ? g_lastTimerMode : g_settings.mode;
   for (size_t i = 0; i < kModeCount; i++) {
-    if (kModes[i]->modeConst() == g_settings.mode) {
+    if (kModes[i]->modeConst() == curConst) {
       curIdx = (int)i;
       break;
     }
@@ -355,6 +414,7 @@ const char* appResetReason() { return g_resetReason.c_str(); }
 // Called by the web portal after settings are applied: re-init every mode and
 // force a fresh repaint so a mode/URL/symbol change takes effect immediately.
 void appInvalidate() {
+  g_lastTimerMode = 255;
   for (size_t i = 0; i < kModeCount; i++) kModes[i]->invalidate(g_settings);
 }
 

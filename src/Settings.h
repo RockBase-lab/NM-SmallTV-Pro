@@ -218,6 +218,21 @@ struct BurninSettings {
   void fromJson(JsonObjectConst o);
 };
 
+// ---- App timer slice (Schedule apps by time of day) ------------------------
+struct AppTimerItem {
+  bool   enabled;
+  String time;   // "HH:MM" (24h)
+  String app;    // "weather", "stocks", "stocks2"
+};
+
+struct AppTimerSettings {
+  AppTimerItem items[4];
+
+  void setDefaults();
+  void toJson(JsonArray arr) const;
+  void fromJson(JsonArrayConst arr);
+};
+
 // ---- Top-level settings ----------------------------------------------------
 struct Settings {
   // --- WiFi station networks (the device joins one of these) ---
@@ -231,12 +246,15 @@ struct Settings {
 
   // --- Active feature ---
   String themeId;       // installed .stheme ID; empty until selected
-  uint8_t mode;         // MODE_STOCKS / MODE_USAGE / MODE_RADAR / MODE_CAROUSEL / MODE_HA
+  uint8_t mode;         // MODE_TIMER / MODE_CAROUSEL / MODE_STOCKS / ...
 
   // --- Carousel (mode == MODE_CAROUSEL): dwell + which features rotate ---
   uint16_t carouselSec;
   bool carouselTicker, carouselTicker2, carouselUsage, carouselRadar, carouselHa, carouselTheme, carouselWeather;
   uint16_t weatherPollMin; // Weather refresh interval in minutes (default 10)
+
+  // --- App Timers (mode == MODE_TIMER) ---
+  AppTimerSettings timers;
 
   // --- Shared HTTP / display ---
   uint16_t httpTimeout; // ms

@@ -22,7 +22,7 @@ main{padding:16px;max-width:680px;margin:0 auto}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px;margin-bottom:14px}
 h2{font-size:14px;text-transform:uppercase;letter-spacing:.04em;color:var(--mut);margin:0 0 12px}
 label{display:block;margin:10px 0 4px;font-size:13px;color:var(--mut)}
-input[type=text],input[type=password],input[type=number],input[type=url],select{
+input[type=text],input[type=password],input[type=number],input[type=url],input[type=time],select{
  width:100%;padding:9px 10px;background:#0b0e13;border:1px solid var(--bd);border-radius:8px;color:var(--fg);font-size:15px}
 input[type=range]{width:100%}
 .row{display:flex;gap:10px}.row>*{flex:1}
@@ -73,11 +73,61 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
   <div class="card"><h2>Mode (작동 모드)</h2>
    <label>What this device shows (화면 표시 모드)</label>
    <select id="mode" onchange="modeChanged()">
-    <option value="stocks">Stock 1 (Domestic / 국내주식)</option>
-    <option value="stocks2">Stock 2 (Overseas / 해외주식)</option>
-    <option value="weather">Weather (날씨)</option>
+    <option value="timer">Timer (Schedule by time / 시간대별 설정)</option>
     <option value="carousel">Carousel (rotate modes / 자동 순환)</option>
    </select>
+   <div id="timerRow" style="display:none">
+    <label style="margin-top:12px;margin-bottom:6px">App Timers (시간대별 앱 실행 타이머, 총 4개)</label>
+    <small class="hint" style="margin-bottom:12px">지정된 시각(시:분)이 되면 해당 앱이 자동으로 실행되어 다음 타이머 시각까지 유지됩니다.</small>
+    <div class="row" style="align-items:center;margin-bottom:8px">
+     <div style="flex:0 0 75px"><label style="margin:0;font-weight:600">Timer 1</label></div>
+     <div style="flex:1"><input id="timerTime0" type="time" value="06:00"></div>
+     <div style="flex:1.5">
+      <select id="timerApp0">
+       <option value="weather">Weather (날씨)</option>
+       <option value="stocks">Stock 1 (국내주식)</option>
+       <option value="stocks2">Stock 2 (해외주식)</option>
+      </select>
+     </div>
+     <div style="flex:0 0 40px;text-align:right" class="chk"><input id="timerEn0" type="checkbox" checked><label></label></div>
+    </div>
+    <div class="row" style="align-items:center;margin-bottom:8px">
+     <div style="flex:0 0 75px"><label style="margin:0;font-weight:600">Timer 2</label></div>
+     <div style="flex:1"><input id="timerTime1" type="time" value="09:00"></div>
+     <div style="flex:1.5">
+      <select id="timerApp1">
+       <option value="stocks">Stock 1 (국내주식)</option>
+       <option value="stocks2">Stock 2 (해외주식)</option>
+       <option value="weather">Weather (날씨)</option>
+      </select>
+     </div>
+     <div style="flex:0 0 40px;text-align:right" class="chk"><input id="timerEn1" type="checkbox" checked><label></label></div>
+    </div>
+    <div class="row" style="align-items:center;margin-bottom:8px">
+     <div style="flex:0 0 75px"><label style="margin:0;font-weight:600">Timer 3</label></div>
+     <div style="flex:1"><input id="timerTime2" type="time" value="15:30"></div>
+     <div style="flex:1.5">
+      <select id="timerApp2">
+       <option value="weather">Weather (날씨)</option>
+       <option value="stocks">Stock 1 (국내주식)</option>
+       <option value="stocks2">Stock 2 (해외주식)</option>
+      </select>
+     </div>
+     <div style="flex:0 0 40px;text-align:right" class="chk"><input id="timerEn2" type="checkbox" checked><label></label></div>
+    </div>
+    <div class="row" style="align-items:center;margin-bottom:8px">
+     <div style="flex:0 0 75px"><label style="margin:0;font-weight:600">Timer 4</label></div>
+     <div style="flex:1"><input id="timerTime3" type="time" value="23:30"></div>
+     <div style="flex:1.5">
+      <select id="timerApp3">
+       <option value="stocks2">Stock 2 (해외주식)</option>
+       <option value="stocks">Stock 1 (국내주식)</option>
+       <option value="weather">Weather (날씨)</option>
+      </select>
+     </div>
+     <div style="flex:0 0 40px;text-align:right" class="chk"><input id="timerEn3" type="checkbox" checked><label></label></div>
+    </div>
+   </div>
    <div id="carouselRow">
     <label>Switch mode every (순환 주기, 분)</label><input id="carouselMin" type="number" min="0.5" max="120" step="0.5" placeholder="예: 1 또는 3">
     <label style="margin-top:12px;margin-bottom:6px">Rotate through apps (순환에 포함할 앱 선택)</label>
@@ -85,7 +135,7 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
     <div class="chk"><input id="carouselTicker2" type="checkbox"><label>Stock 2 (해외주식)</label></div>
     <div class="chk"><input id="carouselWeather" type="checkbox"><label>Weather (날씨)</label></div>
    </div>
-   <small class="hint">Carousel(자동 순환) 모드를 선택하면 아래 체크된 앱들이 설정한 순환 주기(초)마다 번갈아가며 자동으로 화면에 표시됩니다. 특정 앱만 고정하고 싶다면 원하는 모드를 선택하세요.</small>
+   <small class="hint">Timer(시간대별 설정)를 선택하면 지정된 시각부터 해당 앱이 실행되고, Carousel(자동 순환)을 선택하면 체크된 앱들이 설정한 순환 주기(분)마다 번갈아가며 자동으로 화면에 표시됩니다.</small>
   </div>
   <div class="card" id="burninCard"><h2>Screen Refresh &amp; Burn-in Prevention (화면 번인 방지)</h2>
    <div class="chk"><input id="burninEnabled" type="checkbox" onchange="burninToggled()"><label>Enable screen refresh (화면 번인 방지 화면 전환 사용)</label></div>
@@ -636,7 +686,9 @@ function hideFeat(name){
  var c=$(CAROPT[name]); if(c)c.closest('.chk').remove();
 }
 function modeChanged(){if(!$('mode'))return;
- $('carouselRow').style.display=$('mode').value==='carousel'?'block':'none';}
+ var m=$('mode').value;
+ if($('carouselRow'))$('carouselRow').style.display=m==='carousel'?'block':'none';
+ if($('timerRow'))$('timerRow').style.display=m==='timer'?'block':'none';}
 
 // The AP password is never read back into the form, so a blank field cannot be
 // told apart from "the user cleared it". Blank therefore keeps the stored one,
@@ -693,11 +745,24 @@ function loadConfig(){return j('/api/config').then(function(c){C=c;
  sv('locLat',ck.lat||''); sv('locLon',ck.lon||''); sv('wLat',ck.lat||37.566); sv('wLon',ck.lon||126.9784);
  sc('sunEnabled',!!ck.sunEnabled); sv('sunLow',ck.sunLow!=null?ck.sunLow:5); $('slVal')&&($('slVal').textContent=(ck.sunLow!=null?ck.sunLow:5));
  sv('sunRise',ck.sunRise!=null?ck.sunRise:60); sv('sunSet',ck.sunSet!=null?ck.sunSet:60); sv('sunOverlap',ck.sunOverlap||0);
- $('mode').value=c.mode||'stocks'; modeChanged();
+ var m=c.mode||'timer'; if(m!=='carousel') m='timer';
+ $('mode').value=m; modeChanged();
  var cSec = c.carouselSec || 60; sv('carouselMin', Math.round((cSec / 60) * 10) / 10);
  sv('weatherPollMin', c.weatherPollMin || 10);
  sc('carouselTicker',c.carouselTicker!==false); sc('carouselTicker2',c.carouselTicker2!==false); sc('carouselWeather',c.carouselWeather!==false); sc('carouselUsage',c.carouselUsage!==false); sc('carouselRadar',c.carouselRadar!==false);
  sc('carouselHa',c.carouselHa!==false); sc('carouselTheme',c.carouselTheme===true);
+ var tms=c.timers||[
+  {enabled:true,time:'06:00',app:'weather'},
+  {enabled:true,time:'09:00',app:'stocks'},
+  {enabled:true,time:'15:30',app:'weather'},
+  {enabled:true,time:'23:30',app:'stocks2'}
+ ];
+ for(var ti=0;ti<4;ti++){
+  var tm=tms[ti]||{enabled:false,time:'00:00',app:'weather'};
+  sc('timerEn'+ti,tm.enabled!==false);
+  sv('timerTime'+ti,tm.time||'00:00');
+  sv('timerApp'+ti,tm.app||'weather');
+ }
  // burn-in slice
  var bn=c.burnin||{};
  sc('burninEnabled',bn.enabled!==false);
@@ -841,6 +906,12 @@ function collect(){
    durationSec:parseInt(gv('burninDurationSec'))||10,
    effect:gv('burninEffect')||'matrix'
   },
+  timers:[
+   {enabled:gc('timerEn0'), time:gv('timerTime0')||'06:00', app:gv('timerApp0')||'weather'},
+   {enabled:gc('timerEn1'), time:gv('timerTime1')||'09:00', app:gv('timerApp1')||'stocks'},
+   {enabled:gc('timerEn2'), time:gv('timerTime2')||'15:30', app:gv('timerApp2')||'weather'},
+   {enabled:gc('timerEn3'), time:gv('timerTime3')||'23:30', app:gv('timerApp3')||'stocks2'}
+  ],
   display:{colorOrder:gv('colorOrder')||'auto', invert:gc('colorInvert'),
    rGain:parseInt(gv('rGain'))||100, gGain:parseInt(gv('gGain'))||100, bGain:parseInt(gv('bGain'))||100},
   wifi:collectWifi()};
@@ -1029,7 +1100,7 @@ function haNote(c){
 function showStatus(s){
  $('dot').className='dot'+(s.connected?' ok':'');
  $('hi').textContent=s.mode==='ap'?'setup mode':(s.ip||'');
- var cn=$('clockNow'); if(cn){var ne=!!(C.clock&&(C.clock.nightEnabled||C.clock.sunEnabled))||C.mode==='theme'||!!(C.wg&&C.wg.enabled);var ns=s.night?'  · night mode active':(s.nightHeld?'  · night mode waiting for NTP':'');cn.textContent=!ne?'Clock: enable night mode, the sun schedule, a theme clock, or WireGuard to start NTP':('Clock: '+(s.synced?(s.time||'synced')+(s.tz?' ('+s.tz+')':''):'waiting for NTP...')+ns);}
+ var cn=$('clockNow'); if(cn){var ne=!!(C.clock&&(C.clock.nightEnabled||C.clock.sunEnabled))||C.mode==='theme'||C.mode==='timer'||!!(C.wg&&C.wg.enabled)||(C.burnin&&C.burnin.enabled&&C.burnin.triggerType==='time');var ns=s.night?'  · night mode active':(s.nightHeld?'  · night mode waiting for NTP':'');cn.textContent=!ne?'Clock: enable timer mode, night mode, the sun schedule, or WireGuard to start NTP':('Clock: '+(s.synced?(s.time||'synced')+(s.tz?' ('+s.tz+')':''):'waiting for NTP...')+ns);}
  var sn=$('sunNow'),st=sunNowText(C.clock,s); if(sn&&st!==null)sn.textContent=st;
  var fw=$('fwVer'); if(fw)fw.textContent=s.fw+' '+s.version;
  // Surface the result of a boot-time GitHub update (ESP8266) once on first load,

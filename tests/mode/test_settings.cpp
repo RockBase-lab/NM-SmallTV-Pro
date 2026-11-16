@@ -45,6 +45,8 @@ static void testNamesSetTheMode() {
   CHECK(after(MODE_STOCKS, "{\"mode\":\"usage\"}") == MODE_USAGE, "usage");
   CHECK(after(MODE_STOCKS, "{\"mode\":\"ha\"}") == MODE_HA, "ha");
   CHECK(after(MODE_STOCKS, "{\"mode\":\"carousel\"}") == MODE_CAROUSEL, "carousel");
+  CHECK(after(MODE_STOCKS, "{\"mode\":\"timer\"}") == MODE_TIMER, "timer");
+  CHECK(after(MODE_STOCKS, "{\"mode\":\"Timer\"}") == MODE_TIMER, "timer case ignored");
   CHECK(after(MODE_RADAR, "{\"mode\":\"stocks\"}") == MODE_STOCKS, "stocks");
   CHECK(after(MODE_RADAR, "{\"mode\":\"Theme\"}") == MODE_THEME, "case is ignored");
 }

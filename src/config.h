@@ -13,7 +13,7 @@
 // Firmware identity
 // ---------------------------------------------------------------------------
 #define FW_NAME     "smalltv-mod"
-#define FW_VERSION  "3.10.0"
+#define FW_VERSION  "3.11.0"
 
 // Project / update references (shown in the web UI; used by the GitHub self-update)
 //
@@ -153,7 +153,8 @@
 #define MODE_HA        5             // Home Assistant screens pushed over MQTT
 #define MODE_STOCKS2   7             // second stock ticker set (Stock 2)
 #define MODE_WEATHER   8             // Weather display
-#define DEFAULT_MODE MODE_STOCKS
+#define MODE_TIMER     9             // Scheduled app timer mode
+#define DEFAULT_MODE MODE_TIMER
 #define DEFAULT_CAROUSEL_SEC 30      // per-mode dwell in carousel
 
 // ---------------------------------------------------------------------------
