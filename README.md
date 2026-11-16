@@ -1,22 +1,27 @@
-# GeekMagic SmallTV-PRO Modded Firmware (v3.10.0)
+# GeekMagic SmallTV-PRO Modded Firmware (v3.11.0)
 
 <p align="center">
   <img src="https://img.shields.io/badge/Platform-ESP32%208MB-red?style=for-the-badge&logo=espressif" alt="ESP32 8MB" />
   <img src="https://img.shields.io/badge/Resolution-240%C3%97240%20IPS-blue?style=for-the-badge" alt="240x240 IPS" />
+  <img src="https://img.shields.io/badge/Scheduler-App%20Timers-teal?style=for-the-badge" alt="App Timers" />
   <img src="https://img.shields.io/badge/Screen%20Protection-Burn--in%20Wiper-purple?style=for-the-badge" alt="Burn-in Wiper" />
   <img src="https://img.shields.io/badge/Notify%20Engine-160%C3%97160%20HD-green?style=for-the-badge" alt="160x160 HD" />
-  <img src="https://img.shields.io/badge/Version-v3.10.0-orange?style=for-the-badge" alt="v3.10.0" />
+  <img src="https://img.shields.io/badge/Version-v3.11.0-orange?style=for-the-badge" alt="v3.11.0" />
 </p>
 
 An advanced, feature-rich custom firmware for the **GeekMagic SmallTV-PRO** desktop cube (classic ESP32 with 8 MB Flash and 1.54" 240×240 IPS display).
 
-This fork brings **LCD burn-in prevention with 7 procedural & animated refresh effects**, **dual stock market tracking (Asian/KRX + US candlesticks with smart pre-market sessions)**, and **high-definition 160×160 animated full-screen notifications** to your desk monitor.
+This fork brings **scheduled app timers (Timer mode) with 4 time slots**, **LCD burn-in prevention with 7 procedural & animated refresh effects**, **dual stock market tracking (Asian/KRX + US candlesticks with smart pre-market sessions)**, and **high-definition 160×160 animated full-screen notifications** to your desk monitor.
 
 ---
 
 ## 🌟 Key Features
 
-### 1. Screen Refresh & Burn-in Prevention Engine
+### 1. Scheduled App Timers & Simplified Mode Selection
+* **4-Slot 24h App Timer**: Schedule exact apps (Stock 1, Stock 2, Weather) to run based on the time of day with automatic cross-midnight resolution.
+* **Streamlined Mode Dropdown**: Clean choice between **Timer** (scheduled by time) and **Carousel** (rotate apps on a dwell timer).
+
+### 2. Screen Refresh & Burn-in Prevention Engine
 * **LCD Image Retention Protection**: Periodic pixel exercise routines to prevent and reverse IPS LCD image persistence caused by static stock tickers.
 * **Dual Scheduling**: Run periodically (Every N minutes, smartly aligned to the clock e.g. `:00` on the hour) or daily at a specific time (`HH:MM`).
 * **Instant WebUI Preview**: Test any effect live on screen with a single click.
