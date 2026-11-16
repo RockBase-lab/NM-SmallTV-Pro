@@ -29,7 +29,7 @@ function makePage(){
  const els={};
  const add=(id,props)=>{els[id]=Object.assign({id},props)};
  els.mode=makeSelect();
- add('carouselSec',{value:'45'});add('brightness',{value:'80'});add('rotation',{value:'0'});
+ add('carouselMin',{value:'1'});add('brightness',{value:'80'});add('rotation',{value:'0'});
  add('hostname',{value:'smalltv-test'});add('apSsid',{value:'SmallTV-Test'});
  const document={getElementById:id=>els[id]||null,
   querySelector:sel=>{const m=/^#mode option\[value="(\w+)"\]$/.exec(sel);
@@ -58,7 +58,7 @@ for(const [feat,m] of [['radar','radar'],['usage','usage'],['ha','ha'],['ticker'
  const o=ctx.collect();
  assert.ok(!('mode' in o),'mode must not be sent when the list lacks '+m+', got '+JSON.stringify(o.mode));
  assert.strictEqual(o.hostname,'smalltv-test','the rest is still sent');
- assert.strictEqual(o.carouselSec,45);
+ assert.strictEqual(o.carouselSec,60,'the dwell is still sent, in seconds');
 }
 
 // Lean build, but the stored mode is one the page does offer: it is sent.

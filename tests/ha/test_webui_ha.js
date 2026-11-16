@@ -19,6 +19,8 @@ function statusRows(s){
  const els={};
  const el=id=>els[id]||(els[id]={id,textContent:'',innerHTML:'',className:'',href:''});
  const ctx={$:el,C:{},window:{},statusTimer:0,
+  // showStatus() reads the Stock 1 table to split the tickers into the two boxes.
+  document:{querySelectorAll:()=>[]},
   sunNowText:()=>null,fmtUp:()=>'1m',radarLine:()=>'',wgLine:()=>'',
   setTimeout,clearTimeout};
  vm.createContext(ctx);

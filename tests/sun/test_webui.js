@@ -60,7 +60,9 @@ vm.runInContext(code, context);
   assert.ok(!html.includes('it overrides the brightness and auto-brightness above.'),
     'night-mode hint must not say it always overrides');
   assert.match(html, /except when the sun schedule below is on: then its "When night mode is also on" choice decides/);
-  assert.match(html, /Use the device location \(Display tab, Clock &amp; night mode card\)/);
+  // the location fields sit in the "Clock & night mode" card itself, and the
+  // hint says what they feed
+  assert.match(html, /Used by the sunrise and sunset schedule below, and by the radar unless it has its own/);
 
   // the fields accept 4 decimals: the browser rejects a number off the step
   assert.match(html, /id="locLat" type="number" step="0\.0001"/);
