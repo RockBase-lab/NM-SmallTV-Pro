@@ -93,16 +93,32 @@ jobs:
       # Cheap, and a mismatch is not worth a 30 minute build to find out: every
       # UPDATE_ASSET in src/config.h has to be a file the staging step below
       # copies into dist/, or that variant's self-update finds no release asset.
+      #
+      # One variant is published (the 8 MB Pro, see [platformio] default_envs),
+      # so the other names are passed as deliberately not published. The flag
+      # keeps the check strict about the asset that does ship — drop the pro line
+      # from the staging step and this fails — and the list itself cannot rot
+      # silently: a name in it that is not an UPDATE_ASSET in src/config.h, or
+      # one that is also staged, is an error.
       - name: Check release asset names
-        run: python3 tools/ci_checks.py assets
+        run: |
+          python3 tools/ci_checks.py assets --not-published \
+            smalltv-mod-firmware-c2.bin,smalltv-mod-firmware-esp32.bin,smalltv-mod-firmware-esp32-wg.bin,smalltv-mod-firmware-lean.bin,smalltv-mod-firmware.bin
 
       # The firmware serves src/webui.h, not webui.html. A commit that edits
       # the HTML without regenerating the header ships the old page.
       - name: Check webui.h matches webui.html
         run: python3 tools/gzip_webui.py --check
 
-      - name: Build firmware (all targets)
-        run: pio run -e smalltv -e smalltv_lean -e smalltv_c2 -e smalltv_esp32 -e smalltv_esp32_wg -e smalltv_esp32_8mb -e smalltv_loader
+      # No -e here: a bare `pio run` builds [platformio] default_envs, which is
+      # the 8 MB SmallTV Pro and the loader — the target this firmware is
+      # published for, and the one env `pio run` builds locally too. The list
+      # lives in platformio.ini rather than in this file so the build, the
+      # staging, the asset check and the size gate below cannot disagree about
+      # what CI builds; why the 4 MB envs are not in it is documented there and
+      # in the commit that added it (CI run 43803118220).
+      - name: Build firmware (8 MB SmallTV Pro + loader)
+        run: pio run
 
       # tests/theme/run.sh also builds the memory test with -m32, so it
       # measures with the ESP8266's 32-bit pointers and sizes.
@@ -210,32 +226,24 @@ jobs:
           c++ -std=c++11 -Wall -Wextra -Werror -g -Isrc tests/test_crash_record.cpp -o /tmp/smalltv-crash-tests
           /tmp/smalltv-crash-tests
 
-      # One app image per target (web-UI OTA + GitHub self-update), the merged
-      # factory images for first-time USB flashing of the ESP32 boards, and the
-      # minimal loader used to install onto a SmallTV-ultra. Two boards get a
-      # second app image: the ESP8266 gets -lean, with Home Assistant and the
-      # usage meter compiled out, and the NM-TV-154 gets -esp32-wg, with the
-      # WireGuard client compiled in. UPDATE_ASSET in src/config.h maps each
-      # build back to its own file name so self-update keeps a device on the
-      # variant it runs.
+      # What the release publishes: the 8 MB Pro's app image (web-UI OTA and
+      # GitHub self-update), its merged factory image (first-time USB flashing),
+      # and the minimal loader used to install onto a SmallTV-ultra. The other
+      # variants are not built by CI and have no asset here; their UPDATE_ASSET
+      # names are declared unpublished in the asset check above instead. A device
+      # on one of those variants keeps the firmware it has.
+      #
+      # UPDATE_ASSET in src/config.h maps the pro build to the release asset name.
       # always() with a tolerant copy, for the same reason as the upload below:
-      # when one env dies the other six still built, and those binaries are
-      # usually what the next question needs. A missing file is a warning here,
-      # not a reason to hand over nothing. The build step's own exit status still
-      # decides whether the run is red.
+      # when one env dies the other still built, and that binary is what the next
+      # question needs. A missing file is a warning here, not a reason to hand
+      # over nothing. The build step's own exit status still decides whether the
+      # run is red.
       - name: Stage artifacts
         if: always()
         run: |
           mkdir -p dist
           copy() { [ -f "$1" ] && cp "$1" "$2" || echo "missing: $1"; }
-          copy .pio/build/smalltv/firmware.bin dist/smalltv-mod-firmware.bin
-          copy .pio/build/smalltv_lean/firmware.bin dist/smalltv-mod-firmware-lean.bin
-          copy .pio/build/smalltv_c2/firmware.bin dist/smalltv-mod-firmware-c2.bin
-          copy .pio/build/smalltv_c2/firmware.factory.bin dist/smalltv-mod-firmware-c2.factory.bin
-          copy .pio/build/smalltv_esp32/firmware.bin dist/smalltv-mod-firmware-esp32.bin
-          copy .pio/build/smalltv_esp32/firmware.factory.bin dist/smalltv-mod-firmware-esp32.factory.bin
-          copy .pio/build/smalltv_esp32_wg/firmware.bin dist/smalltv-mod-firmware-esp32-wg.bin
-          copy .pio/build/smalltv_esp32_wg/firmware.factory.bin dist/smalltv-mod-firmware-esp32-wg.factory.bin
           copy .pio/build/smalltv_esp32_8mb/firmware.bin dist/smalltv-mod-firmware-esp32-pro.bin
           copy .pio/build/smalltv_esp32_8mb/firmware.factory.bin dist/smalltv-mod-firmware-esp32-pro.factory.bin
           copy .pio/build/smalltv_loader/firmware.bin dist/smalltv-mod-loader.bin
@@ -245,8 +253,14 @@ jobs:
       # from the env's partition CSV or linker script, see tools/ci_checks.py.
       # The 8 KiB floor is a policy choice, not a measured value. After the
       # staging step so a red gate still uploads the binaries.
+      #
+      # --allow-missing: only default_envs are built, so the envs that are not
+      # built print as skipped instead of failing the gate. That also keeps the
+      # gate right when someone builds more of them locally. A published image
+      # that failed to build is not this step's to report — the build step does,
+      # and the size gate then has nothing to measure.
       - name: Check image headroom
-        run: python3 tools/ci_checks.py size --min-free 8192
+        run: python3 tools/ci_checks.py size --min-free 8192 --allow-missing
 
       # always(), so a run that dies after linking still hands over whatever was
       # produced. A size question cannot be answered from a red run with no
@@ -284,3 +298,4 @@ jobs:
         with:
           files: dist/*
           generate_release_notes: true
+
