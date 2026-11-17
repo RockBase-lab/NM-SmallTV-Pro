@@ -364,6 +364,7 @@ int koreanDrawTextBox(int x, int y, int maxW, int maxH, const char* utf8,
     if (code == '\n') {
       curX = x;
       curY += lineHeight;
+      if (curY + fontH > y + maxH) break;
       continue;
     }
 

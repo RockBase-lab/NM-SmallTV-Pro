@@ -227,7 +227,13 @@ void NotifyMode::copyText(char* dst, size_t cap, const char* src) {
   size_t n = 0;
   for (; src && *src && n + 1 < cap; src++) {
     uint8_t c = (uint8_t)*src;
-    if (c >= 0x20 && c != 0x7F) dst[n++] = (char)c;
+    if (c == '\\' && src[1] == 'n') {
+      dst[n++] = '\n';
+      src++;
+      continue;
+    }
+    if (c == '\r') continue;
+    if (c == '\n' || (c >= 0x20 && c != 0x7F)) dst[n++] = (char)c;
   }
   dst[n] = '\0';
 }
@@ -354,7 +360,7 @@ NotifyResult NotifyMode::request(const NotifyRequest& r) {
   if (it.ttlSec < NOTIFY_TTL_MIN_SEC) it.ttlSec = NOTIFY_TTL_MIN_SEC;
 
   copyText(it.label, sizeof(it.label), r.label);
-  it.wrap = r.wrap || (r.label && strchr(r.label, '\n') != nullptr);
+  it.wrap = r.wrap || (it.label[0] && strchr(it.label, '\n') != nullptr);
   it.gap  = r.gap ? r.gap : 12;
 
   // The preset's word is a fallback, not a header. Printing "INFO" above a label
