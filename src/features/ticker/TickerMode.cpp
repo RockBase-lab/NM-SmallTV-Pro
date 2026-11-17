@@ -50,9 +50,23 @@ static void drawCandlestick(Arduino_GFX* gfx, const StockData& d,
   int plotW = TFT_WIDTH - padL - padR;
   int plotH = bottom - top;
 
+  // 3. 봉 그리기 (캔들 폭 및 간격 최적 비율 계산: 개수가 적을 때는 우측 정렬하여 과도한 팽창 방지)
+  float candleSlot;
+  int startX;
+  if (n < 18) {
+    candleSlot = (float)plotW / 18.0f;
+    startX = padL + plotW - (int)(candleSlot * n);
+  } else {
+    candleSlot = (float)plotW / n;
+    startX = padL;
+  }
+  int bw = (int)(candleSlot * 0.72f);
+  if (bw < 2) bw = 2;   // 최소 2px 몸통
+  if (bw > 10) bw = 10; // 너무 두껍지 않도록 상한 10px
+
   // 1. 날짜 구분선 (수직 점선)
   if (d.dateSplitIdx > 0 && d.dateSplitIdx < n) {
-    int splitX = padL + (int)((long)plotW * d.dateSplitIdx / n);
+    int splitX = startX + (int)(candleSlot * d.dateSplitIdx);
     for (int vy = top; vy <= bottom; vy += 6) {
       gfx->drawFastVLine(splitX, vy, 3, C_GRAY);
     }
@@ -66,15 +80,9 @@ static void drawCandlestick(Arduino_GFX* gfx, const StockData& d,
     }
   }
 
-  // 3. 봉 그리기 (캔들 폭 및 간격 최적 비율 계산)
-  float candleSlot = (float)plotW / n;
-  int bw = (int)(candleSlot * 0.72f);
-  if (bw < 2) bw = 2;   // 최소 2px 몸통
-  if (bw > 12) bw = 12; // 너무 두껍지 않도록 상한 12px
-
   for (uint8_t i = 0; i < n; i++) {
     const auto& c = d.candles[i];
-    int cx = padL + (int)(candleSlot * i + candleSlot / 2.0f);
+    int cx = startX + (int)(candleSlot * i + candleSlot / 2.0f);
 
     int yHigh  = bottom - (int)((c.high - mn) / span * plotH);
     int yLow   = bottom - (int)((c.low - mn) / span * plotH);

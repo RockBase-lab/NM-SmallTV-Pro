@@ -1,5 +1,6 @@
 #include "StockClient.h"
 #include "Platform.h"
+#include "../../WebPortal.h"
 #include <ArduinoJson.h>
 #include <math.h>
 
@@ -309,24 +310,29 @@ static bool fetchNaverForeignMinute(const Settings& s, const TickerSettings& ts,
 
   char buf[256];
   uint32_t lastPoll = millis();
+  uint32_t loopStart = millis();
+  stream->setTimeout(150);
 
   while (http.connected() || stream->available()) {
-    if (g_abortFetch) {
-      http.end();
-      return false;
+    if (g_abortFetch || (millis() - loopStart > 3500)) {
+      break;
     }
     if (millis() - lastPoll > 30) {
       buttonPoll();
+      webPortalLoop();
+      yield();
       lastPoll = millis();
-      if (g_abortFetch) {
-        http.end();
-        return false;
-      }
+      if (g_abortFetch) break;
     }
 
     int len = stream->readBytesUntil('{', buf, sizeof(buf) - 1);
-    if (len < 0) break;
-    buf[len] = 0;
+    if (len <= 0 && !stream->available()) break;
+    if (len > 0) {
+      buf[len] = 0;
+      if (strchr(buf, ']')) break;
+    } else {
+      buf[0] = 0;
+    }
 
     // Detect switch from priceInfos (today) to lastPriceInfos (yesterday)
     if (!inYesterday && strstr(buf, "lastPriceInfos") != nullptr) {
@@ -342,6 +348,7 @@ static bool fetchNaverForeignMinute(const Settings& s, const TickerSettings& ts,
     }
 
     int objLen = stream->readBytesUntil('}', buf, sizeof(buf) - 1);
+    if (objLen <= 0 && !stream->available()) break;
     if (objLen <= 0) continue;
     buf[objLen] = 0;
 
@@ -662,23 +669,32 @@ static bool fetchNaverMinute(const Settings& s, const TickerSettings& ts, const 
 
   char buf[256];
   uint32_t lastPoll = millis();
+  uint32_t loopStart = millis();
+  stream->setTimeout(150);
+
   while (http.connected() || stream->available()) {
-    if (g_abortFetch) {
-      http.end();
-      return false;
+    if (g_abortFetch || (millis() - loopStart > 3500)) {
+      break;
     }
-    if (millis() - lastPoll > 40) {
+    if (millis() - lastPoll > 30) {
       buttonPoll();
+      webPortalLoop();
+      yield();
       lastPoll = millis();
-      if (g_abortFetch) {
-        http.end();
-        return false;
-      }
+      if (g_abortFetch) break;
     }
 
     int len = stream->readBytesUntil('{', buf, sizeof(buf) - 1);
-    if (len < 0) break;
+    if (len <= 0 && !stream->available()) break;
+    if (len > 0) {
+      buf[len] = 0;
+      if (strchr(buf, ']')) break;
+    } else {
+      buf[0] = 0;
+    }
+
     int objLen = stream->readBytesUntil('}', buf, sizeof(buf) - 1);
+    if (objLen <= 0 && !stream->available()) break;
     if (objLen <= 0) continue;
     buf[objLen] = 0;
 
