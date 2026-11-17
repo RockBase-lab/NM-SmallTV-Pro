@@ -25,6 +25,7 @@ struct NotifyRequest {
   uint32_t    ttlSec = 0;         // 0 -> the preset's own hold time
   int         prio   = -1;        // <0 -> the preset's own priority
   bool        wrap   = false;     // true -> multi-line card wrapping mode (no scroll)
+  uint8_t     gap    = 0;         // line gap in px for wrap mode (0 -> default 8)
 };
 
 // One queued or on-screen overlay, resolved down to what the renderer needs.
@@ -37,6 +38,7 @@ struct NotifyItem {
   uint8_t  type   = 0;            // preset index, kept only to recognise a repeat
   uint16_t ttlSec = NOTIFY_TTL_DEFAULT_SEC;
   bool     wrap   = false;
+  uint8_t  gap    = 8;
 };
 
 // What the endpoint answers with. A full queue is deliberately not the same

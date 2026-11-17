@@ -579,6 +579,9 @@ static void handleNotify() {
     const char* ws = doc["wrap"].as<const char*>();
     r.wrap = (!strcasecmp(ws, "true") || !strcmp(ws, "1"));
   }
+  if (doc["gap"].is<int>()) {
+    r.gap = (uint8_t)doc["gap"].as<int>();
+  }
 
   // A full queue answers 429, not 400: it is the one failure worth retrying, and
   // a script cannot back off sensibly if it looks the same as a typo in "type".

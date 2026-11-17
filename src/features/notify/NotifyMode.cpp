@@ -153,8 +153,9 @@ void NotifyMode::draw(bool full) {
       }
 
       if (cur_.label[0]) {
+        const int gap = cur_.gap ? cur_.gap : 8;
         koreanDrawTextBox(10, topY, TFT_WIDTH - 20, TFT_HEIGHT - topY - 10,
-                          cur_.label, C_WHITE, -1, 5, g_koreanFontSize);
+                          cur_.label, C_WHITE, -1, gap, g_koreanFontSize);
       }
     }
     return;
@@ -354,6 +355,7 @@ NotifyResult NotifyMode::request(const NotifyRequest& r) {
 
   copyText(it.label, sizeof(it.label), r.label);
   it.wrap = r.wrap || (r.label && strchr(r.label, '\n') != nullptr);
+  it.gap  = r.gap ? r.gap : 8;
 
   // The preset's word is a fallback, not a header. Printing "INFO" above a label
   // says nothing the colour and the animation have not already said, and costs a
