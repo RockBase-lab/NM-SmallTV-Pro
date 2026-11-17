@@ -571,6 +571,14 @@ static void handleNotify() {
   r.color = doc["color"];
   r.ttlSec = doc["ttl"] | (uint32_t)0;              // 0 -> the preset's own hold
   r.prio   = doc["priority"] | (int)-1;             // <0 -> the preset's own priority
+  if (doc["wrap"].is<bool>()) {
+    r.wrap = doc["wrap"].as<bool>();
+  } else if (doc["wrap"].is<int>()) {
+    r.wrap = (doc["wrap"].as<int>() != 0);
+  } else if (doc["wrap"].is<const char*>()) {
+    const char* ws = doc["wrap"].as<const char*>();
+    r.wrap = (!strcasecmp(ws, "true") || !strcmp(ws, "1"));
+  }
 
   // A full queue answers 429, not 400: it is the one failure worth retrying, and
   // a script cannot back off sensibly if it looks the same as a typo in "type".
@@ -608,6 +616,9 @@ static void handleTestKoreanNotify() {
   r.anim = "sms";
   r.ttlSec = 30;
   r.prio = NOTIFY_PRIO_HIGH;
+  if (server.hasArg("wrap")) {
+    r.wrap = (server.arg("wrap") == "1" || server.arg("wrap") == "true");
+  }
   g_notifyMode.request(r);
 
   char resp[128];

@@ -131,6 +131,35 @@ void NotifyMode::draw(bool full) {
   Arduino_GFX* gfx = gfxDev();
   if (!gfx) return;
 
+  if (cur_.wrap) {
+    if (full) {
+      gfx->fillScreen(C_BLACK);
+      const uint16_t accent = gfxTint(cur_.color);
+      const int lineH = koreanGetLineH();
+      int topY = 12;
+
+      if (cur_.title[0]) {
+        if (isUtf8String(cur_.title)) {
+          int tw = koreanMeasureTextW(cur_.title);
+          int tx = (TFT_WIDTH - tw) / 2;
+          if (tx < 10) tx = 10;
+          koreanDrawText(tx, topY, cur_.title, accent);
+        } else {
+          gfxDrawCentered(cur_.title, topY, NOTIFY_LABEL_SIZE, accent);
+        }
+        topY += lineH + 6;
+        gfx->drawFastHLine(10, topY, TFT_WIDTH - 20, accent);
+        topY += 8;
+      }
+
+      if (cur_.label[0]) {
+        koreanDrawTextBox(10, topY, TFT_WIDTH - 20, TFT_HEIGHT - topY - 10,
+                          cur_.label, C_WHITE, -1, 5, g_koreanFontSize);
+      }
+    }
+    return;
+  }
+
   const NotifyAnimEntry& a = notify_anim_table[cur_.anim];
   const int aw = notifyAnimW(a), ah = notifyAnimH(a);
   const bool labelled = cur_.label[0] != '\0';
@@ -207,9 +236,13 @@ void NotifyMode::startItem(const NotifyItem& it) {
 
   // Decide once per item whether the label scrolls: it depends only on the text,
   // and gfxTextW on every frame would be wasted work.
-  const int w = isUtf8String(cur_.label) ? koreanMeasureTextW(cur_.label)
-                                         : gfxTextW(cur_.label, NOTIFY_LABEL_SIZE);
-  scrollW_ = (w > NOTIFY_LABEL_AVAIL) ? w : 0;
+  if (cur_.wrap) {
+    scrollW_ = 0;
+  } else {
+    const int w = isUtf8String(cur_.label) ? koreanMeasureTextW(cur_.label)
+                                           : gfxTextW(cur_.label, NOTIFY_LABEL_SIZE);
+    scrollW_ = (w > NOTIFY_LABEL_AVAIL) ? w : 0;
+  }
   scrollX_ = 0;
 
   startedMs_    = millis();
@@ -320,6 +353,7 @@ NotifyResult NotifyMode::request(const NotifyRequest& r) {
   if (it.ttlSec < NOTIFY_TTL_MIN_SEC) it.ttlSec = NOTIFY_TTL_MIN_SEC;
 
   copyText(it.label, sizeof(it.label), r.label);
+  it.wrap = r.wrap || (r.label && strchr(r.label, '\n') != nullptr);
 
   // The preset's word is a fallback, not a header. Printing "INFO" above a label
   // says nothing the colour and the animation have not already said, and costs a
