@@ -5,7 +5,7 @@
 #include "Gfx.h"
 #include <string.h>
 
-uint8_t g_koreanFontSize = 20; // Default to 20px (10px x 2) for 12-char testing
+uint8_t g_koreanFontSize = 24; // Confirmed 24px default (12px base x 2 scale)
 
 uint8_t utf8DecodeChar(const char* p, uint16_t* outCode) {
   if (!p || !*p) {
@@ -71,6 +71,16 @@ int koreanDrawGlyph(int x, int y, uint16_t unicode, uint16_t color, int32_t bg, 
   uint8_t baseSize = (fontSize == 20 || fontSize == 10) ? 10 :
                      ((fontSize == 24 || fontSize == 12) ? 12 : 16);
   uint8_t scale = (fontSize == 20 || fontSize == 24 || fontSize == 32) ? 2 : 1;
+
+  const bool isAscii = (unicode >= 0x20 && unicode <= 0x7E);
+  const int asciiW = (baseSize == 10 ? KOREAN10_ASCII_W :
+                     (baseSize == 12 ? KOREAN12_ASCII_W : KOREAN16_ASCII_W)) * scale;
+  const int fontW  = (baseSize == 10 ? KOREAN10_FONT_W :
+                     (baseSize == 12 ? KOREAN12_FONT_W : KOREAN16_FONT_W)) * scale;
+  const int gw = isAscii ? asciiW : fontW;
+
+  // Fast off-screen rejection
+  if (x + gw <= 0 || x >= TFT_WIDTH) return gw;
 
   if (baseSize == 10) {
     // 10px base rendering (GalmuriMono9)

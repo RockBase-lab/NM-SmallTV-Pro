@@ -592,7 +592,7 @@ static void handleNotify() {
 }
 
 static void handleTestKoreanNotify() {
-  uint8_t sz = 20;
+  uint8_t sz = 24;
   if (server.hasArg("size")) {
     int s = server.arg("size").toInt();
     if (s == 10 || s == 12 || s == 16 || s == 20 || s == 24 || s == 32) sz = (uint8_t)s;

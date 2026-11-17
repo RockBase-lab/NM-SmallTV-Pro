@@ -94,7 +94,6 @@ static bool parseColor(const char* s, uint16_t* out) {
 void NotifyMode::drawLabelBand(bool full) {
   Arduino_GFX* gfx = gfxDev();
   if (!gfx || !cur_.label[0]) return;
-  gfx->startWrite();
   const uint16_t accent = gfxTint(cur_.color);
   const bool isKorean = isUtf8String(cur_.label);
   const int lineH = isKorean ? koreanGetLineH() : NOTIFY_LINE_H;
@@ -106,36 +105,26 @@ void NotifyMode::drawLabelBand(bool full) {
         int w = koreanMeasureTextW(cur_.label);
         int x = (TFT_WIDTH - w) / 2;
         if (x < 0) x = 0;
-        koreanDrawText(x, labelY, cur_.label, accent, C_BLACK);
+        koreanDrawText(x, labelY, cur_.label, accent);
       } else {
         gfxDrawCentered(cur_.label, labelY, NOTIFY_LABEL_SIZE, accent);
       }
     }
-    gfx->endWrite();
     return;
   }
 
-  // Scrolling: draw the string twice, one span apart, so the tail of the run and
-  // the head of the next are on screen together and the wrap has no visible
-  // seam. Both are drawn with an opaque background, which overwrites the
-  // previous position rather than needing the band cleared first.
+  // Clear text band once per frame (instant 1ms hardware SPI burst)
+  gfx->fillRect(0, labelY, TFT_WIDTH, lineH, C_BLACK);
+
   const int span = scrollW_ + NOTIFY_SCROLL_GAP_PX;
   const int x = NOTIFY_TEXT_PAD - scrollX_;
   if (isKorean) {
-    koreanDrawText(x, labelY, cur_.label, accent, C_BLACK);
-    koreanDrawText(x + span, labelY, cur_.label, accent, C_BLACK);
+    koreanDrawText(x, labelY, cur_.label, accent);
+    koreanDrawText(x + span, labelY, cur_.label, accent);
   } else {
     drawAt(gfx, cur_.label, x, labelY, NOTIFY_LABEL_SIZE, accent, C_BLACK);
     drawAt(gfx, cur_.label, x + span, labelY, NOTIFY_LABEL_SIZE, accent, C_BLACK);
   }
-
-  // The glyphs cover their own cells and nothing else, so the runs between and
-  // around the two copies are cleared separately as the text slides out of them.
-  const int tail = x + span + scrollW_;
-  clearBandRun(gfx, 0, x, labelY, lineH);
-  clearBandRun(gfx, x + scrollW_, NOTIFY_SCROLL_GAP_PX, labelY, lineH);
-  clearBandRun(gfx, tail, TFT_WIDTH - tail, labelY, lineH);
-  gfx->endWrite();
 }
 
 void NotifyMode::draw(bool full) {
