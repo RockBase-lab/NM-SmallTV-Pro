@@ -1,11 +1,12 @@
 #include "KoreanFont.h"
 #include "font_korean10.h"
+#include "font_galmuri11.h"
 #include "font_galmuri12.h"
 #include "font_korean16.h"
 #include "Gfx.h"
 #include <string.h>
 
-uint8_t g_koreanFontSize = 24; // Confirmed 24px default (12px base x 2 scale)
+uint8_t g_koreanFontSize = 22; // 22px default (11px base x 2 scale) for test
 uint8_t g_koreanCharGap  = 1;  // Confirmed 1px letter spacing
 
 uint8_t utf8DecodeChar(const char* p, uint16_t* outCode) {
@@ -70,14 +71,17 @@ int koreanDrawGlyph(int x, int y, uint16_t unicode, uint16_t color, int32_t bg, 
   if (!gfx) return 0;
   if (fontSize == 0) fontSize = g_koreanFontSize;
   uint8_t baseSize = (fontSize == 20 || fontSize == 10) ? 10 :
-                     ((fontSize == 24 || fontSize == 12) ? 12 : 16);
-  uint8_t scale = (fontSize == 20 || fontSize == 24 || fontSize == 32) ? 2 : 1;
+                     ((fontSize == 22 || fontSize == 11) ? 11 :
+                     ((fontSize == 24 || fontSize == 12) ? 12 : 16));
+  uint8_t scale = (fontSize == 20 || fontSize == 22 || fontSize == 24 || fontSize == 32) ? 2 : 1;
 
   const bool isAscii = (unicode >= 0x20 && unicode <= 0x7E);
   const int asciiW = (baseSize == 10 ? KOREAN10_ASCII_W :
-                     (baseSize == 12 ? KOREAN12_ASCII_W : KOREAN16_ASCII_W)) * scale;
+                     (baseSize == 11 ? KOREAN11_ASCII_W :
+                     (baseSize == 12 ? KOREAN12_ASCII_W : KOREAN16_ASCII_W))) * scale;
   const int fontW  = (baseSize == 10 ? KOREAN10_FONT_W :
-                     (baseSize == 12 ? KOREAN12_FONT_W : KOREAN16_FONT_W)) * scale;
+                     (baseSize == 11 ? KOREAN11_FONT_W :
+                     (baseSize == 12 ? KOREAN12_FONT_W : KOREAN16_FONT_W))) * scale;
   const int charW  = isAscii ? asciiW : fontW;
   const int advW   = charW + g_koreanCharGap;
 
@@ -137,6 +141,64 @@ int koreanDrawGlyph(int x, int y, uint16_t unicode, uint16_t color, int32_t bg, 
         int gapX = x + fontW;
         if (gapX < TFT_WIDTH && gapX + g_koreanCharGap > 0) {
           gfx->fillRect(gapX, y, g_koreanCharGap, 10 * scale, (uint16_t)bg);
+        }
+      }
+      return advW;
+    }
+    return koreanDrawGlyph(x, y, '?', color, bg, fontSize);
+  } else if (baseSize == 11) {
+    // 11px base rendering (GalmuriMono11)
+    if (unicode >= 0x20 && unicode <= 0x7E) {
+      int asciiIdx = unicode - 0x20;
+      const uint8_t* p = &GALMURI11_ASCII[asciiIdx * 11];
+      for (int r = 0; r < 11; r++) {
+        uint8_t rowBits = pgm_read_byte(p + r);
+        int py = y + r * scale;
+        if (py + scale <= 0 || py >= TFT_HEIGHT) continue;
+        for (int c = 0; c < 6; c++) {
+          int px = x + c * scale;
+          if (px + scale <= 0 || px >= TFT_WIDTH) continue;
+          if (rowBits & (1 << (7 - c))) {
+            if (scale == 1) gfx->drawPixel(px, py, color);
+            else gfx->fillRect(px, py, scale, scale, color);
+          } else if (bg >= 0) {
+            if (scale == 1) gfx->drawPixel(px, py, (uint16_t)bg);
+            else gfx->fillRect(px, py, scale, scale, (uint16_t)bg);
+          }
+        }
+      }
+      if (g_koreanCharGap > 0 && bg >= 0) {
+        int gapX = x + asciiW;
+        if (gapX < TFT_WIDTH && gapX + g_koreanCharGap > 0) {
+          gfx->fillRect(gapX, y, g_koreanCharGap, 11 * scale, (uint16_t)bg);
+        }
+      }
+      return advW;
+    }
+
+    int kIdx = findKoreanGlyphIndex(unicode);
+    if (kIdx >= 0) {
+      const uint16_t* p = &GALMURI11_GLYPHS[kIdx * 11];
+      for (int r = 0; r < 11; r++) {
+        uint16_t rowBits = pgm_read_word(p + r);
+        int py = y + r * scale;
+        if (py + scale <= 0 || py >= TFT_HEIGHT) continue;
+        for (int c = 0; c < 11; c++) {
+          int px = x + c * scale;
+          if (px + scale <= 0 || px >= TFT_WIDTH) continue;
+          if (rowBits & (1 << (15 - c))) {
+            if (scale == 1) gfx->drawPixel(px, py, color);
+            else gfx->fillRect(px, py, scale, scale, color);
+          } else if (bg >= 0) {
+            if (scale == 1) gfx->drawPixel(px, py, (uint16_t)bg);
+            else gfx->fillRect(px, py, scale, scale, (uint16_t)bg);
+          }
+        }
+      }
+      if (g_koreanCharGap > 0 && bg >= 0) {
+        int gapX = x + fontW;
+        if (gapX < TFT_WIDTH && gapX + g_koreanCharGap > 0) {
+          gfx->fillRect(gapX, y, g_koreanCharGap, 11 * scale, (uint16_t)bg);
         }
       }
       return advW;

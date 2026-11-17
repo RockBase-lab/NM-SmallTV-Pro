@@ -6,6 +6,10 @@
 #define KOREAN10_FONT_W    10
 #define KOREAN10_ASCII_W   5
 
+#define KOREAN11_FONT_H    11
+#define KOREAN11_FONT_W    11
+#define KOREAN11_ASCII_W   6
+
 #define KOREAN12_FONT_H    12
 #define KOREAN12_FONT_W    12
 #define KOREAN12_ASCII_W   6
@@ -14,7 +18,7 @@
 #define KOREAN16_FONT_W    16
 #define KOREAN16_ASCII_W   8
 
-// Global active Korean font size (default 24) and character spacing gap (default 1)
+// Global active Korean font size (default 22, 24, 20) and character spacing gap (default 1)
 extern uint8_t g_koreanFontSize;
 extern uint8_t g_koreanCharGap;
 
@@ -22,9 +26,11 @@ inline int koreanGetLineH(uint8_t fontSize = 0) {
   extern uint8_t g_koreanFontSize;
   if (fontSize == 0) fontSize = g_koreanFontSize;
   if (fontSize == 20) return 20;
+  if (fontSize == 22) return 22;
   if (fontSize == 24) return 24;
   if (fontSize == 32) return 32;
   if (fontSize == 10) return 10;
+  if (fontSize == 11) return 11;
   if (fontSize == 12) return 12;
   return 16;
 }
@@ -35,9 +41,11 @@ inline int koreanGetAsciiW(uint8_t fontSize = 0) {
   if (fontSize == 0) fontSize = g_koreanFontSize;
   int w = 8;
   if (fontSize == 20) w = 10;
+  else if (fontSize == 22) w = 12;
   else if (fontSize == 24) w = 12;
   else if (fontSize == 32) w = 16;
   else if (fontSize == 10) w = 5;
+  else if (fontSize == 11) w = 6;
   else if (fontSize == 12) w = 6;
   return w + g_koreanCharGap;
 }
@@ -48,9 +56,11 @@ inline int koreanGetFontW(uint8_t fontSize = 0) {
   if (fontSize == 0) fontSize = g_koreanFontSize;
   int w = 16;
   if (fontSize == 20) w = 20;
+  else if (fontSize == 22) w = 22;
   else if (fontSize == 24) w = 24;
   else if (fontSize == 32) w = 32;
   else if (fontSize == 10) w = 10;
+  else if (fontSize == 11) w = 11;
   else if (fontSize == 12) w = 12;
   return w + g_koreanCharGap;
 }
