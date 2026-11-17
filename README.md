@@ -1,23 +1,30 @@
-# GeekMagic SmallTV-PRO Modded Firmware (v3.11.3)
+# GeekMagic SmallTV-PRO Modded Firmware (v3.12.0)
 
 <p align="center">
   <img src="https://img.shields.io/badge/Platform-ESP32%208MB-red?style=for-the-badge&logo=espressif" alt="ESP32 8MB" />
   <img src="https://img.shields.io/badge/Resolution-240%C3%97240%20IPS-blue?style=for-the-badge" alt="240x240 IPS" />
-  <img src="https://img.shields.io/badge/Scheduler-App%20Timers-teal?style=for-the-badge" alt="App Timers" />
+  <img src="https://img.shields.io/badge/Font-Korean%20Galmuri-brightgreen?style=for-the-badge" alt="Korean Galmuri Font" />
+  <img src="https://img.shields.io/badge/Notify%20Engine-Multi--Line%20Card-orange?style=for-the-badge" alt="Multi-Line Card" />
   <img src="https://img.shields.io/badge/Screen%20Protection-Burn--in%20Wiper-purple?style=for-the-badge" alt="Burn-in Wiper" />
-  <img src="https://img.shields.io/badge/Notify%20Engine-160%C3%97160%20HD-green?style=for-the-badge" alt="160x160 HD" />
-  <img src="https://img.shields.io/badge/Version-v3.11.3-orange?style=for-the-badge" alt="v3.11.3" />
+  <img src="https://img.shields.io/badge/Version-v3.12.0-blue?style=for-the-badge" alt="v3.12.0" />
 </p>
 
 An advanced, feature-rich custom firmware for the **GeekMagic SmallTV-PRO** desktop cube (classic ESP32 with 8 MB Flash and 1.54" 240×240 IPS display).
 
-This fork brings **scheduled app timers (Timer mode) with 4 time slots**, **LCD burn-in prevention with 7 procedural & animated refresh effects**, **dual stock market tracking (Asian/KRX + US candlesticks with smart pre-market sessions)**, and **high-definition 160×160 animated full-screen notifications** to your desk monitor.
+This fork brings **native Korean bitmap font engine (KS X 1001 2,350 syllables + Galmuri 22px)**, **multi-line card text wrapping mode for SMS notifications**, **scheduled app timers (Timer mode) with 4 time slots**, **LCD burn-in prevention with 7 procedural & animated refresh effects**, **dual stock market tracking (Asian/KRX + US candlesticks with smart pre-market sessions)**, and **high-definition 160×160 animated full-screen notifications** to your desk monitor.
 
 ---
 
 ## 🌟 Key Features
 
-### 1. Scheduled App Timers & Simplified Mode Selection
+### 1. Korean Bitmap Font Engine & Multi-Line Card Mode (New in v3.12.0)
+* **Native Korean Font Support**: Embedded KS X 1001 2,350 Korean syllables + ASCII + symbols based on GalmuriMono.
+* **Optimized 22px Scaling**: 11px base with 2× integer scale (22×22 px Korean, 12×22 px ASCII), with 1px letter spacing and 12px line gap for optimal readability.
+* **Multi-Line Card Wrap Mode (`wrap: true`)**: Ideal for SMS/text forwarding (e.g. from Android Tasker). Displays title, divider line, and 5~6 lines of clean wrapped text without scrolling.
+* **Zero Marquee Smear**: Marquee scrolling uses a 1ms single-burst background wipe without display bus deadlock.
+* **100% Backward Compatible**: All existing notifications without `wrap` retain the classic animated icon + 1-line marquee scroll.
+
+### 2. Scheduled App Timers & Simplified Mode Selection
 * **4-Slot 24h App Timer**: Schedule exact apps (Stock 1, Stock 2, Weather) to run based on the time of day with automatic cross-midnight resolution.
 * **Streamlined Mode Dropdown**: Clean choice between **Timer** (scheduled by time) and **Carousel** (rotate apps on a dwell timer).
 
