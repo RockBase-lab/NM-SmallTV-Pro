@@ -116,12 +116,13 @@ static uint8_t modeFromApp(const String& app) {
   return MODE_STOCKS;
 }
 
+
+static uint8_t g_lastTimerMode = 255;
+
 static uint8_t resolveTimerMode(const Settings& s) {
   struct tm now;
   if (!clockNow(now)) {
-    for (uint8_t i = 0; i < 4; i++) {
-      if (s.timers.items[i].enabled) return modeFromApp(s.timers.items[i].app);
-    }
+    if (g_lastTimerMode != 255) return g_lastTimerMode;
     return MODE_STOCKS;
   }
 
@@ -150,7 +151,6 @@ static uint8_t resolveTimerMode(const Settings& s) {
   return selectedMode;
 }
 
-static uint8_t g_lastTimerMode = 255;
 
 static DisplayMode* activeMode(const Settings& s) {
   if (s.mode == MODE_CAROUSEL && kModeCount > 0) {
@@ -292,11 +292,33 @@ static void buttonNext() {
     return;
   }
 
+  if (g_settings.mode == MODE_TIMER) {
+    // In Timer mode, do NOT permanently overwrite g_settings.mode!
+    // Instead, cycle through the configured apps for manual preview.
+    int curIdx = -1;
+    for (size_t i = 0; i < kModeCount; i++) {
+      if (kModes[i]->modeConst() == g_lastTimerMode) {
+        curIdx = (int)i;
+        break;
+      }
+    }
+    size_t nextIdx = (curIdx >= 0) ? ((curIdx + 1) % kModeCount) : 0;
+    g_lastTimerMode = kModes[nextIdx]->modeConst();
+
+    stocksDeferNextFetch(0, 800);
+    stocksDeferNextFetch(1, 800);
+    weatherDeferNextFetch(800);
+
+    g_abortFetch = false;
+    DisplayMode* m = activeMode(g_settings);
+    if (m) m->wake(g_settings);
+    return;
+  }
+
   // Find current index in kModes
   int curIdx = -1;
-  uint8_t curConst = (g_settings.mode == MODE_TIMER) ? g_lastTimerMode : g_settings.mode;
   for (size_t i = 0; i < kModeCount; i++) {
-    if (kModes[i]->modeConst() == curConst) {
+    if (kModes[i]->modeConst() == g_settings.mode) {
       curIdx = (int)i;
       break;
     }
@@ -480,7 +502,7 @@ void setup() {
   // device then comes up in safe mode, OTA-recoverable, instead of needing UART).
   // ...unless a WireGuard tunnel is configured, which needs the clock and only
   // exists on an ESP32 where the heap argument for the skip does not apply.
-  if (!g_safeMode || wgNeedsClock(g_settings)) clockReapply(g_settings);
+  if (!g_safeMode || wgNeedsClock(g_settings) || g_settings.mode == MODE_TIMER) clockReapply(g_settings);
 
   // Optional WireGuard tunnel (ESP32 targets). Arms the state machine only;
   // the bring-up itself runs from loop(), so nothing here can delay the web
@@ -635,7 +657,6 @@ void loop() {
   // Background polling for inactive features so switching apps is instantaneous:
   // stocksService self-times every ticker's schedule (shared across Stock 1 & Stock 2)
   stocksService(g_settings);
-  weatherService(g_settings);
 
   delay(5);
 }

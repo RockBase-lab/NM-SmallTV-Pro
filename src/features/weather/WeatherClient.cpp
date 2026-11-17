@@ -70,7 +70,7 @@ static bool fetchWttr(float lat, float lon, uint16_t timeoutMs, WeatherData& d) 
   if (!client) return false;
 
   HTTPClient http;
-  uint16_t t = (timeoutMs > 3000) ? 3000 : timeoutMs;
+  uint16_t t = (timeoutMs > 2500) ? 2500 : timeoutMs;
   http.setTimeout(t);
   http.setReuse(false);
   http.useHTTP10(true);
@@ -78,7 +78,9 @@ static bool fetchWttr(float lat, float lon, uint16_t timeoutMs, WeatherData& d) 
   http.setUserAgent(F("curl/7.88.1"));
   http.addHeader("Accept", "application/json");
 
+  yield();
   int code = http.GET();
+  yield();
   if (code != HTTP_CODE_OK || g_abortFetch) {
     http.end();
     return false;
@@ -153,9 +155,10 @@ void weatherService(const Settings& s) {
     g_weather.nextTryMs = millis() + pollInterval;
   } else {
     g_weather.error = true;
-    if (g_weather.fails < 250) g_weather.fails++;
+    if (g_weather.fails < 100) g_weather.fails++;
     uint32_t back = 15000UL; // 15 sec backoff
-    for (uint8_t i = 1; i < g_weather.fails; i++) back <<= 1;
+    uint8_t shifts = (g_weather.fails > 6) ? 6 : (g_weather.fails - 1);
+    back <<= shifts; // max 15000 << 6 = 960,000 ms (~16 min), NO OVERFLOW!
     if (back > pollInterval) back = pollInterval;
     g_weather.nextTryMs = millis() + back;
   }
