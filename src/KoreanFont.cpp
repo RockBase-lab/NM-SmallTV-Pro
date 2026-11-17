@@ -6,6 +6,7 @@
 #include <string.h>
 
 uint8_t g_koreanFontSize = 24; // Confirmed 24px default (12px base x 2 scale)
+uint8_t g_koreanCharGap  = 1;  // Confirmed 1px letter spacing
 
 uint8_t utf8DecodeChar(const char* p, uint16_t* outCode) {
   if (!p || !*p) {
@@ -77,10 +78,11 @@ int koreanDrawGlyph(int x, int y, uint16_t unicode, uint16_t color, int32_t bg, 
                      (baseSize == 12 ? KOREAN12_ASCII_W : KOREAN16_ASCII_W)) * scale;
   const int fontW  = (baseSize == 10 ? KOREAN10_FONT_W :
                      (baseSize == 12 ? KOREAN12_FONT_W : KOREAN16_FONT_W)) * scale;
-  const int gw = isAscii ? asciiW : fontW;
+  const int charW  = isAscii ? asciiW : fontW;
+  const int advW   = charW + g_koreanCharGap;
 
   // Fast off-screen rejection
-  if (x + gw <= 0 || x >= TFT_WIDTH) return gw;
+  if (x + advW <= 0 || x >= TFT_WIDTH) return advW;
 
   if (baseSize == 10) {
     // 10px base rendering (GalmuriMono9)
@@ -103,7 +105,13 @@ int koreanDrawGlyph(int x, int y, uint16_t unicode, uint16_t color, int32_t bg, 
           }
         }
       }
-      return KOREAN10_ASCII_W * scale; // 5 * scale
+      if (g_koreanCharGap > 0 && bg >= 0) {
+        int gapX = x + asciiW;
+        if (gapX < TFT_WIDTH && gapX + g_koreanCharGap > 0) {
+          gfx->fillRect(gapX, y, g_koreanCharGap, 10 * scale, (uint16_t)bg);
+        }
+      }
+      return advW;
     }
 
     int kIdx = findKoreanGlyphIndex(unicode);
@@ -125,7 +133,13 @@ int koreanDrawGlyph(int x, int y, uint16_t unicode, uint16_t color, int32_t bg, 
           }
         }
       }
-      return KOREAN10_FONT_W * scale; // 10 * scale (20 when scale=2)
+      if (g_koreanCharGap > 0 && bg >= 0) {
+        int gapX = x + fontW;
+        if (gapX < TFT_WIDTH && gapX + g_koreanCharGap > 0) {
+          gfx->fillRect(gapX, y, g_koreanCharGap, 10 * scale, (uint16_t)bg);
+        }
+      }
+      return advW;
     }
     return koreanDrawGlyph(x, y, '?', color, bg, fontSize);
   } else if (baseSize == 12) {
@@ -149,7 +163,13 @@ int koreanDrawGlyph(int x, int y, uint16_t unicode, uint16_t color, int32_t bg, 
           }
         }
       }
-      return KOREAN12_ASCII_W * scale; // 6 * scale
+      if (g_koreanCharGap > 0 && bg >= 0) {
+        int gapX = x + asciiW;
+        if (gapX < TFT_WIDTH && gapX + g_koreanCharGap > 0) {
+          gfx->fillRect(gapX, y, g_koreanCharGap, 12 * scale, (uint16_t)bg);
+        }
+      }
+      return advW;
     }
 
     int kIdx = findKoreanGlyphIndex(unicode);
@@ -171,7 +191,13 @@ int koreanDrawGlyph(int x, int y, uint16_t unicode, uint16_t color, int32_t bg, 
           }
         }
       }
-      return KOREAN12_FONT_W * scale; // 12 * scale
+      if (g_koreanCharGap > 0 && bg >= 0) {
+        int gapX = x + fontW;
+        if (gapX < TFT_WIDTH && gapX + g_koreanCharGap > 0) {
+          gfx->fillRect(gapX, y, g_koreanCharGap, 12 * scale, (uint16_t)bg);
+        }
+      }
+      return advW;
     }
     return koreanDrawGlyph(x, y, '?', color, bg, fontSize);
   } else {
@@ -195,7 +221,13 @@ int koreanDrawGlyph(int x, int y, uint16_t unicode, uint16_t color, int32_t bg, 
           }
         }
       }
-      return KOREAN16_ASCII_W * scale; // 8 * scale
+      if (g_koreanCharGap > 0 && bg >= 0) {
+        int gapX = x + asciiW;
+        if (gapX < TFT_WIDTH && gapX + g_koreanCharGap > 0) {
+          gfx->fillRect(gapX, y, g_koreanCharGap, 16 * scale, (uint16_t)bg);
+        }
+      }
+      return advW;
     }
 
     int kIdx = findKoreanGlyphIndex(unicode);
@@ -217,7 +249,13 @@ int koreanDrawGlyph(int x, int y, uint16_t unicode, uint16_t color, int32_t bg, 
           }
         }
       }
-      return KOREAN16_FONT_W * scale; // 16 * scale
+      if (g_koreanCharGap > 0 && bg >= 0) {
+        int gapX = x + fontW;
+        if (gapX < TFT_WIDTH && gapX + g_koreanCharGap > 0) {
+          gfx->fillRect(gapX, y, g_koreanCharGap, 16 * scale, (uint16_t)bg);
+        }
+      }
+      return advW;
     }
     return koreanDrawGlyph(x, y, '?', color, bg, fontSize);
   }
@@ -268,7 +306,8 @@ int koreanDrawTextBox(int x, int y, int maxW, int maxH, const char* utf8,
     }
 
     int gw = (code >= 0x20 && code <= 0x7E) ? asciiW : fontW;
-    if (curX + gw > x + maxW) {
+    int charW = gw - g_koreanCharGap;
+    if (curX + charW > x + maxW) {
       curX = x;
       curY += lineHeight;
       if (curY + fontH > y + maxH) break;

@@ -14,6 +14,10 @@
 #define KOREAN16_FONT_W    16
 #define KOREAN16_ASCII_W   8
 
+// Global active Korean font size (default 24) and character spacing gap (default 1)
+extern uint8_t g_koreanFontSize;
+extern uint8_t g_koreanCharGap;
+
 inline int koreanGetLineH(uint8_t fontSize = 0) {
   extern uint8_t g_koreanFontSize;
   if (fontSize == 0) fontSize = g_koreanFontSize;
@@ -27,28 +31,29 @@ inline int koreanGetLineH(uint8_t fontSize = 0) {
 
 inline int koreanGetAsciiW(uint8_t fontSize = 0) {
   extern uint8_t g_koreanFontSize;
+  extern uint8_t g_koreanCharGap;
   if (fontSize == 0) fontSize = g_koreanFontSize;
-  if (fontSize == 20) return 10;
-  if (fontSize == 24) return 12;
-  if (fontSize == 32) return 16;
-  if (fontSize == 10) return 5;
-  if (fontSize == 12) return 6;
-  return 8;
+  int w = 8;
+  if (fontSize == 20) w = 10;
+  else if (fontSize == 24) w = 12;
+  else if (fontSize == 32) w = 16;
+  else if (fontSize == 10) w = 5;
+  else if (fontSize == 12) w = 6;
+  return w + g_koreanCharGap;
 }
 
 inline int koreanGetFontW(uint8_t fontSize = 0) {
   extern uint8_t g_koreanFontSize;
+  extern uint8_t g_koreanCharGap;
   if (fontSize == 0) fontSize = g_koreanFontSize;
-  if (fontSize == 20) return 20;
-  if (fontSize == 24) return 24;
-  if (fontSize == 32) return 32;
-  if (fontSize == 10) return 10;
-  if (fontSize == 12) return 12;
-  return 16;
+  int w = 16;
+  if (fontSize == 20) w = 20;
+  else if (fontSize == 24) w = 24;
+  else if (fontSize == 32) w = 32;
+  else if (fontSize == 10) w = 10;
+  else if (fontSize == 12) w = 12;
+  return w + g_koreanCharGap;
 }
-
-// Global active Korean font size (default 24 or 16)
-extern uint8_t g_koreanFontSize;
 
 // Decode single UTF-8 codepoint from string p, returns length in bytes (1..4)
 // and writes unicode value to *outCode.

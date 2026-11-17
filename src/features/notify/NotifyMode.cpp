@@ -136,25 +136,25 @@ void NotifyMode::draw(bool full) {
       gfx->fillScreen(C_BLACK);
       const uint16_t accent = gfxTint(cur_.color);
       const int lineH = koreanGetLineH();
-      int topY = 12;
+      int topY = 10;
 
       if (cur_.title[0]) {
         if (isUtf8String(cur_.title)) {
           int tw = koreanMeasureTextW(cur_.title);
           int tx = (TFT_WIDTH - tw) / 2;
-          if (tx < 10) tx = 10;
+          if (tx < 8) tx = 8;
           koreanDrawText(tx, topY, cur_.title, accent);
         } else {
           gfxDrawCentered(cur_.title, topY, NOTIFY_LABEL_SIZE, accent);
         }
         topY += lineH + 6;
-        gfx->drawFastHLine(10, topY, TFT_WIDTH - 20, accent);
+        gfx->drawFastHLine(8, topY, TFT_WIDTH - 16, accent);
         topY += 8;
       }
 
       if (cur_.label[0]) {
-        const int gap = cur_.gap ? cur_.gap : 8;
-        koreanDrawTextBox(10, topY, TFT_WIDTH - 20, TFT_HEIGHT - topY - 10,
+        const int gap = cur_.gap ? cur_.gap : 12;
+        koreanDrawTextBox(8, topY, TFT_WIDTH - 16, TFT_HEIGHT - topY - 6,
                           cur_.label, C_WHITE, -1, gap, g_koreanFontSize);
       }
     }
@@ -355,7 +355,7 @@ NotifyResult NotifyMode::request(const NotifyRequest& r) {
 
   copyText(it.label, sizeof(it.label), r.label);
   it.wrap = r.wrap || (r.label && strchr(r.label, '\n') != nullptr);
-  it.gap  = r.gap ? r.gap : 8;
+  it.gap  = r.gap ? r.gap : 12;
 
   // The preset's word is a fallback, not a header. Printing "INFO" above a label
   // says nothing the colour and the animation have not already said, and costs a
