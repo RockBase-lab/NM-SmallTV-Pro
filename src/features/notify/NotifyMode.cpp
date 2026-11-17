@@ -5,8 +5,18 @@
 #include "Gfx.h"
 #include "NotifyAnims.h"
 #include "NotifyTypes.h"
+#include "KoreanFont.h"
 
 NotifyMode g_notifyMode;
+
+static bool isUtf8String(const char* s) {
+  if (!s) return false;
+  while (*s) {
+    if ((uint8_t)*s >= 0x80) return true;
+    s++;
+  }
+  return false;
+}
 
 #define NOTIFY_TEXT_PAD   7
 #define NOTIFY_LINE_H     (GFX_FONT_H * NOTIFY_LABEL_SIZE)
@@ -85,9 +95,21 @@ void NotifyMode::drawLabelBand(bool full) {
   Arduino_GFX* gfx = gfxDev();
   if (!gfx || !cur_.label[0]) return;
   const uint16_t accent = gfxTint(cur_.color);
+  const bool isKorean = isUtf8String(cur_.label);
+  const int lineH = isKorean ? koreanGetLineH() : NOTIFY_LINE_H;
+  const int labelY = TFT_HEIGHT - NOTIFY_TEXT_PAD - lineH;
 
   if (!scrollW_) {   // fits on the line: static, and only ever on a full repaint
-    if (full) gfxDrawCentered(cur_.label, NOTIFY_LABEL_Y, NOTIFY_LABEL_SIZE, accent);
+    if (full) {
+      if (isKorean) {
+        int w = koreanMeasureTextW(cur_.label);
+        int x = (TFT_WIDTH - w) / 2;
+        if (x < 0) x = 0;
+        koreanDrawText(x, labelY, cur_.label, accent, C_BLACK);
+      } else {
+        gfxDrawCentered(cur_.label, labelY, NOTIFY_LABEL_SIZE, accent);
+      }
+    }
     return;
   }
 
@@ -97,15 +119,20 @@ void NotifyMode::drawLabelBand(bool full) {
   // previous position rather than needing the band cleared first.
   const int span = scrollW_ + NOTIFY_SCROLL_GAP_PX;
   const int x = NOTIFY_TEXT_PAD - scrollX_;
-  drawAt(gfx, cur_.label, x, NOTIFY_LABEL_Y, NOTIFY_LABEL_SIZE, accent, C_BLACK);
-  drawAt(gfx, cur_.label, x + span, NOTIFY_LABEL_Y, NOTIFY_LABEL_SIZE, accent, C_BLACK);
+  if (isKorean) {
+    koreanDrawText(x, labelY, cur_.label, accent, C_BLACK);
+    koreanDrawText(x + span, labelY, cur_.label, accent, C_BLACK);
+  } else {
+    drawAt(gfx, cur_.label, x, labelY, NOTIFY_LABEL_SIZE, accent, C_BLACK);
+    drawAt(gfx, cur_.label, x + span, labelY, NOTIFY_LABEL_SIZE, accent, C_BLACK);
+  }
 
   // The glyphs cover their own cells and nothing else, so the runs between and
   // around the two copies are cleared separately as the text slides out of them.
   const int tail = x + span + scrollW_;
-  clearBandRun(gfx, 0, x, NOTIFY_LABEL_Y, NOTIFY_LINE_H);
-  clearBandRun(gfx, x + scrollW_, NOTIFY_SCROLL_GAP_PX, NOTIFY_LABEL_Y, NOTIFY_LINE_H);
-  clearBandRun(gfx, tail, TFT_WIDTH - tail, NOTIFY_LABEL_Y, NOTIFY_LINE_H);
+  clearBandRun(gfx, 0, x, labelY, lineH);
+  clearBandRun(gfx, x + scrollW_, NOTIFY_SCROLL_GAP_PX, labelY, lineH);
+  clearBandRun(gfx, tail, TFT_WIDTH - tail, labelY, lineH);
 }
 
 void NotifyMode::draw(bool full) {
@@ -116,12 +143,15 @@ void NotifyMode::draw(bool full) {
   const int aw = notifyAnimW(a), ah = notifyAnimH(a);
   const bool labelled = cur_.label[0] != '\0';
   const bool titled   = cur_.title[0] != '\0';
+  const bool hasKorean = isUtf8String(cur_.label) || isUtf8String(cur_.title);
+  const int lineH     = hasKorean ? koreanGetLineH() : NOTIFY_LINE_H;
+  const int labelY    = TFT_HEIGHT - NOTIFY_TEXT_PAD - lineH;
 
   // Reserve only the lines there is text for, so dropping the title gives the
   // animation the room back instead of leaving a gap.
   const int lines = (labelled ? 1 : 0) + (titled ? 1 : 0);
-  const int band = (lines >= 2) ? NOTIFY_BAND_LABEL
-                 : (lines == 1) ? NOTIFY_BAND_TITLE
+  const int band = (lines >= 2) ? (lineH * 2 + NOTIFY_LINE_GAP + NOTIFY_TEXT_PAD + NOTIFY_MASCOT_GAP)
+                 : (lines == 1) ? (lineH + NOTIFY_TEXT_PAD * 2)
                                 : NOTIFY_TEXT_PAD;
   const int cell = min(TFT_WIDTH / aw, (TFT_HEIGHT - band) / ah);
   const int x0 = (TFT_WIDTH - aw * cell) / 2;
@@ -131,10 +161,16 @@ void NotifyMode::draw(bool full) {
   if (full) {
     gfx->fillScreen(C_BLACK);
     if (titled) {
-      gfxDrawCentered(cur_.title,
-                      labelled ? NOTIFY_LABEL_Y - NOTIFY_LINE_H - NOTIFY_LINE_GAP
-                               : NOTIFY_LABEL_Y,
-                      NOTIFY_LABEL_SIZE, accent);
+      int ty = labelled ? labelY - lineH - NOTIFY_LINE_GAP
+                        : labelY;
+      if (isUtf8String(cur_.title)) {
+        int tw = koreanMeasureTextW(cur_.title);
+        int tx = (TFT_WIDTH - tw) / 2;
+        if (tx < 0) tx = 0;
+        koreanDrawText(tx, ty, cur_.title, accent, C_BLACK);
+      } else {
+        gfxDrawCentered(cur_.title, ty, NOTIFY_LABEL_SIZE, accent);
+      }
     }
     drawLabelBand(true);
   }
@@ -165,9 +201,11 @@ void NotifyMode::draw(bool full) {
 // ---- queue ----------------------------------------------------------------
 
 void NotifyMode::copyText(char* dst, size_t cap, const char* src) {
+  if (!dst || cap == 0) return;
   size_t n = 0;
   for (; src && *src && n + 1 < cap; src++) {
-    if (*src >= 0x20 && *src <= 0x7E) dst[n++] = *src;
+    uint8_t c = (uint8_t)*src;
+    if (c >= 0x20 && c != 0x7F) dst[n++] = (char)c;
   }
   dst[n] = '\0';
 }
@@ -177,7 +215,8 @@ void NotifyMode::startItem(const NotifyItem& it) {
 
   // Decide once per item whether the label scrolls: it depends only on the text,
   // and gfxTextW on every frame would be wasted work.
-  const int w = gfxTextW(cur_.label, NOTIFY_LABEL_SIZE);
+  const int w = isUtf8String(cur_.label) ? koreanMeasureTextW(cur_.label)
+                                         : gfxTextW(cur_.label, NOTIFY_LABEL_SIZE);
   scrollW_ = (w > NOTIFY_LABEL_AVAIL) ? w : 0;
   scrollX_ = 0;
 

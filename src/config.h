@@ -196,12 +196,12 @@
 // 2 x 64 B of label against 4 x 112 B here.
 #if defined(SMALLTV_FAMILY_ESP32)
 #define NOTIFY_QUEUE_DEPTH       4
-#define NOTIFY_LABEL_MAX        96
+#define NOTIFY_LABEL_MAX        256
 #else
 #define NOTIFY_QUEUE_DEPTH       2
 #define NOTIFY_LABEL_MAX        48
 #endif
-#define NOTIFY_TITLE_MAX        20   // the word above the label, one panel line
+#define NOTIFY_TITLE_MAX        48   // the word above the label, one panel line
 
 // Priority decides queue order and pre-emption: a strictly higher one jumps the
 // queue and takes the panel from whatever is on it. Values are what the API's

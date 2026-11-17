@@ -16,6 +16,7 @@
 #endif
 #if WITH_NOTIFY
 #include "NotifyMode.h"
+#include "KoreanFont.h"
 #endif
 #include "BurninWiper.h"
 #include "Clock.h"
@@ -557,6 +558,10 @@ static void handleNotify() {
   // a second field: scripts written against the old API keep working untouched.
   const char* type = doc["type"];
   if (!type) type = doc["state"];
+  if (doc["size"].is<int>()) {
+    int sz = doc["size"].as<int>();
+    if (sz == 10 || sz == 12 || sz == 16 || sz == 20 || sz == 24 || sz == 32) g_koreanFontSize = (uint8_t)sz;
+  }
 
   NotifyRequest r;
   r.type  = type;
@@ -584,6 +589,30 @@ static void handleNotify() {
   snprintf(body, sizeof(body), "{\"ok\":true,\"queued\":%u}",
            (unsigned)g_notifyMode.queued());
   server.send(200, "application/json", body);
+}
+
+static void handleTestKoreanNotify() {
+  uint8_t sz = 20;
+  if (server.hasArg("size")) {
+    int s = server.arg("size").toInt();
+    if (s == 10 || s == 12 || s == 16 || s == 20 || s == 24 || s == 32) sz = (uint8_t)s;
+  }
+  g_koreanFontSize = sz;
+
+  NotifyRequest r;
+  r.type = "sms";
+  char tbuf[32];
+  snprintf(tbuf, sizeof(tbuf), "문자 알림 [%upx]", (unsigned)sz);
+  r.title = tbuf;
+  r.label = "[Web발신] 국민카드 15,000원 승인 스타벅스코리아";
+  r.anim = "sms";
+  r.ttlSec = 30;
+  r.prio = NOTIFY_PRIO_HIGH;
+  g_notifyMode.request(r);
+
+  char resp[128];
+  snprintf(resp, sizeof(resp), "OK: 한글 %upx 알림 테스트가 화면에 실행되었습니다!", (unsigned)sz);
+  server.send(200, "text/plain; charset=utf-8", resp);
 }
 #endif
 
@@ -722,6 +751,7 @@ void webPortalBegin(Settings& settings) {
 #endif
 #if WITH_NOTIFY
   server.on("/api/notify", HTTP_POST, handleNotify);     // full-screen attention overlay
+  server.on("/api/notify/test", HTTP_GET, handleTestKoreanNotify);
 #endif
   server.on("/update", HTTP_POST, handleUpdateDone, handleUpdateUpload);
   server.on("/api/burnin/preview", HTTP_POST, handleBurninPreview);
