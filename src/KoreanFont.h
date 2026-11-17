@@ -57,13 +57,14 @@ uint8_t utf8DecodeChar(const char* p, uint16_t* outCode);
 // Measure pixel width of UTF-8 string with specified font size (12 or 16)
 int koreanMeasureTextW(const char* utf8, uint8_t fontSize = 0);
 
-// Draw single glyph at (x, y), returns width in pixels
-int koreanDrawGlyph(int x, int y, uint16_t unicode, uint16_t color, uint16_t bg = 0x0000, uint8_t fontSize = 0);
+// Draw single glyph at (x, y), returns width in pixels.
+// bg < 0 means transparent; bg >= 0 draws opaque background pixel
+int koreanDrawGlyph(int x, int y, uint16_t unicode, uint16_t color, int32_t bg = -1, uint8_t fontSize = 0);
 
 // Draw single-line UTF-8 string at (x, y), returns total width drawn
-int koreanDrawText(int x, int y, const char* utf8, uint16_t color, uint16_t bg = 0x0000, uint8_t fontSize = 0);
+int koreanDrawText(int x, int y, const char* utf8, uint16_t color, int32_t bg = -1, uint8_t fontSize = 0);
 
 // Draw multi-line text box with automatic word/char wrapping
 // Returns total height drawn in pixels.
 int koreanDrawTextBox(int x, int y, int maxW, int maxH, const char* utf8,
-                      uint16_t color, uint16_t bg = 0x0000, int lineGap = 4, uint8_t fontSize = 0);
+                      uint16_t color, int32_t bg = -1, int lineGap = 4, uint8_t fontSize = 0);

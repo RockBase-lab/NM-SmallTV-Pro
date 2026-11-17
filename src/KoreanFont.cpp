@@ -64,7 +64,7 @@ int koreanMeasureTextW(const char* utf8, uint8_t fontSize) {
   return w;
 }
 
-int koreanDrawGlyph(int x, int y, uint16_t unicode, uint16_t color, uint16_t bg, uint8_t fontSize) {
+int koreanDrawGlyph(int x, int y, uint16_t unicode, uint16_t color, int32_t bg, uint8_t fontSize) {
   Arduino_GFX* gfx = gfxDev();
   if (!gfx) return 0;
   if (fontSize == 0) fontSize = g_koreanFontSize;
@@ -80,16 +80,16 @@ int koreanDrawGlyph(int x, int y, uint16_t unicode, uint16_t color, uint16_t bg,
       for (int r = 0; r < 10; r++) {
         uint8_t rowBits = pgm_read_byte(p + r);
         int py = y + r * scale;
-        if (py < 0 || py >= TFT_HEIGHT) continue;
+        if (py + scale <= 0 || py >= TFT_HEIGHT) continue;
         for (int c = 0; c < 5; c++) {
           int px = x + c * scale;
-          if (px < 0 || px >= TFT_WIDTH) continue;
+          if (px + scale <= 0 || px >= TFT_WIDTH) continue;
           if (rowBits & (1 << (7 - c))) {
             if (scale == 1) gfx->drawPixel(px, py, color);
             else gfx->fillRect(px, py, scale, scale, color);
-          } else if (bg != 0x0000 || color == 0x0000) {
-            if (scale == 1) gfx->drawPixel(px, py, bg);
-            else gfx->fillRect(px, py, scale, scale, bg);
+          } else if (bg >= 0) {
+            if (scale == 1) gfx->drawPixel(px, py, (uint16_t)bg);
+            else gfx->fillRect(px, py, scale, scale, (uint16_t)bg);
           }
         }
       }
@@ -102,16 +102,16 @@ int koreanDrawGlyph(int x, int y, uint16_t unicode, uint16_t color, uint16_t bg,
       for (int r = 0; r < 10; r++) {
         uint16_t rowBits = pgm_read_word(p + r);
         int py = y + r * scale;
-        if (py < 0 || py >= TFT_HEIGHT) continue;
+        if (py + scale <= 0 || py >= TFT_HEIGHT) continue;
         for (int c = 0; c < 10; c++) {
           int px = x + c * scale;
-          if (px < 0 || px >= TFT_WIDTH) continue;
+          if (px + scale <= 0 || px >= TFT_WIDTH) continue;
           if (rowBits & (1 << (15 - c))) {
             if (scale == 1) gfx->drawPixel(px, py, color);
             else gfx->fillRect(px, py, scale, scale, color);
-          } else if (bg != 0x0000 || color == 0x0000) {
-            if (scale == 1) gfx->drawPixel(px, py, bg);
-            else gfx->fillRect(px, py, scale, scale, bg);
+          } else if (bg >= 0) {
+            if (scale == 1) gfx->drawPixel(px, py, (uint16_t)bg);
+            else gfx->fillRect(px, py, scale, scale, (uint16_t)bg);
           }
         }
       }
@@ -126,16 +126,16 @@ int koreanDrawGlyph(int x, int y, uint16_t unicode, uint16_t color, uint16_t bg,
       for (int r = 0; r < 12; r++) {
         uint8_t rowBits = pgm_read_byte(p + r);
         int py = y + r * scale;
-        if (py < 0 || py >= TFT_HEIGHT) continue;
+        if (py + scale <= 0 || py >= TFT_HEIGHT) continue;
         for (int c = 0; c < 6; c++) {
           int px = x + c * scale;
-          if (px < 0 || px >= TFT_WIDTH) continue;
+          if (px + scale <= 0 || px >= TFT_WIDTH) continue;
           if (rowBits & (1 << (7 - c))) {
             if (scale == 1) gfx->drawPixel(px, py, color);
             else gfx->fillRect(px, py, scale, scale, color);
-          } else if (bg != 0x0000 || color == 0x0000) {
-            if (scale == 1) gfx->drawPixel(px, py, bg);
-            else gfx->fillRect(px, py, scale, scale, bg);
+          } else if (bg >= 0) {
+            if (scale == 1) gfx->drawPixel(px, py, (uint16_t)bg);
+            else gfx->fillRect(px, py, scale, scale, (uint16_t)bg);
           }
         }
       }
@@ -148,16 +148,16 @@ int koreanDrawGlyph(int x, int y, uint16_t unicode, uint16_t color, uint16_t bg,
       for (int r = 0; r < 12; r++) {
         uint16_t rowBits = pgm_read_word(p + r);
         int py = y + r * scale;
-        if (py < 0 || py >= TFT_HEIGHT) continue;
+        if (py + scale <= 0 || py >= TFT_HEIGHT) continue;
         for (int c = 0; c < 12; c++) {
           int px = x + c * scale;
-          if (px < 0 || px >= TFT_WIDTH) continue;
+          if (px + scale <= 0 || px >= TFT_WIDTH) continue;
           if (rowBits & (1 << (15 - c))) {
             if (scale == 1) gfx->drawPixel(px, py, color);
             else gfx->fillRect(px, py, scale, scale, color);
-          } else if (bg != 0x0000 || color == 0x0000) {
-            if (scale == 1) gfx->drawPixel(px, py, bg);
-            else gfx->fillRect(px, py, scale, scale, bg);
+          } else if (bg >= 0) {
+            if (scale == 1) gfx->drawPixel(px, py, (uint16_t)bg);
+            else gfx->fillRect(px, py, scale, scale, (uint16_t)bg);
           }
         }
       }
@@ -172,16 +172,16 @@ int koreanDrawGlyph(int x, int y, uint16_t unicode, uint16_t color, uint16_t bg,
       for (int r = 0; r < 16; r++) {
         uint8_t rowBits = pgm_read_byte(p + r);
         int py = y + r * scale;
-        if (py < 0 || py >= TFT_HEIGHT) continue;
+        if (py + scale <= 0 || py >= TFT_HEIGHT) continue;
         for (int c = 0; c < 8; c++) {
           int px = x + c * scale;
-          if (px < 0 || px >= TFT_WIDTH) continue;
+          if (px + scale <= 0 || px >= TFT_WIDTH) continue;
           if (rowBits & (1 << (7 - c))) {
             if (scale == 1) gfx->drawPixel(px, py, color);
             else gfx->fillRect(px, py, scale, scale, color);
-          } else if (bg != 0x0000 || color == 0x0000) {
-            if (scale == 1) gfx->drawPixel(px, py, bg);
-            else gfx->fillRect(px, py, scale, scale, bg);
+          } else if (bg >= 0) {
+            if (scale == 1) gfx->drawPixel(px, py, (uint16_t)bg);
+            else gfx->fillRect(px, py, scale, scale, (uint16_t)bg);
           }
         }
       }
@@ -194,16 +194,16 @@ int koreanDrawGlyph(int x, int y, uint16_t unicode, uint16_t color, uint16_t bg,
       for (int r = 0; r < 16; r++) {
         uint16_t rowBits = pgm_read_word(p + r);
         int py = y + r * scale;
-        if (py < 0 || py >= TFT_HEIGHT) continue;
+        if (py + scale <= 0 || py >= TFT_HEIGHT) continue;
         for (int c = 0; c < 16; c++) {
           int px = x + c * scale;
-          if (px < 0 || px >= TFT_WIDTH) continue;
+          if (px + scale <= 0 || px >= TFT_WIDTH) continue;
           if (rowBits & (1 << (15 - c))) {
             if (scale == 1) gfx->drawPixel(px, py, color);
             else gfx->fillRect(px, py, scale, scale, color);
-          } else if (bg != 0x0000 || color == 0x0000) {
-            if (scale == 1) gfx->drawPixel(px, py, bg);
-            else gfx->fillRect(px, py, scale, scale, bg);
+          } else if (bg >= 0) {
+            if (scale == 1) gfx->drawPixel(px, py, (uint16_t)bg);
+            else gfx->fillRect(px, py, scale, scale, (uint16_t)bg);
           }
         }
       }
@@ -213,7 +213,7 @@ int koreanDrawGlyph(int x, int y, uint16_t unicode, uint16_t color, uint16_t bg,
   }
 }
 
-int koreanDrawText(int x, int y, const char* utf8, uint16_t color, uint16_t bg, uint8_t fontSize) {
+int koreanDrawText(int x, int y, const char* utf8, uint16_t color, int32_t bg, uint8_t fontSize) {
   if (!utf8) return 0;
   if (fontSize == 0) fontSize = g_koreanFontSize;
   int curX = x;
@@ -230,7 +230,7 @@ int koreanDrawText(int x, int y, const char* utf8, uint16_t color, uint16_t bg, 
 }
 
 int koreanDrawTextBox(int x, int y, int maxW, int maxH, const char* utf8,
-                      uint16_t color, uint16_t bg, int lineGap, uint8_t fontSize) {
+                      uint16_t color, int32_t bg, int lineGap, uint8_t fontSize) {
   if (!utf8) return 0;
   if (fontSize == 0) fontSize = g_koreanFontSize;
   if (maxW <= 0) maxW = TFT_WIDTH - x;

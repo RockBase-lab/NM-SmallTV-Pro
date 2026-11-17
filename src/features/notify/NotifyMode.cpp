@@ -94,6 +94,7 @@ static bool parseColor(const char* s, uint16_t* out) {
 void NotifyMode::drawLabelBand(bool full) {
   Arduino_GFX* gfx = gfxDev();
   if (!gfx || !cur_.label[0]) return;
+  gfx->startWrite();
   const uint16_t accent = gfxTint(cur_.color);
   const bool isKorean = isUtf8String(cur_.label);
   const int lineH = isKorean ? koreanGetLineH() : NOTIFY_LINE_H;
@@ -110,6 +111,7 @@ void NotifyMode::drawLabelBand(bool full) {
         gfxDrawCentered(cur_.label, labelY, NOTIFY_LABEL_SIZE, accent);
       }
     }
+    gfx->endWrite();
     return;
   }
 
@@ -133,6 +135,7 @@ void NotifyMode::drawLabelBand(bool full) {
   clearBandRun(gfx, 0, x, labelY, lineH);
   clearBandRun(gfx, x + scrollW_, NOTIFY_SCROLL_GAP_PX, labelY, lineH);
   clearBandRun(gfx, tail, TFT_WIDTH - tail, labelY, lineH);
+  gfx->endWrite();
 }
 
 void NotifyMode::draw(bool full) {
