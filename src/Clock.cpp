@@ -5,6 +5,7 @@
 #include "SunTimes.h"
 
 static String            s_armedTz;          // last tzPosix armed (clockReapply re-arms only on change)
+static String            s_armedNtp;         // last custom SNTP server armed
 static bool              s_ntpStarted = false; // SNTP has been started for a clock consumer
 static volatile uint32_t s_lastSyncMs = 0;   // millis() of the last successful SNTP sync
 static volatile bool     s_haveSync   = false;
@@ -32,35 +33,40 @@ static bool nightWindowContains(int now, int start, int end) {
   return now >= start || now < end;
 }
 
+static void armNtp(const Settings& s) {
+  const char* tz = s.clock.tzPosix.length() ? s.clock.tzPosix.c_str() : "UTC0";
+  const bool custom = s.clock.ntpServer.length() > 0;
+  platformTimeBegin(tz, custom ? s.clock.ntpServer.c_str() : NTP_SERVER1,
+                    custom ? NTP_SERVER1 : NTP_SERVER2, custom ? NTP_SERVER2 : nullptr);
+}
+
 void clockBegin(const Settings& s) {
   platformOnTimeSync(onNtpSync);            // register before the first sync can land
-  const char* tz = s.clock.tzPosix.length() ? s.clock.tzPosix.c_str() : "UTC0";
-  platformTimeBegin(tz, NTP_SERVER1, NTP_SERVER2);
+  armNtp(s);
   s_armedTz = s.clock.tzPosix;
+  s_armedNtp = s.clock.ntpServer;
   s_ntpStarted = true;
 }
 
 static time_t  s_sunAt = (time_t)-1;   // second of the cached sun level (see clockSunSteps)
-void clockReapply(const Settings& s) {
+void clockReapply(const Settings& s, bool clockVisible) {
   s_sunAt = (time_t)-1;
   // SNTP only runs when something needs it. Starting the lwIP SNTP client is a
   // permanent mid-arena heap allocation, and on the memory-tight ESP8266 that can
   // fragment the largest contiguous block below what the cash.ch TLS handshake
-  // needs (blanking those tickers). So arm on the first enable, re-arm on a
-  // timezone change, and otherwise leave it alone. Night mode is one caller; a
-  // WireGuard tunnel and theme clocks also need it. The peer rejects a handshake stamped
-  // with a wrong clock (and that build is an ESP32, where the heap cost is moot).
+  // needs (blanking those tickers). So arm on the first enable, re-arm only when
+  // the timezone or custom server changes, and otherwise leave it alone.
   const bool themeOnScreen = WITH_THEME &&
       (s.mode == MODE_THEME || (s.mode == MODE_CAROUSEL && s.carouselTheme));
   const bool timerMode = (s.mode == MODE_TIMER);
+  const bool weatherOnScreen = s.mode == MODE_WEATHER || (s.mode == MODE_CAROUSEL && s.carouselWeather);
   const bool burninTime = s.burnin.enabled && (s.burnin.triggerType == "time");
-  if (!s.clock.nightEnabled && !s.clock.sunEnabled && !wgNeedsClock(s) && !themeOnScreen && !timerMode && !burninTime) return;
-  if (!s_ntpStarted || s.clock.tzPosix != s_armedTz) clockBegin(s);
+  if (!clockVisible && !s.clock.nightEnabled && !s.clock.sunEnabled && !wgNeedsClock(s) && !themeOnScreen && !weatherOnScreen && !timerMode && !burninTime) return;
+  if (!s_ntpStarted || s.clock.tzPosix != s_armedTz || s.clock.ntpServer != s_armedNtp) clockBegin(s);
 }
 
 void clockForceResync(const Settings& s) {
-  const char* tz = s.clock.tzPosix.length() ? s.clock.tzPosix.c_str() : "UTC0";
-  platformTimeBegin(tz, NTP_SERVER1, NTP_SERVER2);   // re-arm SNTP -> fresh query
+  armNtp(s);   // re-arm SNTP -> fresh query, with the same built-in fallbacks
 }
 
 bool clockSynced() { return platformTimeValid(); }

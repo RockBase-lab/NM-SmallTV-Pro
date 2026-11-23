@@ -1,0 +1,50 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const html = fs.readFileSync('src/webui.html', 'utf8');
+assert.match(html, /<section id="radar"/);
+assert.match(html, /data-t="radar"/);
+const nodes = {};
+function element(id) { return nodes[id] || (nodes[id] = {value:'',checked:false,disabled:false,textContent:'',style:{},innerHTML:'',appendChild(){}}); }
+const context = {$:element,gv:id=>element(id).value,gc:id=>element(id).checked,
+ sv:(id,value)=>element(id).value=value,sc:(id,value)=>element(id).checked=value,
+ document:{createElement:()=>({})},Number,Math,JSON,fetch:async()=>({ok:true,json:async()=>({results:[]})})};
+vm.createContext(context);
+vm.runInContext(html.slice(html.indexOf('// radar location begin'),html.indexOf('// radar location end')),context);
+element('radarLat').value='39.9042';element('radarLon').value='116.4074';
+assert.equal(context.radarProblem(),'');
+element('radarLat').value='91';assert.match(context.radarProblem(),/latitude/i);
+element('radarLat').value='39abc';assert.match(context.radarProblem(),/latitude/i);
+element('radarLat').value='';assert.match(context.radarProblem(),/latitude/i);
+element('radarLat').value='0';element('radarLon').value='0';assert.match(context.radarProblem(),/center/i);
+element('radarLon').value='180';assert.equal(context.radarProblem(),'');
+element('radarPreset').value='31.2304,121.4737';context.radarPresetPick();
+assert.equal(element('radarUseDevice').checked,false);
+assert.equal(Number(element('radarLat').value),31.2304);
+assert.equal(Number(element('radarLon').value),121.4737);
+element('locLat').value='51.5';element('locLon').value='-0.12';element('radarUseDevice').checked=true;
+context.radarLocChanged();assert.equal(element('radarLat').disabled,true);
+assert.match(element('radarCenter').textContent,/51.500000.*-0.120000/);
+assert.equal(Number(element('radarLat').value),31.2304);
+vm.runInContext(html.slice(html.indexOf('function saveRadar('),html.indexOf('function saveWifi(')),context);
+let posted;
+context.collect=()=>({radar:{useDevice:true}});
+context.j=async(path,request)=>{posted=JSON.parse(request.body);return {ok:true}};
+context.toast=context.loadStatus=context.modeChanged=()=>{};
+context.C={mode:'weather',clock:{lat:0,lon:0}};
+(async()=>{
+ await context.saveRadar(true);
+ assert.equal(posted.mode,'radar');
+ assert.equal(posted.clock.lat,51.5);
+ assert.equal(posted.clock.lon,-0.12);
+ assert.equal(element('mode').value,'radar');
+ assert.equal(context.C.mode,'radar');
+ assert.equal(context.C.clock.lat,51.5);
+ element('radarUseDevice').checked=false;
+ context.collect=()=>({radar:{useDevice:false,lat:31.2304,lon:121.4737}});
+ await context.saveRadar(false);
+ assert.equal(posted.clock,undefined);
+ assert.equal(posted.mode,undefined);
+ assert.equal(context.C.clock.lat,51.5);
+ console.log('Radar location UI tests passed');
+})().catch(error=>{console.error(error);process.exitCode=1});

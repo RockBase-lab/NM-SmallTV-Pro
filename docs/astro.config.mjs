@@ -1,13 +1,13 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 
-// Deployed to GitHub Pages at https://giovi321.github.io/smalltv-mod/
+// Deployed to GitHub Pages at https://RockBase-lab.github.io/NM-SmallTV-Pro/
 export default defineConfig({
-  site: 'https://giovi321.github.io',
-  base: '/smalltv-mod',
+  site: 'https://RockBase-lab.github.io',
+  base: '/NM-SmallTV-Pro',
   integrations: [
     starlight({
-      title: 'smalltv-mod',
+      title: 'NMMiner SmallTV Pro',
       description:
         'Open-source firmware for the GeekMagic SmallTV and its ESP32-C2 and classic-ESP32 lookalikes: ticker, Claude usage meter, plane radar, and a WireGuard tunnel.',
       logo: {
@@ -18,11 +18,11 @@ export default defineConfig({
         {
           icon: 'github',
           label: 'GitHub',
-          href: 'https://github.com/giovi321/smalltv-mod',
+          href: 'https://github.com/RockBase-lab/NM-SmallTV-Pro',
         },
       ],
       editLink: {
-        baseUrl: 'https://github.com/giovi321/smalltv-mod/edit/main/docs/',
+        baseUrl: 'https://github.com/RockBase-lab/NM-SmallTV-Pro/edit/main/docs/',
       },
       sidebar: [
         { label: 'Home', link: '/' },
@@ -37,6 +37,8 @@ export default defineConfig({
         {
           label: 'User manual',
           items: [
+            { label: '中文使用手册', link: '/manual/user-manual-zh/' },
+            { label: 'English user manual', link: '/manual/user-manual-en/' },
             { label: 'Quick start', link: '/manual/quick-start/' },
             { label: 'Everyday use', link: '/manual/everyday/' },
             { label: 'Settings explained', link: '/manual/settings/' },

@@ -7,16 +7,20 @@ is the source of truth — edit it, then rerun:
 
     python tools/gzip_webui.py
 
-Python 3 stdlib only. Output is deterministic (gzip header mtime=0), so
-re-running without changes leaves webui.h untouched on the same machine.
-Another zlib build (zlib-ng, say) can compress to other bytes, so CI runs
-`python tools/gzip_webui.py --check`, which compares what webui.h
-decompresses to with webui.html instead.
+Install the pinned Node minifier once with `npm ci --prefix tools`.
+The build bundles src/webui-search.js and minifies JavaScript without
+renaming globals used by inline controls. Output has gzip mtime=0.
+`--check` compares decompressed output with a fresh canonical bundle,
+independently of the gzip implementation.
+
+For the compact NM-TV-154 release, install zopfli and use --small to produce
+a smaller gzip stream. The firmware needs no extra decoder.
 """
 import gzip
 import pathlib
 import re
 import sys
+import subprocess
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SRC = ROOT / "src" / "webui.html"
@@ -24,7 +28,7 @@ OUT = ROOT / "src" / "webui.h"
 
 HEADER = """\
 // GENERATED FILE -- do not edit by hand.
-// Produced by tools/gzip_webui.py from src/webui.html (the source of truth).
+// Produced from src/webui.html and src/webui-search.js using pinned Terser.
 // Regenerate after editing the HTML:  python tools/gzip_webui.py
 //
 // Gzip-compressed single-page config UI, served from PROGMEM with
@@ -38,7 +42,11 @@ static const uint8_t WEBUI_HTML_GZ[] PROGMEM = {
 
 def html() -> bytes:
     # The repo stores LF; a Windows checkout with core.autocrlf has CRLF.
-    return SRC.read_bytes().replace(b"\r\n", b"\n")
+    raw = SRC.read_bytes().replace(b"\r\n", b"\n")
+    search = (ROOT / "src" / "webui-search.js").read_bytes().replace(b"\r\n", b"\n")
+    raw = raw.replace(b'<script src="webui-search.js"></script>', b'<script>' + search + b'</script>')
+    return subprocess.run(["node", str(ROOT / "tools" / "minify_webui.cjs")], input=raw,
+                          stdout=subprocess.PIPE, check=True).stdout
 
 
 def check() -> int:
@@ -53,7 +61,11 @@ def check() -> int:
 
 def main() -> None:
     raw = html()
-    blob = gzip.compress(raw, compresslevel=9, mtime=0)
+    if "--small" in sys.argv:
+        import zopfli.gzip
+        blob = zopfli.gzip.compress(raw, numiterations=30)
+    else:
+        blob = gzip.compress(raw, compresslevel=9, mtime=0)
 
     lines = [HEADER]
     for i in range(0, len(blob), 16):

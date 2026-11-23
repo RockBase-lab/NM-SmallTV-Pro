@@ -9,12 +9,12 @@ const fs=require('node:fs');
 const vm=require('node:vm');
 const html=fs.readFileSync(process.env.WEBUI_HTML||'src/webui.html','utf8');
 const between=(a,b)=>{const i=html.indexOf(a),k=html.indexOf(b,i);assert.ok(i>=0&&k>i,'page text not found: '+a);return html.slice(i,k)};
-const helpers=between('function $(id)','// sun begin');
+const helpers=between('function $(id)','// sun begin')+between('function numIn(','// sun end');
 const feat=between('var MODEOPT=','function modeChanged()');
 const collectCode=between('function collect(){','function saveAll(){');
 const tickerVars=between('var T_TEXT=','// IANA -> POSIX');
 
-const OPTIONS=['stocks','usage','radar','ha','theme','carousel'];
+const OPTIONS=['stocks','usage','radar','ha','theme','pictures','carousel'];
 
 // A <select>: setting a value with no matching option leaves nothing selected.
 function makeSelect(){

@@ -18,13 +18,17 @@ static uint8_t  g_serviceSet = 0;
 // ---------------------------------------------------------------------------
 void stocksInit(const Settings& s, uint8_t set) {
   if (set >= NUM_STOCK_SETS) return;
-  const TickerSettings& ts = (set == 1) ? s.ticker2 : s.ticker;
+  const TickerSettings& ts = tickerSettings(s, set);
   StockSet& ss = g_sets[set];
   ss.count = ts.symbolCount;
   for (uint8_t i = 0; i < ss.count; i++) {
     ss.stocks[i].clear();
     strlcpy(ss.stocks[i].symbol, ts.symbols[i].symbol, MAX_SYMBOL_LEN);
     ss.stocks[i].source = ts.symbols[i].source;
+    if (ss.stocks[i].source == SRC_BINANCE) {
+      for (char* p = ss.stocks[i].symbol; *p; ++p)
+        *p = (char)toupper((unsigned char)*p);
+    }
     ss.stocks[i].qty  = ts.symbols[i].qty;
     ss.stocks[i].cost = ts.symbols[i].cost;
     ss.stocks[i].userNamed = (ts.symbols[i].name[0] != 0);
@@ -203,6 +207,64 @@ static void yahooCurrency(const char* code, char* out, size_t n) {
   snprintf(out, n, "%s ", code);
 }
 
+#if WITH_CRYPTO
+// A single K-line request supplies the latest price and the whole chart. Pick a
+// native Binance interval whose full candle count fits the 60-point display cap;
+// parseBinance() then downsamples it if the user requested fewer points.
+static void binanceKlineSpec(const String& range, const char*& interval, uint8_t& limit) {
+  if (range == "1m")       { interval = "1s"; limit = 60; }
+  else if (range == "5m")  { interval = "1m"; limit = 5; }
+  else if (range == "30m") { interval = "1m"; limit = 30; }
+  else if (range == "60m") { interval = "1m"; limit = 60; }
+  else if (range == "5d")  { interval = "2h"; limit = 60; }
+  else if (range == "1w" || range == "1wk") { interval = "4h"; limit = 42; }
+  else if (range == "1mo") { interval = "12h"; limit = 60; }
+  else if (range == "3mo") { interval = "3d"; limit = 30; }
+  else if (range == "6mo") { interval = "3d"; limit = 60; }
+  else if (range == "1y")  { interval = "1w"; limit = 52; }
+  else                     { interval = "30m"; limit = 48; }  // 1 day / safe default
+}
+
+static bool validBinanceSymbol(const char* symbol) {
+  size_t n = symbol ? strlen(symbol) : 0;
+  if (n < 5 || n >= MAX_SYMBOL_LEN) return false;
+  for (size_t i = 0; i < n; i++)
+    if (!isalnum((unsigned char)symbol[i])) return false;
+  return true;
+}
+
+static String buildBinanceUrl(const TickerSettings& t, const char* host, const char* symbol) {
+  if (!validBinanceSymbol(symbol)) return String();
+  String range = t.range;
+  range.toLowerCase();
+  const char* interval;
+  uint8_t limit;
+  binanceKlineSpec(range, interval, limit);
+  String url = F("https://");
+  url += host;
+  url += F(BINANCE_KLINES_PATH "?symbol=");
+  url += symbol;  // validated ASCII alphanumeric: no query-string injection
+  url += F("&interval=");
+  url += interval;
+  url += F("&limit=");
+  url += String(limit);
+  return url;
+}
+
+static void binanceCurrency(const char* symbol, char* out, size_t n) {
+  static const char* quotes[] = {"FDUSD", "USDT", "USDC", "TUSD", "USD", "BTC", "ETH", "BNB", "EUR", "KRW", "JPY"};
+  out[0] = 0;
+  size_t len = strlen(symbol);
+  for (const char* q : quotes) {
+    size_t qn = strlen(q);
+    if (len <= qn || strcmp(symbol + len - qn, q)) continue;
+    if (!strcmp(q, "USD")) strlcpy(out, "$", n);
+    else snprintf(out, n, "%s%s", q, strlen(q) < 5 ? " " : "");
+    return;
+  }
+}
+#endif
+
 static uint16_t cashRangeDays(const String& r) {
   if (r == "1d")  return 2;
   if (r == "5d")  return 5;
@@ -244,9 +306,10 @@ static String buildGithubUrl(const char* symbol) {
 }
 
 static const char* naverTimeframe(const String& r) {
+  if (r == "1mo") return "day";
   if (r == "1m" || r == "5m" || r == "30m" || r == "60m") return "minute";
   if (r == "1w" || r == "1wk" || r == "week") return "week";
-  if (r == "1mo" || r == "3mo" || r == "6mo" || r == "1y" || r == "month") return "month";
+  if (r == "3mo" || r == "6mo" || r == "1y" || r == "month") return "month";
   return "day";
 }
 
@@ -441,6 +504,16 @@ static bool fetchNaverForeignMinute(const Settings& s, const TickerSettings& ts,
   return (d.candleCount >= 2);
 }
 
+static float naverNumber(const char* value) {
+  char clean[32];
+  size_t length = 0;
+  for (size_t index = 0; value[index] && length < sizeof(clean) - 1; ++index) {
+    if (value[index] != ',') clean[length++] = value[index];
+  }
+  clean[length] = 0;
+  return atof(clean);
+}
+
 static bool fetchNaverForeign(const Settings& s, const TickerSettings& ts, const char* symbol, StockData& d) {
   if (g_abortFetch) return false;
 
@@ -493,25 +566,14 @@ static bool fetchNaverForeign(const Settings& s, const TickerSettings& ts, const
   const char* priceStr = useOverMarket ? overPriceStr : (doc["closePrice"] | "");
   if (!priceStr[0]) return false;
 
-  char pbuf[32];
-  size_t pi = 0;
-  for (size_t i = 0; priceStr[i] && pi < sizeof(pbuf)-1; i++) {
-    if (priceStr[i] != ',') pbuf[pi++] = priceStr[i];
-  }
-  pbuf[pi] = 0;
-  float price = atof(pbuf);
+  float price = naverNumber(priceStr);
   if (price <= 0) return false;
   d.price = price;
 
   const char* diffStr = useOverMarket ? 
     (doc["overMarketPriceInfo"]["compareToPreviousClosePrice"] | "0") :
     (doc["compareToPreviousClosePrice"] | "0");
-  pi = 0;
-  for (size_t i = 0; diffStr[i] && pi < sizeof(pbuf)-1; i++) {
-    if (diffStr[i] != ',') pbuf[pi++] = diffStr[i];
-  }
-  pbuf[pi] = 0;
-  float diff = atof(pbuf);
+  float diff = naverNumber(diffStr);
 
   const char* pctStr = useOverMarket ?
     (doc["overMarketPriceInfo"]["fluctuationsRatio"] | "0") :
@@ -813,23 +875,12 @@ static bool fetchNaver(const Settings& s, const TickerSettings& ts, const char* 
   const char* priceStr = doc["closePrice"] | "";
   if (!priceStr[0]) return false;
 
-  char pbuf[32];
-  size_t pi = 0;
-  for (size_t i = 0; priceStr[i] && pi < sizeof(pbuf)-1; i++) {
-    if (priceStr[i] != ',') pbuf[pi++] = priceStr[i];
-  }
-  pbuf[pi] = 0;
-  float price = atof(pbuf);
+  float price = naverNumber(priceStr);
   if (price <= 0) return false;
   d.price = price;
 
   const char* diffStr = doc["compareToPreviousClosePrice"] | "0";
-  pi = 0;
-  for (size_t i = 0; diffStr[i] && pi < sizeof(pbuf)-1; i++) {
-    if (diffStr[i] != ',') pbuf[pi++] = diffStr[i];
-  }
-  pbuf[pi] = 0;
-  float diff = atof(pbuf);
+  float diff = naverNumber(diffStr);
 
   const char* pctStr = doc["fluctuationsRatio"] | "0";
   float pct = atof(pctStr);
@@ -1134,6 +1185,78 @@ static bool parseYahoo(const TickerSettings& ts, StockData& d, Stream& stream) {
   return true;
 }
 
+#if WITH_CRYPTO
+// ---- parse: Binance Spot /api/v3/klines ------------------------------------
+// Each row is [openTime, open, high, low, close, ...]. Prices are JSON strings,
+// not numbers; no API key, clock synchronisation or second quote request is used.
+static bool binanceCandle(JsonVariantConst row, float& op, float& hi, float& lo, float& cl) {
+  JsonArrayConst k = row.as<JsonArrayConst>();
+  if (k.isNull() || k.size() < 5) return false;
+  const char* os = k[1] | "";
+  const char* hs = k[2] | "";
+  const char* ls = k[3] | "";
+  const char* cs = k[4] | "";
+  if (!os[0] || !hs[0] || !ls[0] || !cs[0]) return false;
+  op = strtof(os, nullptr); hi = strtof(hs, nullptr);
+  lo = strtof(ls, nullptr); cl = strtof(cs, nullptr);
+  return op > 0 && hi > 0 && lo > 0 && cl > 0 &&
+         !isnan(op) && !isnan(hi) && !isnan(lo) && !isnan(cl);
+}
+
+static bool parseBinance(const TickerSettings& ts, StockData& d, Stream& stream) {
+  JsonDocument doc;
+  if (deserializeJson(doc, stream)) return false;
+  JsonArrayConst rows = doc.as<JsonArrayConst>();
+  if (rows.isNull()) return false;  // also rejects Binance's {code,msg} errors
+
+  uint16_t valid = 0;
+  float firstClose = 0, lastClose = 0;
+  for (JsonVariantConst row : rows) {
+    float op, hi, lo, cl;
+    if (!binanceCandle(row, op, hi, lo, cl)) continue;
+    if (!valid) firstClose = cl;
+    lastClose = cl;
+    valid++;
+  }
+  if (!valid || lastClose <= 0) return false;
+
+  d.price = lastClose;
+  d.prevClose = firstClose;
+  d.change = lastClose - firstClose;
+  d.changePct = firstClose > 0 ? d.change / firstClose * 100.0f : 0;
+  d.hasChange = firstClose > 0;
+  d.dateSplitIdx = -1;
+  d.sparkCount = d.candleCount = 0;
+  binanceCurrency(d.symbol, d.currency, sizeof(d.currency));
+  String rl = ts.range.length() ? ts.range : String("1d");
+  rl.toUpperCase();
+  strlcpy(d.rangeLabel, rl.c_str(), sizeof(d.rangeLabel));
+
+  uint16_t want = ts.points;
+  if (want > MAX_SPARK_POINTS) want = MAX_SPARK_POINTS;
+  if (want >= 2) {
+    uint16_t i = 0, k = 0;
+    for (JsonVariantConst row : rows) {
+      float op, hi, lo, cl;
+      if (!binanceCandle(row, op, hi, lo, cl)) continue;
+      uint16_t target = (valid <= want) ? i
+          : (uint16_t)(((uint32_t)k * (valid - 1) + (want - 1) / 2) / (want - 1));
+      if (i == target && k < want) {
+        d.spark[d.sparkCount++] = cl;
+        d.candles[d.candleCount++] = {op, hi, lo, cl};
+        k++;
+      }
+      i++;
+    }
+  }
+
+  d.valid = true;
+  d.error = false;
+  d.lastOkMs = millis();
+  return true;
+}
+#endif
+
 // ---- parse: cash.ch quote ---------------------------------------------------
 static bool parseCashQuote(const TickerSettings& ts, StockData& d, Stream& stream) {
   JsonDocument filter;
@@ -1240,7 +1363,8 @@ enum ParseKind : uint8_t {
   PARSE_CASH_QUOTE,
   PARSE_CASH_CHART,
   PARSE_GITHUB,
-  PARSE_NAVER
+  PARSE_NAVER,
+  PARSE_BINANCE
 };
 
 static TlsSession g_cashSession;
@@ -1291,6 +1415,9 @@ static bool fetchUrl(const Settings& s, const TickerSettings& ts, const String& 
     case PARSE_YAHOO:      ok = parseYahoo(ts, d, http.getStream());        break;
     case PARSE_CASH_QUOTE: ok = parseCashQuote(ts, d, http.getStream());    break;
     case PARSE_CASH_CHART: ok = parseCashChart(ts, d, http.getStream());    break;
+#if WITH_CRYPTO
+    case PARSE_BINANCE:    ok = parseBinance(ts, d, http.getStream());      break;
+#endif
     default:               ok = parseWebhook(ts, d, http.getStream());      break;
   }
   http.end();
@@ -1313,6 +1440,18 @@ static bool stepSymbol(const Settings& s, const TickerSettings& ts, StockData& d
     }
     return true;
   }
+
+#if WITH_CRYPTO
+  if (d.source == SRC_BINANCE) {
+    if (fetchPhase == 0) {
+      if (fetchUrl(s, ts, buildBinanceUrl(ts, BINANCE_HOST1, d.symbol), PARSE_BINANCE, d)) return true;
+      fetchPhase = 1;
+      return false;
+    }
+    if (!fetchUrl(s, ts, buildBinanceUrl(ts, BINANCE_HOST2, d.symbol), PARSE_BINANCE, d)) d.error = true;
+    return true;
+  }
+#endif
 
   if (isKr) {
     if (!fetchNaver(s, ts, cleanCode, d)) d.error = true;
@@ -1372,7 +1511,7 @@ void stocksService(const Settings& s) {
   for (uint8_t tryCount = 0; tryCount < NUM_STOCK_SETS; tryCount++) {
     uint8_t set = g_serviceSet;
     g_serviceSet = (g_serviceSet + 1) % NUM_STOCK_SETS;
-    const TickerSettings& ts = (set == 1) ? s.ticker2 : s.ticker;
+    const TickerSettings& ts = tickerSettings(s, set);
     StockSet& ss = g_sets[set];
     if (ss.count == 0) continue;
 

@@ -1,0 +1,10 @@
+# NM-TV-154 picture, radar and clock refinements
+
+The user requests full-color reference pictures, clear independent Plane Radar settings based on ESP32-Plane-Radar, and closer visual fidelity to four clock photographs.
+
+1. Replace three-color quantization with baseline RGB JPEG at 240×240 inside picture packages. Keep all ten original sources and two sampled frames per GIF. Stream ROM-decoded tiles on classic ESP32 with a 4 KiB work buffer. Reject unsupported compositions and non-classic chips explicitly. Verify color count, reconstruction error, package validation and actual LittleFS packing.
+2. Expose the existing radar settings in a dedicated tab. Explain the radar center, shared weather location versus independent coordinates, offer offline city presets and Open-Meteo city search, show the effective center to six decimals, and validate coordinates on both settings import and browser save. Dedicated Save and Show controls send only radar settings.
+3. Replace seven-segment clock numerals with antialiased Bebas Neue glyphs using the existing OFL font. Improve condensed supporting typography, shaded weather icons, rounded forecast rows, white condition badge, green weekday, pill gauges and the astronaut. Export actual renderer commands and inspect the resulting preview.
+4. Preserve the DNS/NTP TCPIP crash fix. Run relevant native, browser and asset regressions, independently review the changes, build both 4 MB firmware variants, verify OTA slot sizes and provide app/FS installation instructions. Distinguish source/build validation from physical device confirmation.
+
+Progress: implementation, independent review fixes, actual rendering previews, both 4 MB builds and OTA/FS capacity checks complete. Sixteen browser suites, asset fidelity, native JPEG/package/font/render/catalog/weather/settings and DNS regression checks pass. Full theme suite has a local CRLF-sensitive source assertion and unavailable 32-bit headers, recorded in the product report. No physical flash performed. Release artifacts staged with configuration-preserving and complete USB installation instructions.

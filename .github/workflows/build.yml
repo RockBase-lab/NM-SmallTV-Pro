@@ -27,6 +27,9 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Install pinned web UI build tools
+        run: npm ci --prefix tools --ignore-scripts --no-audit --no-fund
+
       # restore-keys matters more than the key does. A cold ~/.platformio is not
       # merely slower, it is the one state in which the build breaks (see the
       # SCons note below), and the key is a hash of platformio.ini, so every
@@ -94,30 +97,26 @@ jobs:
       # UPDATE_ASSET in src/config.h has to be a file the staging step below
       # copies into dist/, or that variant's self-update finds no release asset.
       #
-      # One variant is published (the 8 MB Pro, see [platformio] default_envs),
-      # so the other names are passed as deliberately not published. The flag
-      # keeps the check strict about the asset that does ship — drop the pro line
-      # from the staging step and this fails — and the list itself cannot rot
-      # silently: a name in it that is not an UPDATE_ASSET in src/config.h, or
-      # one that is also staged, is an error.
+      # The 8 MB Pro and full-feature NM-TV-154 WireGuard variants are published
+      # (see [platformio] default_envs), so the other names are passed as
+      # deliberately not published. The flag keeps the check strict about the
+      # assets that ship — drop a published line from the staging step and this
+      # fails — and the list itself cannot rot silently: a name in it that is not
+      # an UPDATE_ASSET in src/config.h, or one that is also staged, is an error.
       - name: Check release asset names
         run: |
           python3 tools/ci_checks.py assets --not-published \
-            smalltv-mod-firmware-c2.bin,smalltv-mod-firmware-esp32.bin,smalltv-mod-firmware-esp32-wg.bin,smalltv-mod-firmware-lean.bin,smalltv-mod-firmware.bin
+            nm-smalltv-pro-firmware-c2.bin,nm-smalltv-pro-firmware-esp32.bin,nm-smalltv-pro-firmware-lean.bin,nm-smalltv-pro-firmware.bin
 
       # The firmware serves src/webui.h, not webui.html. A commit that edits
       # the HTML without regenerating the header ships the old page.
       - name: Check webui.h matches webui.html
         run: python3 tools/gzip_webui.py --check
 
-      # No -e here: a bare `pio run` builds [platformio] default_envs, which is
-      # the 8 MB SmallTV Pro and the loader — the target this firmware is
-      # published for, and the one env `pio run` builds locally too. The list
-      # lives in platformio.ini rather than in this file so the build, the
-      # staging, the asset check and the size gate below cannot disagree about
-      # what CI builds; why the 4 MB envs are not in it is documented there and
-      # in the commit that added it (CI run 43803118220).
-      - name: Build firmware (8 MB SmallTV Pro + loader)
+      # No -e here: a bare `pio run` builds [platformio] default_envs. The list
+      # lives in platformio.ini rather than in this file so the build, staging,
+      # asset check and size gate below cannot disagree about what CI builds.
+      - name: Build firmware (SmallTV Pro + NM-TV-154 WG + loader)
         run: pio run
 
       # tests/theme/run.sh also builds the memory test with -m32, so it
@@ -128,6 +127,7 @@ jobs:
       - name: Test theme engine and packer
         run: |
           pip install -r tools/requirements-theme.txt
+          python3 tools/build_nm_tv_154_assets.py --output /tmp/nm-tv-154-data --source-output /tmp/nm-tv-154-source
           python3 -m unittest discover -s tests/theme -p 'test_*.py'
           python3 tools/theme_pack.py examples/themes/pixel-room /tmp/pixel-room.stheme
           cmp examples/themes/pixel-room.stheme /tmp/pixel-room.stheme
@@ -141,6 +141,30 @@ jobs:
           node tests/theme/test_webui.js
           node tests/theme/test_webui_poll.js
           node tests/theme/test_webui_carousel.js
+          node tests/theme/test_webui_i18n.js
+          node tests/theme/test_webui_pictures.js
+          node tests/theme/test_album_management.js
+            python3 tests/theme/test_picture_update.py
+            python3 tests/theme/test_jpeg_rgb.py
+
+      # Display-only weather units, the weather location and custom NTP settings.
+      - name: Test weather clocks, forecast parser and page settings
+        run: |
+          sh tests/weather/run.sh
+          node tests/radar/test_location_ui.js
+
+      - name: Test searchable configuration and generated UI
+        run: |
+          sh tests/search/run.sh
+          node tests/search/test_search.js
+          node tests/search/test_search_ui.js --generated
+          c++ -std=c++11 -Wall -Wextra -Werror -Isrc/features/weather tests/weather/test_font.cpp -o /tmp/smalltv-weather-font
+          mkdir -p tmp
+          /tmp/smalltv-weather-font > tmp/font-decoded.bin
+          python3 tests/weather/test_font_asset.py
+
+      - name: Test DNS cache and NTP callback TCPIP context
+        run: python3 tests/network/test_dns_context.py
 
       # Sunrise and sunset worked out on the device, the dimming curve and its
       # overlap with night mode. The settings test needs ArduinoJson (from
@@ -160,6 +184,9 @@ jobs:
       # the page sends no mode when its list lacks the stored one.
       - name: Test mode of a save
         run: sh tests/mode/run.sh
+
+      - name: Test default stocks and provider chart parsing
+        run: sh tests/ticker/run.sh
 
       # The mDNS library copy in lib/: a response is handled one record at a
       # time (peak: one record alive), and _parseResponse uses that loop.
@@ -225,28 +252,31 @@ jobs:
         run: |
           c++ -std=c++11 -Wall -Wextra -Werror -g -Isrc tests/test_crash_record.cpp -o /tmp/smalltv-crash-tests
           /tmp/smalltv-crash-tests
+          c++ -std=c++11 -Wall -Wextra -Werror -g -Isrc tests/test_esp32_crash_record.cpp -o /tmp/smalltv-esp32-crash-tests
+          /tmp/smalltv-esp32-crash-tests
+          python3 tests/network/test_esp32_crash_capture.py
 
-      # What the release publishes: the 8 MB Pro's app image (web-UI OTA and
-      # GitHub self-update), its merged factory image (first-time USB flashing),
-      # and the minimal loader used to install onto a SmallTV-ultra. The other
-      # variants are not built by CI and have no asset here; their UPDATE_ASSET
-      # names are declared unpublished in the asset check above instead. A device
-      # on one of those variants keeps the firmware it has.
+      # What the release publishes: app images for web-UI OTA and GitHub
+      # self-update, merged factory images for USB flashing/partition migration,
+      # and the minimal loader used to install onto a SmallTV-ultra. Variants not
+      # in default_envs are declared unpublished in the asset check above.
       #
-      # UPDATE_ASSET in src/config.h maps the pro build to the release asset name.
+      # UPDATE_ASSET in src/config.h maps each published firmware to its app name.
       # always() with a tolerant copy, for the same reason as the upload below:
-      # when one env dies the other still built, and that binary is what the next
-      # question needs. A missing file is a warning here, not a reason to hand
-      # over nothing. The build step's own exit status still decides whether the
-      # run is red.
+      # when one env dies the others may still have built, and those binaries are
+      # what the next question needs. A missing file is a warning here, not a
+      # reason to hand over nothing. The build step's own exit status still
+      # decides whether the run is red.
       - name: Stage artifacts
         if: always()
         run: |
           mkdir -p dist
           copy() { [ -f "$1" ] && cp "$1" "$2" || echo "missing: $1"; }
-          copy .pio/build/smalltv_esp32_8mb/firmware.bin dist/smalltv-mod-firmware-esp32-pro.bin
-          copy .pio/build/smalltv_esp32_8mb/firmware.factory.bin dist/smalltv-mod-firmware-esp32-pro.factory.bin
-          copy .pio/build/smalltv_loader/firmware.bin dist/smalltv-mod-loader.bin
+          copy .pio/build/smalltv_esp32_8mb/firmware.bin dist/nm-smalltv-pro-firmware-esp32-pro.bin
+          copy .pio/build/smalltv_esp32_8mb/firmware.factory.bin dist/nm-smalltv-pro-firmware-esp32-pro.factory.bin
+          copy .pio/build/smalltv_esp32_wg/firmware.bin dist/nm-smalltv-pro-firmware-esp32-wg.bin
+          copy .pio/build/smalltv_esp32_wg/firmware.factory.bin dist/nm-smalltv-pro-firmware-esp32-wg.factory.bin
+          copy .pio/build/smalltv_loader/firmware.bin dist/nm-smalltv-pro-loader.bin
 
       # Image headroom. Prints image / size / slot / free for every env and fails
       # when one has less than 8192 B left in its app slot. Slot sizes are read
@@ -269,7 +299,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: smalltv-mod-firmware
+          name: nm-smalltv-pro-firmware
           path: dist/
           if-no-files-found: warn
 
@@ -286,7 +316,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v8
         with:
-          name: smalltv-mod-firmware
+          name: nm-smalltv-pro-firmware
           path: dist
 
       # generate_release_notes fills the body with the commits and PRs since the

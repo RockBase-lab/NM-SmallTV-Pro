@@ -1,0 +1,36 @@
+{
+  "spec": 2,
+  "theme": {
+    "id": "classic-24",
+    "name": "Classic 24",
+    "author": "SmallTV",
+    "version": "1.0.0"
+  },
+  "display": {
+    "width": 240,
+    "height": 240,
+    "background": "#000000"
+  },
+  "layers": [
+    {
+      "id": "time",
+      "type": "text",
+      "x": 120,
+      "y": 91,
+      "anchor": "center",
+      "value": "{HH}:{MM}",
+      "size": 48,
+      "color": "#ffffff"
+    },
+    {
+      "id": "date",
+      "type": "text",
+      "x": 120,
+      "y": 145,
+      "anchor": "center",
+      "value": "{YYYY}/{MO}/{DD}",
+      "size": 16,
+      "color": "#00c8c8"
+    }
+  ]
+}

@@ -3,9 +3,9 @@ title: Claude usage meter
 description: Show your Claude 5-hour and 7-day usage with an animated mascot, fed over WiFi from your PC.
 ---
 
-Switch **Display → Mode** to **Clawdmeter** and the device stops showing tickers and shows your Claude consumption instead. It is the idea of a desk usage meter, on the SmallTV, over WiFi. The device's USB is power only, so nothing is wired between it and your PC.
+Switch **General → Mode** to **Usage** and save to show computer-supplied usage data over WiFi. A compatible daemon must be running on the computer. USB serial capabilities vary by board; the usage data connection is through WiFi.
 
-This feature is not in `smalltv-mod-firmware-lean.bin`. That ESP8266 image compiles it out to free 1,080 bytes of heap, and the web UI hides the tab when it is missing. Use `smalltv-mod-firmware.bin` on an ESP8266 that needs the usage meter, or any of the ESP32 images.
+This feature is omitted from the ESP8266 lean build and the current 8 MB Pro target. The browser hides its controls when unavailable. Both NM-TV-154 targets include it; check the hardware matrix in the [current manual](/NM-SmallTV-Pro/manual/user-manual-en/) before choosing an image.
 
 ## What it shows
 
@@ -54,7 +54,7 @@ The PC-side daemon is a separate project, [clawdmeter-daemon](https://github.com
 
    Use **clawdmeter-daemon v1.1.0 or newer**: from that release the daemon reads Claude's usage endpoint rather than spending an inference call per poll, and it reports the session limit as `normal` / `warning` / `rejected`. This firmware accepts that vocabulary and the older `allowed` / `allowed_warning` / `rejected` one.
 
-2. In the web UI open **Display → Mode → Clawdmeter**. Then open the **Clawdmeter** tab: for push, leave the **Usage daemon URL** blank; for serve and pull, set it to `http://<that-pc-ip>:8787/`. Save.
+2. In the web UI open **General → Mode → Usage**. Then open the **Usage** tab: for push, leave the **Usage daemon URL** blank; for serve and pull, set it to `http://<that-pc-ip>:8787/`. Save.
 
 The mascot animations are a curated subset of the [claudepix](https://claudepix.vercel.app) pixel-art set, re-rendered on the ST7789.
 

@@ -3,6 +3,7 @@
 #include "Platform.h"   // platformChipId() for the unique default hostname
 #include "features/theme/Languages.h"
 #include <LittleFS.h>
+#include <cmath>
 
 static const char* CONFIG_PATH = "/config.json";
 // Bytes in CONFIG_PATH as last read or written: what the next save needs on
@@ -13,16 +14,18 @@ static size_t g_storedSize = 0;
 // Ticker slice
 // ===========================================================================
 static const char* srcToStr(uint8_t s) {
-  return (s == SRC_NAVER) ? "naver"
-       : (s == SRC_YAHOO) ? "yahoo"
-       : (s == SRC_CASH)  ? "cash"
-       : (s == SRC_GHUB)  ? "github" : "webhook";
+  return (s == SRC_BINANCE) ? "binance"
+       : (s == SRC_NAVER)   ? "naver"
+       : (s == SRC_YAHOO)   ? "yahoo"
+       : (s == SRC_CASH)    ? "cash"
+       : (s == SRC_GHUB)    ? "github" : "webhook";
 }
 static uint8_t srcFromStr(const String& s) {
-  return s.equalsIgnoreCase("naver")  ? SRC_NAVER
-       : s.equalsIgnoreCase("yahoo")  ? SRC_YAHOO
-       : s.equalsIgnoreCase("cash")   ? SRC_CASH
-       : s.equalsIgnoreCase("github") ? SRC_GHUB : SRC_WEBHOOK;
+  return s.equalsIgnoreCase("binance") ? SRC_BINANCE
+       : s.equalsIgnoreCase("naver")   ? SRC_NAVER
+       : s.equalsIgnoreCase("yahoo")   ? SRC_YAHOO
+       : s.equalsIgnoreCase("cash")    ? SRC_CASH
+       : s.equalsIgnoreCase("github")  ? SRC_GHUB : SRC_WEBHOOK;
 }
 
 void TickerSettings::setDefaults() {
@@ -51,6 +54,22 @@ void TickerSettings::setDefaults() {
     symbols[i].source = DEFAULT_SOURCE;
     symbols[i].qty = 0;
     symbols[i].cost = 0;
+  }
+}
+
+void TickerSettings::setDefaultStocks() {
+  range = "1mo";
+  chartStyle = "line";
+  points = 20;
+  showChart = showPrice = showName = showChange = true;
+  symbolCount = 3;
+  const char* codes[] = {"005930", "NVDA", "AAPL"};
+  const char* names[] = {"Samsung", "NVIDIA", "Apple"};
+  for (uint8_t index = 0; index < symbolCount; ++index) {
+    strlcpy(symbols[index].symbol, codes[index], MAX_SYMBOL_LEN);
+    strlcpy(symbols[index].name, names[index], MAX_NAME_LEN);
+    symbols[index].source = index == 0 ? SRC_NAVER : SRC_YAHOO;
+    symbols[index].qty = symbols[index].cost = 0;
   }
 }
 
@@ -172,11 +191,14 @@ void ClockSettings::setDefaults() {
   tz            = DEFAULT_TZ_NAME;
   tzPosix       = DEFAULT_TZ_POSIX;
   lang          = "en";
+  ntpServer     = "";
+  locationName  = DEFAULT_LOCATION_NAME;
   nightEnabled  = DEFAULT_NIGHT_ENABLED;
   nightStartMin = DEFAULT_NIGHT_START_MIN;
   nightEndMin   = DEFAULT_NIGHT_END_MIN;
   nightLevel    = DEFAULT_NIGHT_LEVEL;
-  lat = lon     = 0;
+  lat           = DEFAULT_LOCATION_LAT;
+  lon           = DEFAULT_LOCATION_LON;
   sunEnabled    = false;
   sunLow        = 5;
   sunRise = sunSet = 60;
@@ -187,6 +209,8 @@ void ClockSettings::toJson(JsonObject o) const {
   o["tz"]           = tz;
   o["tzPosix"]      = tzPosix;
   o["lang"]         = lang;
+  o["ntpServer"]    = ntpServer;
+  o["locationName"] = locationName;
   o["nightEnabled"] = nightEnabled;
   o["nightStart"]   = minToHhmm(nightStartMin);
   o["nightEnd"]     = minToHhmm(nightEndMin);
@@ -203,6 +227,16 @@ void ClockSettings::toJson(JsonObject o) const {
 void ClockSettings::fromJson(JsonObjectConst o) {
   if (o["tz"].is<const char*>())          tz = o["tz"].as<String>();
   if (o["tzPosix"].is<const char*>())     tzPosix = o["tzPosix"].as<String>();
+  if (o["ntpServer"].is<const char*>()) {
+    ntpServer = o["ntpServer"].as<String>();
+    ntpServer.trim();
+    if (ntpServer.length() > 63) ntpServer.remove(63);
+  }
+  if (o["locationName"].is<const char*>()) {
+    locationName = o["locationName"].as<String>();
+    locationName.trim();
+    if (locationName.length() > 96) locationName.remove(96);
+  }
   if (o["lang"].is<const char*>()) {
     const char* code = o["lang"];
     if (smalltv::languageIndex(code, strlen(code)) >= 0) lang = code;   // an unknown code keeps the old one
@@ -506,14 +540,19 @@ void RadarSettings::toJson(JsonObject o) const {
 }
 
 void RadarSettings::fromJson(JsonObjectConst o) {
-  if (o["lat"].is<float>() || o["lat"].is<int>()) lat = o["lat"].as<float>();
-  if (o["lon"].is<float>() || o["lon"].is<int>()) lon = o["lon"].as<float>();
+  const bool validLat = (o["lat"].is<float>() || o["lat"].is<int>()) &&
+      std::isfinite(o["lat"].as<float>()) && o["lat"].as<float>() >= -90 && o["lat"].as<float>() <= 90;
+  const bool validLon = (o["lon"].is<float>() || o["lon"].is<int>()) &&
+      std::isfinite(o["lon"].as<float>()) && o["lon"].as<float>() >= -180 && o["lon"].as<float>() <= 180;
+  const bool validHome = (o["lat"].isNull() || validLat) && (o["lon"].isNull() || validLon);
+  if (validHome && validLat) lat = o["lat"].as<float>();
+  if (validHome && validLon) lon = o["lon"].as<float>();
   // Files from before the device location have a home but no switch: the radar
   // keeps its own coordinates. An unset home (0/0) follows the device location.
   // The rule only applies when this object carries a home itself: a partial
   // save such as {"radar":{"rangeKm":50}} must not read the stored coordinates.
   if (o["useDevice"].is<bool>()) useDevice = o["useDevice"];
-  else if ((!o["lat"].isNull() || !o["lon"].isNull()) && (lat != 0.0f || lon != 0.0f))
+  else if (validHome && (validLat || validLon) && (lat != 0.0f || lon != 0.0f))
     useDevice = false;
   if (o["source"].is<const char*>()) {
     String src = o["source"].as<String>();
@@ -560,6 +599,13 @@ void Settings::setDefaults() {
     wifi[i].ssid = "";
     wifi[i].pass = "";
   }
+#if defined(SMALLTV_ESP32) && !defined(SMALLTV_ESP32_PRO)
+  // NM-TV-154 production image: a known station makes the first boot testable.
+  // Existing config.json files still replace these defaults in loadSettings().
+  wifi[0].ssid = DEFAULT_STA_SSID;
+  wifi[0].pass = DEFAULT_STA_PASS;
+  wifiCount = 1;
+#endif
   apSsid  = DEFAULT_AP_SSID;
   apPass  = DEFAULT_AP_PASS;
   // Unique per device so several SmallTVs on one network don't collide on
@@ -568,10 +614,19 @@ void Settings::setDefaults() {
 
   mode = DEFAULT_MODE;
   themeId = "";
+  pictureId = DEFAULT_PICTURE_ID;
+  pictureAuto = true;
+  pictureRotateSec = DEFAULT_PICTURE_ROTATE_SEC;
   carouselSec = DEFAULT_CAROUSEL_SEC;
-  carouselTicker = carouselTicker2 = carouselUsage = carouselRadar = carouselHa = carouselWeather = true;
-  carouselTheme = false;   // opt in: needs an installed theme, else the slot shows an error
+  carouselTicker = carouselWeather = true;
+  carouselTicker2 = carouselCrypto = carouselUsage = carouselRadar = carouselHa = false;
+  carouselTheme = carouselPictures = false;   // opt in: these slots need installed packages
   weatherPollMin = 10;
+  weatherTempUnit = 0;  // Celsius
+  weatherWindUnit = 0;  // km/h
+  weatherStyle = DEFAULT_WEATHER_STYLE;
+  weatherAuto = false;
+  weatherRotateSec = 20;
   httpTimeout = DEFAULT_HTTP_TIMEOUT;
 
   brightness = DEFAULT_BRIGHTNESS;
@@ -580,7 +635,18 @@ void Settings::setDefaults() {
   rotation = 0;
 
   ticker.setDefaults();
+  ticker.setDefaultStocks();
   ticker2.setDefaults();
+  crypto.setDefaults();
+  crypto.chartStyle = "line";
+  crypto.symbolCount = 3;
+  const char* cryptoSyms[3] = {"BTCUSDT", "ETHUSDT", "SOLUSDT"};
+  const char* cryptoNames[3] = {"Bitcoin", "Ethereum", "Solana"};
+  for (uint8_t i = 0; i < 3; i++) {
+    strlcpy(crypto.symbols[i].symbol, cryptoSyms[i], MAX_SYMBOL_LEN);
+    strlcpy(crypto.symbols[i].name, cryptoNames[i], MAX_NAME_LEN);
+    crypto.symbols[i].source = SRC_BINANCE;
+  }
   usage.setDefaults();
   radar.setDefaults();
   ha.setDefaults();
@@ -612,7 +678,7 @@ bool loadSettings(Settings& s) {
   f.close();
   if (err) return false;
 
-  settingsApplyJson(s, doc.as<JsonObjectConst>());
+  settingsApplyJson(s, doc.as<JsonObjectConst>(), true);
   return true;
 }
 
@@ -638,6 +704,7 @@ size_t settingsStoredSize() { return g_storedSize; }
 
 // ---------------------------------------------------------------------------
 void settingsToJson(const Settings& s, JsonObject root, bool includeSecrets) {
+  root["stockDefaultsVersion"] = 1;
   root["hostname"]   = s.hostname;
 
   // WiFi networks. Passwords only reach the config file, never the web API.
@@ -661,24 +728,37 @@ void settingsToJson(const Settings& s, JsonObject root, bool includeSecrets) {
 
   // Mode + shared HTTP/display
   root["themeId"] = s.themeId;
+  root["pictureId"] = s.pictureId;
+  root["pictureAuto"] = s.pictureAuto;
+  root["pictureRotateSec"] = s.pictureRotateSec;
   root["mode"]              = (s.mode == MODE_CAROUSEL) ? "carousel"
                             : (s.mode == MODE_TIMER)    ? "timer"
                             : (s.mode == MODE_THEME)    ? "theme"
+                            : (s.mode == MODE_PICTURES) ? "pictures"
                             : (s.mode == MODE_RADAR)    ? "radar"
                             : (s.mode == MODE_USAGE)    ? "usage"
                             : (s.mode == MODE_HA)       ? "ha"
+                            : (s.mode == MODE_CRYPTO)   ? "crypto"
                             : (s.mode == MODE_STOCKS2)  ? "stocks2"
                             : (s.mode == MODE_WEATHER)  ? "weather"
                             : (s.mode == MODE_STOCKS)   ? "stocks" : "timer";
   root["carouselSec"]       = s.carouselSec;
   root["carouselTicker"]    = s.carouselTicker;
   root["carouselTicker2"]   = s.carouselTicker2;
+  root["carouselCrypto"]    = s.carouselCrypto;
   root["carouselUsage"]     = s.carouselUsage;
   root["carouselRadar"]     = s.carouselRadar;
   root["carouselHa"]        = s.carouselHa;
   root["carouselTheme"]     = s.carouselTheme;
+  root["carouselPictures"]  = s.carouselPictures;
   root["carouselWeather"]   = s.carouselWeather;
   root["weatherPollMin"]    = s.weatherPollMin ? s.weatherPollMin : 10;
+  const char* weatherStyles[] = {"simple", "dashboard", "forecast", "stacked"};
+  root["weatherStyle"] = weatherStyles[s.weatherStyle < 4 ? s.weatherStyle : 0];
+  root["weatherAuto"] = s.weatherAuto;
+  root["weatherRotateSec"] = s.weatherRotateSec;
+  root["weatherTempUnit"]   = s.weatherTempUnit == 1 ? "f" : "c";
+  root["weatherWindUnit"]   = s.weatherWindUnit == 1 ? "ms" : (s.weatherWindUnit == 2 ? "mph" : "kmh");
   root["httpTimeout"]       = s.httpTimeout;
   root["brightness"]        = s.brightness;
   root["autoBrightness"]    = s.autoBrightness;
@@ -688,6 +768,7 @@ void settingsToJson(const Settings& s, JsonObject root, bool includeSecrets) {
   // Feature slices
   s.ticker.toJson(root["ticker"].to<JsonObject>());
   s.ticker2.toJson(root["ticker2"].to<JsonObject>());
+  s.crypto.toJson(root["crypto"].to<JsonObject>());
   s.usage.toJson(root["usage"].to<JsonObject>());
   s.radar.toJson(root["radar"].to<JsonObject>());
   s.ha.toJson(root["ha"].to<JsonObject>(), includeSecrets);
@@ -702,7 +783,7 @@ void settingsToJson(const Settings& s, JsonObject root, bool includeSecrets) {
 
 // Apply only the keys that are present (partial update friendly). Accepts both
 // the nested layout and the legacy flat layout (feature keys at the top level).
-void settingsApplyJson(Settings& s, JsonObjectConst root) {
+void settingsApplyJson(Settings& s, JsonObjectConst root, bool fromStorage) {
   if (root["hostname"].is<const char*>()) s.hostname = root["hostname"].as<String>();
 
   if (root["wifi"].is<JsonArrayConst>()) {
@@ -749,32 +830,61 @@ void settingsApplyJson(Settings& s, JsonObjectConst root) {
     s.mode = m.equalsIgnoreCase("timer")    ? MODE_TIMER
            : m.equalsIgnoreCase("carousel") ? MODE_CAROUSEL
            : m.equalsIgnoreCase("theme")    ? MODE_THEME
+           : (m.equalsIgnoreCase("pictures") || m.equalsIgnoreCase("picture")) ? MODE_PICTURES
            : m.equalsIgnoreCase("radar")    ? MODE_RADAR
            : m.equalsIgnoreCase("usage")    ? MODE_USAGE
            : m.equalsIgnoreCase("ha")       ? MODE_HA
            : m.equalsIgnoreCase("weather")  ? MODE_WEATHER
+           : m.equalsIgnoreCase("crypto")   ? MODE_CRYPTO
            : (m.equalsIgnoreCase("stocks2") || m.equalsIgnoreCase("stock2")) ? MODE_STOCKS2
            : (m.equalsIgnoreCase("stocks") || m.equalsIgnoreCase("stock1"))  ? MODE_STOCKS
            : s.mode;   // empty or unknown: a save that names no mode keeps the stored one
   }
-  if (root["themeId"].is<const char*>()) {
-    String id = root["themeId"].as<String>();
+  for (uint8_t field = 0; field < 2; ++field) {
+    const char* key = field ? "pictureId" : "themeId";
+    if (!root[key].is<const char*>()) continue;
+    String id = root[key].as<String>();
     bool valid = id.length() <= 48;
     for (size_t i = 0; i < id.length(); ++i) {
       char c = id[i];
       if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-' || c == '_')) valid = false;
     }
-    if (valid) s.themeId = id;
+    if (valid) {
+      if (field) s.pictureId = id;
+      else s.themeId = id;
+    }
   }
+  if (root["pictureAuto"].is<bool>()) s.pictureAuto = root["pictureAuto"];
+  if (root["pictureRotateSec"].is<int>()) s.pictureRotateSec = constrain((int)root["pictureRotateSec"], 2, 3600);
   if (root["carouselSec"].is<int>())      s.carouselSec = constrain((int)root["carouselSec"], 5, 3600);
   if (root["carouselTicker"].is<bool>())  s.carouselTicker = root["carouselTicker"];
   if (root["carouselTicker2"].is<bool>()) s.carouselTicker2 = root["carouselTicker2"];
+  if (root["carouselCrypto"].is<bool>())  s.carouselCrypto = root["carouselCrypto"];
   if (root["carouselUsage"].is<bool>())   s.carouselUsage = root["carouselUsage"];
   if (root["carouselRadar"].is<bool>())   s.carouselRadar = root["carouselRadar"];
   if (root["carouselHa"].is<bool>())      s.carouselHa = root["carouselHa"];
   if (root["carouselTheme"].is<bool>())   s.carouselTheme = root["carouselTheme"];
+  if (root["carouselPictures"].is<bool>()) s.carouselPictures = root["carouselPictures"];
   if (root["carouselWeather"].is<bool>()) s.carouselWeather = root["carouselWeather"];
   if (root["weatherPollMin"].is<int>())   s.weatherPollMin = constrain((int)root["weatherPollMin"], 1, 1440);
+  if (root["weatherStyle"].is<const char*>()) {
+    const char* styles[] = {"simple", "dashboard", "forecast", "stacked"};
+    const String style = root["weatherStyle"].as<String>();
+    for (uint8_t index = 0; index < 4; ++index) if (style == styles[index]) s.weatherStyle = index;
+  }
+  if (root["weatherAuto"].is<bool>()) s.weatherAuto = root["weatherAuto"];
+  if (root["weatherRotateSec"].is<int>()) s.weatherRotateSec = constrain((int)root["weatherRotateSec"], 10, 3600);
+  if (root["weatherTempUnit"].is<const char*>()) {
+    String unit = root["weatherTempUnit"].as<String>();
+    if (unit.equalsIgnoreCase("c")) s.weatherTempUnit = 0;
+    else if (unit.equalsIgnoreCase("f")) s.weatherTempUnit = 1;
+  }
+  if (root["weatherWindUnit"].is<const char*>()) {
+    String unit = root["weatherWindUnit"].as<String>();
+    if (unit.equalsIgnoreCase("kmh") || unit.equalsIgnoreCase("km/h")) s.weatherWindUnit = 0;
+    else if (unit.equalsIgnoreCase("ms") || unit.equalsIgnoreCase("m/s")) s.weatherWindUnit = 1;
+    else if (unit.equalsIgnoreCase("mph")) s.weatherWindUnit = 2;
+  }
 
   if (root["httpTimeout"].is<int>())        s.httpTimeout = constrain((int)root["httpTimeout"], 1000, 20000);
   if (root["brightness"].is<int>())         s.brightness = constrain((int)root["brightness"], 0, 100);
@@ -787,7 +897,10 @@ void settingsApplyJson(Settings& s, JsonObjectConst root) {
   // "pollSec" thus seeds both ticker and usage cadence on first upgrade.
   JsonObjectConst t = root["ticker"].is<JsonObjectConst>() ? root["ticker"].as<JsonObjectConst>() : root;
   s.ticker.fromJson(t);
+  if (fromStorage && s.ticker.symbolCount == 0 && root["stockDefaultsVersion"].as<int>() < 1)
+    s.ticker.setDefaultStocks();
   if (root["ticker2"].is<JsonObjectConst>()) s.ticker2.fromJson(root["ticker2"].as<JsonObjectConst>());
+  if (root["crypto"].is<JsonObjectConst>())  s.crypto.fromJson(root["crypto"].as<JsonObjectConst>());
   JsonObjectConst u = root["usage"].is<JsonObjectConst>() ? root["usage"].as<JsonObjectConst>() : root;
   s.usage.fromJson(u);
   // Radar has no legacy flat layout; only apply when its nested object is present.

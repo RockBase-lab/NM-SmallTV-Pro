@@ -64,7 +64,7 @@ and expects a small JSON object back:
 }
 ```
 
-Only `price` is required. The full field table and two ready-to-import n8n workflows (Yahoo-only, and Yahoo + cash.ch in one) are in the repo under [`n8n/`](https://github.com/giovi321/smalltv-mod/tree/main/n8n).
+Only `price` is required. The full field table and two ready-to-import n8n workflows (Yahoo-only, and Yahoo + cash.ch in one) are in the repo under [`n8n/`](https://github.com/RockBase-lab/NM-SmallTV-Pro/tree/main/n8n).
 
 The device pulls rather than receives a push, so your backend never needs to know the device's IP, and it keeps working if that IP changes. Since each ticker picks its own source, webhook tickers mix freely with Yahoo and cash.ch ones in the same rotation.
 
@@ -74,8 +74,8 @@ The **GitHub** source is a serverless proxy for cash.ch. A scheduled GitHub Acti
 
 This repo does **not** run that publishing workflow — it only ships the pieces, as an example you wire up in your own fork:
 
-- [`.github/scripts/fetch-quotes.mjs`](https://github.com/giovi321/smalltv-mod/blob/main/.github/scripts/fetch-quotes.mjs) — the fetcher. No dependencies beyond Node 20+; reads the config, writes `out/quotes/<key>.json` in the exact JSON the firmware's webhook parser accepts.
-- [`quotes-config.json`](https://github.com/giovi321/smalltv-mod/blob/main/quotes-config.json) — the symbol list, with a placeholder entry showing the format.
+- [`.github/scripts/fetch-quotes.mjs`](https://github.com/RockBase-lab/NM-SmallTV-Pro/blob/main/.github/scripts/fetch-quotes.mjs) — the fetcher. No dependencies beyond Node 20+; reads the config, writes `out/quotes/<key>.json` in the exact JSON the firmware's webhook parser accepts.
+- [`quotes-config.json`](https://github.com/RockBase-lab/NM-SmallTV-Pro/blob/main/quotes-config.json) — the symbol list, with a placeholder entry showing the format.
 
 To run it yourself, fork the repo, list your listing keys in `quotes-config.json`, and add a workflow like this as `.github/workflows/quotes.yml` in the fork:
 

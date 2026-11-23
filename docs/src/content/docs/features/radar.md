@@ -3,11 +3,11 @@ title: Plane radar
 description: A radar scope of nearby aircraft, centred on your location, from the free adsb.lol or adsb.fi feeds or a LAN webhook.
 ---
 
-Switch **Display → Mode** to **Radar** and set it up in the **Radar** tab. The screen becomes a radar scope centred on where you are: range rings, a home marker in the middle, nearby aircraft as red heading triangles with a speed vector and a callsign or altitude label, traffic outside the ring as dots on the rim, and any airports you add as small markers.
+Configure the observation center and feed in **Plane Radar**, then press **Save and show radar**, or select **General → Mode → Radar** and save. The screen becomes a radar scope around the configured center: range rings, a center marker, nearby aircraft as heading triangles with a speed vector and callsign or altitude label, traffic outside the ring as dots on the rim, and any airports you add as markers. Use the shared weather location or choose an independent center. See chapter 9 of the [current manual](/NM-SmallTV-Pro/manual/user-manual-en/) for the complete workflow.
 
 ## Set your location
 
-By default the radar is centred on the **device location**, the one you set in the Display tab's **Clock & night mode** card (see [Sunrise and sunset brightness](/smalltv-mod/features/sun/)). In the Radar tab this is the **Use the device location** box, and it is on. While it is on, the radar's own Latitude and Longitude fields are greyed out, because they are not used. If the device location is still 0/0 (not set), the screen asks you to set a location.
+By default the radar is centred on the **device location**, the one you set in the Display tab's **Clock & night mode** card (see [Sunrise and sunset brightness](/NM-SmallTV-Pro/features/sun/)). In the Radar tab this is the **Use the device location** box, and it is on. While it is on, the radar's own Latitude and Longitude fields are greyed out, because they are not used. If the device location is still 0/0 (not set), the screen asks you to set a location.
 
 To centre the radar somewhere else, for example on an airport, untick **Use the device location**. The fields become editable. Enter the latitude and longitude in decimal degrees (four decimals are kept). Tick the box again to go back to the device location. The radar's own coordinates stay saved while the box is on, so unticking it brings them back.
 
@@ -61,7 +61,7 @@ Start at the **Radar** line in the Status tab. Since 2.12.1 it reports what the 
 
 Two of those stages have known causes on the ESP8266:
 
-- `skipped, low heap`: the radar refuses to start a TLS handshake unless a 16,000-byte contiguous block is free (shown in the Status tab next to Free heap). Install `smalltv-mod-firmware-lean.bin`, which compiles out Home Assistant screens and the usage meter, or use the webhook below, which is plain HTTP and skips the check. See [Which release file to download](/smalltv-mod/reference/release-assets/).
+- `skipped, low heap`: the radar refuses to start a TLS handshake unless a 16,000-byte contiguous block is free (shown in the Status tab next to Free heap). Install `nm-smalltv-pro-firmware-lean.bin`, which compiles out Home Assistant screens and the usage meter, or use the webhook below, which is plain HTTP and skips the check. See [Which release file to download](/NM-SmallTV-Pro/reference/release-assets/).
 - `no aircraft in feed` on every poll while flightradar shows a full sky: before 2.12.1 this is what a device pointed at adsb.fi showed after Cloudflare fronted that feed, because Cloudflare's chunked responses misparsed as empty. 2.12.1 requests HTTP/1.0, which cannot be chunked; on older firmware, switch the source to adsb.lol.
 
 ### Custom webhook, a LAN proxy

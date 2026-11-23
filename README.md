@@ -1,7 +1,7 @@
-# GeekMagic SmallTV-PRO Modded Firmware (v3.12.0)
+# NMMiner SmallTV Pro / NM-TV-154 Firmware (v3.13.1)
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Platform-ESP32%208MB-red?style=for-the-badge&logo=espressif" alt="ESP32 8MB" />
+  <img src="https://img.shields.io/badge/Platform-ESP32%204%2F8MB-red?style=for-the-badge&logo=espressif" alt="ESP32 4/8MB" />
   <img src="https://img.shields.io/badge/Resolution-240%C3%97240%20IPS-blue?style=for-the-badge" alt="240x240 IPS" />
   <img src="https://img.shields.io/badge/Font-Korean%20Galmuri-brightgreen?style=for-the-badge" alt="Korean Galmuri Font" />
   <img src="https://img.shields.io/badge/Notify%20Engine-Multi--Line%20Card-orange?style=for-the-badge" alt="Multi-Line Card" />
@@ -9,16 +9,36 @@
   <img src="https://img.shields.io/badge/Version-v3.12.0-blue?style=for-the-badge" alt="v3.12.0" />
 </p>
 
-An advanced, feature-rich custom firmware for the **GeekMagic SmallTV-PRO** desktop cube (classic ESP32 with 8 MB Flash and 1.54" 240×240 IPS display).
+Advanced, feature-rich custom firmware for the **NMMiner SmallTV Pro** (classic ESP32, 8 MB flash) and **NMMiner NM-TV-154** (classic ESP32, 4 MB flash), both with a 1.54" 240×240 IPS display.
 
-This fork brings **native Korean bitmap font engine (KS X 1001 2,350 syllables + Galmuri 22px)**, **multi-line card text wrapping mode for SMS notifications**, **scheduled app timers (Timer mode) with 4 time slots**, **LCD burn-in prevention with 7 procedural & animated refresh effects**, **dual stock market tracking (Asian/KRX + US candlesticks with smart pre-market sessions)**, and **high-definition 160×160 animated full-screen notifications** to your desk monitor.
+This fork brings a **native Korean bitmap font engine on the 8 MB Pro**, **multi-line card text wrapping for SMS notifications**, **scheduled app timers with 4 time slots**, **LCD burn-in prevention with 7 procedural & animated refresh effects**, **dual stock market tracking**, and **high-definition 160×160 animated full-screen notifications** to your desk monitor. The NM-TV-154 full-feature build retains every feature with a compact ASCII-only Galmuri font.
 
 ---
 
 ## 🌟 Key Features
 
+### User manuals / 使用手册
+
+- [中文完整使用手册](docs/src/content/docs/manual/user-manual-zh.md)
+- [Complete English user manual](docs/src/content/docs/manual/user-manual-en.md)
+- [Product usability review / 产品使用逻辑复盘](docs/product/2026-11-20-product-usability-review.md)
+
+Printable bilingual PDFs are included in the local usability release bundle. These guides cover first connection, General mode selection, independent app/content rotations, optional integrations, backup and recovery.
+
+### Weather clocks and Photo Album (NM-TV-154)
+
+The Weather tab offers four native layouts: simple weather, detailed weather with seconds and sunrise, three-day forecast, and a large two-tone clock. Select a layout or enable automatic rotation (10–3600 seconds). Set the location coordinates and clock timezone before use. Weather comes from Open-Meteo in one request every 10 minutes by default; the last successful reading stays visible after a failed refresh. The free API requires no key for non-commercial use; commercial deployment needs an appropriate Open-Meteo plan. Forecast dates follow the location; clock time follows the configured timezone. NM-TV-154 screen labels use ASCII.
+
+Photo Album supports listing, selecting, refreshing, installing and deleting 240×240 `.stheme` picture packages. Custom picture IDs start with `picture-`. The NM-TV-154 factory pictures preserve RGB color using baseline JPEG tiles decoded by the classic ESP32 ROM with a 4 KiB workspace. GIFs retain two sampled frames to fit the 192 KiB filesystem. Update the picture packages as well as the app when upgrading from the older three-color assets; app-only OTA retains existing pictures. Direct JPG/GIF browser upload remains planned.
+
+Plane Radar has its own settings tab with an explicit radar center, offline city presets, Open-Meteo city search, six-decimal coordinates and independent feed/display controls. Use the weather/device position or choose a separate radar center. Save and show radar switches the device immediately. Four weather-clock layouts use the bundled OFL Bebas Neue font, shaded weather icons and layouts based on the reference photographs.
+
+NM-TV-154's factory default is Detailed weather. An explicitly saved app or automatic mode survives reboot. The sunrise line alternates with the device's IP address every 10 seconds. Its lower-right spaceman uses all 14 frames from `spaceman.gif`, fitted to 56×56 and played at the source's 80 ms frame interval. Animation and IP changes repaint only their own regions. The sprite is embedded in the app, so an app OTA includes it.
+
+See [reference comparison and verification](docs/product/geekmagic-nm-tv-154-optimization-2026-11-20.md) and [rendered clock previews](docs/product/weather-clocks-preview.png).
+
 ### 1. Korean Bitmap Font Engine & Multi-Line Card Mode (New in v3.12.0)
-* **Native Korean Font Support**: Embedded KS X 1001 2,350 Korean syllables + ASCII + symbols based on GalmuriMono.
+* **Native Korean Font Support (8 MB Pro)**: Embedded KS X 1001 2,350 Korean syllables + ASCII + symbols based on GalmuriMono. The 4 MB NM-TV-154 uses the compact ASCII subset.
 * **Optimized 22px Scaling**: 11px base with 2× integer scale (22×22 px Korean, 12×22 px ASCII), with 1px letter spacing and 12px line gap for optimal readability.
 * **Multi-Line Card Wrap Mode (`wrap: true`)**: Ideal for SMS/text forwarding (e.g. from Android Tasker). Displays title, divider line, and 5~6 lines of clean wrapped text without scrolling.
 * **Zero Marquee Smear**: Marquee scrolling uses a 1ms single-burst background wipe without display bus deadlock.
@@ -43,7 +63,7 @@ This fork brings **native Korean bitmap font engine (KS X 1001 2,350 syllables +
   * `mascot`: SmallTV animated jumping mascot
 
 ### 2. Dual Stock Candlestick Tracking
-* **Stock 1 (Domestic / KRX)**: Real-time price quotes, price changes, and full candlestick / line charts powered by Naver Finance API (1-min, 5-min, 30-min, 60-min, Daily, Weekly intervals). Smooth pre-market handling (clean daily candles before 09:00, real-time intraday candles after 09:00).
+* **Stock 1**: Ready to use Samsung Electronics (`005930`, Naver), NVIDIA (`NVDA`, Yahoo) and Apple (`AAPL`, Yahoo) quotes with one-month line charts, without an API key or custom server. Rotates every 10 seconds and refreshes every 120 seconds. Existing custom lists are preserved; old empty lists receive the defaults on upgrade. Candlestick and intraday chart options remain available.
 * **Stock 2 (US / Global)**: Real-time and pre-market quotes via Yahoo Finance API (`SOXX`, `SPY`, `QQQ`, `NVDA`, `AAPL`, `TSM`, etc.). Intelligent multi-session boundary separating yesterday's close from today's live pre-market.
 * **Background Pre-fetching**: Data is cached in the background so switching between clock and charts is instantaneous.
 
@@ -84,39 +104,51 @@ curl -X POST -H "Content-Type: application/json" \
 
 ---
 
-## 📥 Flashing & Installation
+## NM-TV-154 (4 MB) — Full-Feature Image
 
-### Option A: Web OTA Update (Recommended)
-1. Download `firmware_v3.10.0_public_release.bin` from the [Releases](https://github.com/twoarchi/smalltv-pro-mod/releases) page.
-2. Open your SmallTV WebUI (`http://<DEVICE_IP>/`) in a browser.
-   * *⚠️ Note: Disable browser auto-translation (e.g. Chrome Google Translate) before opening the page.*
-3. Go to the **System** or **Update** tab.
-4. Select `firmware_v3.10.0_public_release.bin` and upload.
-5. The device reboots automatically in ~5 seconds. Existing Wi-Fi credentials and saved stock tickers will be preserved.
-
-### Option B: USB Flashing with esptool (Clean Install / Recovery)
-If flashing from scratch or recovering a bricked device:
+Use the `smalltv_esp32_wg` target for the complete feature set: dual tickers, weather, timers, carousel, themes, notifications, burn-in prevention, usage meter, radar, Home Assistant and WireGuard.
 
 ```bash
-esptool.py --chip esp32 --port COM3 --baud 921600 write_flash 0x0 firmware.factory_v3.10.0_public_release.bin
+pio run -e smalltv_esp32_wg
 ```
 
-### On-device update (Update tab)
+Outputs:
 
-The **Update from GitHub** card asks `twoarchi/smalltv-pro-mod` for its newest
-release and installs the asset named `smalltv-mod-firmware-esp32-pro.bin`. It
-never asks the upstream project, so an upstream release can no longer offer
-itself to this device and, installed, replace the modded image.
+- `.pio/build/smalltv_esp32_wg/firmware.bin` — app image for OTA after the current layout is installed.
+- `.pio/build/smalltv_esp32_wg/firmware.factory.bin` — merged bootloader, partition table and app for USB installation.
 
-A release therefore has to carry that asset name. A tag built by CI attaches it
-automatically (the `release` job uploads `dist/`, where the 8 MB image is
-staged under that name); a release uploaded by hand has to attach it too,
-alongside the versioned `firmware_v<tag>_public_release.bin` names. v3.10.0 was
-uploaded by hand before this change and carries only the versioned names, so
-the card answers `check failed: no matching asset` and installs nothing —
-manual upload (Option A) is unaffected. Attaching a Pro image built from this
-commit or later under the standard name makes the card work as is, and every
-later CI tag release keeps it working.
+The dedicated layout provides two 1,966,080-byte OTA slots and 192 KiB of LittleFS. **The first install, and migration from any older NM-TV-154 partition layout, must use the factory image over USB**:
+
+```bash
+python -m esptool --chip esp32 --port COM3 --baud 921600 write_flash 0x0 firmware.factory.bin
+```
+
+Later updates use `firmware.bin` in the web UI's **System** tab. The NM-TV-154 keeps Galmuri ASCII glyphs and every font size, wrapping, animation and scrolling mode, but omits the Hangul bitmap tables; unsupported UTF-8 characters display as `?`. The 8 MB SmallTV Pro keeps the full Korean font.
+
+---
+
+## 📥 Flashing & Installation
+
+### Routine update over WiFi
+
+1. Export a settings backup from **System**.
+2. Choose the app OTA file for the board and intended features. NM-TV-154 uses `smalltv_esp32` or `smalltv_esp32_wg`; SmallTV Pro uses its separate 8 MB target. Never substitute a Pro image for NM-TV-154.
+3. Open **System → Manual update (OTA)**, select the matching app `.bin` and press **Upload & flash**.
+4. Keep power connected, wait for reboot and reopen the device address. App OTA preserves settings and package files. Old picture libraries need their separate update.
+
+### First install, partition migration or recovery
+
+Use the matching board's factory image through USB/UART. For NM-TV-154 on Windows, an example is:
+
+```bash
+python -m esptool --chip esp32 --port COM3 --baud 921600 write_flash 0x0 firmware.factory.bin
+```
+
+Confirm the port and board first. Factory installation includes partitions and files and can overwrite stored settings. Never upload a factory image through web OTA.
+
+### GitHub update
+
+The System update card queries the release repository configured in the installed build and selects its matching firmware variant. Locally supplied improvements may not yet exist in that repository. Check the release notes and target filename before using remote update; a local OTA does not publish a GitHub release. See the complete manuals for backup and recovery.
 
 ---
 
@@ -125,7 +157,8 @@ later CI tag release keeps it working.
 This project uses [PlatformIO](https://platformio.org/).
 
 ```bash
-git clone https://github.com/twoarchi/smalltv-pro-mod.git
+git clone https://github.com/RockBase-lab/NM-SmallTV-Pro.git
 cd smalltv-pro-mod
-pio run -e smalltv_esp32_8mb
+pio run -e smalltv_esp32_8mb  # SmallTV Pro, 8 MB
+pio run -e smalltv_esp32_wg   # NM-TV-154, all features
 ```

@@ -154,6 +154,17 @@ __attribute__((noinline)) bool Package::readIndex(std::string& error) {
       e.width = b[6];
       e.height = b[7];
       if (!checkFont(e)) return false;
+    } else if (e.length >= 12 && source_.read(pos, b, 12) && !memcmp(b, "STJ1", 4)) {
+#if defined(ARDUINO) && !defined(CONFIG_IDF_TARGET_ESP32)
+      error = "JPEG pictures require classic ESP32";
+      return false;
+#endif
+      if (path.size() < 4 || path.substr(path.size() - 4) != ".sti" || u32(b + 8)) return false;
+      e.width = u16(b + 4);
+      e.height = u16(b + 6);
+      e.stride = 2;
+      e.jpeg = true;
+      if (e.width != 240 || e.height != 240 || !checkJpeg(e)) return false;
     } else {
       // Every non-manifest entry must be a well-formed .sti image: "STI1"
       // (raw pixels) or "STI2" (rows as runs) magic, width/height, an alpha
@@ -188,12 +199,12 @@ bool Package::checkSpec(const Theme& theme, std::string& error) const {
   if (theme.spec >= 2) return true;
   for (size_t i = 0; i < entries_.size(); ++i) {
     const Entry& e = entries_[i];
-    if (!e.compressed) continue;
+    if (!e.compressed && !e.jpeg) continue;
     std::string path(e.pathLength, '\0');
     if (!source_.read(e.offset - e.pathLength, &path[0], path.size())) path = e.font() ? "a font" : "an image";
     error = path;
     if (e.font()) appendFlash(error, fontNeedsSpec2);
-    else error += ": STI2 image needs \"spec\": 2";
+    else error += e.jpeg ? ": JPEG picture needs \"spec\": 2" : ": STI2 image needs \"spec\": 2";
     return false;
   }
   return true;
@@ -211,6 +222,11 @@ __attribute__((noinline)) bool Package::checkAssets(Theme& candidate, std::strin
       const Entry* e = find(assetPath(l, frame));
       if (!e || !e->stride) {
         error = field + "missing asset: " + assetPath(l, frame);
+        return false;
+      }
+      if (e->jpeg && (candidate.spec != 2 || candidate.layers.size() != 1 || !candidate.data.empty() ||
+          l.x || l.y || l.anchorX || l.anchorY || !l.bindings.empty() || l.scroll.width)) {
+        error = field + "JPEG requires a single fullscreen picture without bindings or scrolling";
         return false;
       }
       if (l.type == LayerType::Image) {
@@ -231,6 +247,36 @@ __attribute__((noinline)) bool Package::checkAssets(Theme& candidate, std::strin
 AssetHandle Package::resolve(const std::string& path) {
   size_t i = indexOf(path);
   return i < entries_.size() && (entries_[i].stride || entries_[i].font()) ? static_cast<AssetHandle>(i) : InvalidAsset;
+}
+bool Package::jpeg(AssetHandle handle, uint32_t& offset, uint32_t& length) const {
+  if (handle >= entries_.size() || !entries_[handle].jpeg) return false;
+  offset = entries_[handle].offset + 12;
+  length = entries_[handle].length - 12;
+  return true;
+}
+bool Package::checkJpeg(const Entry& entry) const {
+  uint8_t bytes[10];
+  const uint32_t end = entry.offset + entry.length;
+  uint32_t position = entry.offset + 12;
+  if (entry.length < 28 || !source_.read(position, bytes, 2) || bytes[0] != 255 || bytes[1] != 216 ||
+      !source_.read(end - 2, bytes, 2) || bytes[0] != 255 || bytes[1] != 217) return false;
+  position += 2;
+  bool dimensions = false;
+  while (position + 4 <= end) {
+    if (!source_.read(position, bytes, 4) || bytes[0] != 255) return false;
+    const unsigned marker = bytes[1], length = unsigned(bytes[2]) * 256 + bytes[3];
+    if (length < 2 || length > end - position - 2) return false;
+    if (marker == 0xc0) {
+      if (length != 17 || !source_.read(position + 4, bytes, 6) || bytes[0] != 8 || bytes[5] != 3 ||
+          unsigned(bytes[1]) * 256 + bytes[2] != entry.height ||
+          unsigned(bytes[3]) * 256 + bytes[4] != entry.width) return false;
+      dimensions = true;
+    } else if (marker == 0xda) return dimensions && length == 12 && position + length + 4 < end;
+    else if (marker != 0xdb && marker != 0xc4 && marker != 0xdd && marker != 0xfe &&
+             (marker < 0xe0 || marker > 0xef)) return false;
+    position += length + 2;
+  }
+  return false;
 }
 namespace {
 // Reads a package byte by byte through a 64-byte window: row() runs while a
@@ -365,6 +411,7 @@ bool Package::checkRows(const Entry& e) const {
 // rows are raw pixels (RGB565, plus an alpha byte for a transparent asset);
 // STI2 rows are runs (see walkRow()). Runs before `x` are skipped.
 bool Package::row(AssetHandle handle, int y, int x, int count, uint16_t* colors, uint8_t* alpha) {
+  if (handle < entries_.size() && entries_[handle].jpeg) return false;
   if (handle >= entries_.size()) return false;
   const Entry* e = &entries_[handle];
   if (!e->stride || x < 0 || y < 0 || y >= e->height || count < 0 || count > 240 || x + count > e->width) return false;

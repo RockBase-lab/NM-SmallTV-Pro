@@ -1,0 +1,23 @@
+{
+  "spec": 2,
+  "theme": {
+    "id": "ultra-08",
+    "name": "Ultra Picture 08",
+    "author": "SmallTV",
+    "version": "2.0.0"
+  },
+  "display": {
+    "width": 240,
+    "height": 240,
+    "background": "#000000"
+  },
+  "layers": [
+    {
+      "id": "picture",
+      "type": "image",
+      "x": 0,
+      "y": 0,
+      "source": "images/picture.png"
+    }
+  ]
+}

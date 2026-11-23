@@ -53,6 +53,9 @@ static DisplayMode* kModes[] = {
 #if WITH_TICKER
   &g_tickerMode,
   &g_tickerMode2,
+#if WITH_CRYPTO
+  &g_cryptoMode,
+#endif
 #endif
   &g_weatherMode,
 #if WITH_USAGE
@@ -66,6 +69,9 @@ static DisplayMode* kModes[] = {
 #endif
 #if WITH_THEME
   &g_themeMode,
+#if WITH_PICTURES
+  &g_pictureMode,
+#endif
 #endif
 };
 static const size_t kModeCount = sizeof(kModes) / sizeof(kModes[0]);
@@ -75,12 +81,18 @@ static const size_t kModeCount = sizeof(kModes) / sizeof(kModes[0]);
 // the incoming mode: repaint from cached data, no refetch.
 static size_t   g_carIdx = 0;
 static uint32_t g_carSwitch = 0;
-static bool     g_carPaused = false;   // button paused the auto-rotation (stays put)
+static int      g_manualIdx = -1;      // button preview across every compiled mode; -1 = automatic
+static uint32_t g_manualUntil = 0;
+static DisplayMode* g_visibleMode = nullptr;
+static bool g_modeMessageDrawn = false;
 
 static bool carouselHas(const Settings& s, const DisplayMode* m) {
   switch (m->modeConst()) {
     case MODE_STOCKS:  return s.carouselTicker;
     case MODE_STOCKS2: return s.carouselTicker2;
+#if WITH_CRYPTO
+    case MODE_CRYPTO:  return s.carouselCrypto;
+#endif
     case MODE_WEATHER: return s.carouselWeather;
     case MODE_USAGE:   return s.carouselUsage;
     case MODE_RADAR:  return s.carouselRadar;
@@ -89,8 +101,11 @@ static bool carouselHas(const Settings& s, const DisplayMode* m) {
 #endif
 #if WITH_THEME
     case MODE_THEME:  return s.carouselTheme;
+#if WITH_PICTURES
+    case MODE_PICTURES: return s.carouselPictures;
 #endif
-    default:          return true;
+#endif
+    default:          return false;
   }
 }
 
@@ -99,10 +114,7 @@ static void carouselNext(const Settings& s) {
   for (size_t hop = 1; hop <= kModeCount; hop++) {
     size_t cand = (g_carIdx + hop) % kModeCount;
     if (!carouselHas(s, kModes[cand])) continue;
-    if (cand != g_carIdx) {
-      g_carIdx = cand;
-      kModes[cand]->wake(s);
-    }
+    g_carIdx = cand;
     return;
   }
 }
@@ -112,52 +124,62 @@ volatile bool g_abortFetch = false;
 
 static uint8_t modeFromApp(const String& app) {
   if (app.equalsIgnoreCase("stocks2") || app.equalsIgnoreCase("stock2")) return MODE_STOCKS2;
-  if (app.equalsIgnoreCase("weather")) return MODE_WEATHER;
-  return MODE_STOCKS;
+  if (app.equalsIgnoreCase("stock1")) return MODE_STOCKS;
+  if (app.equalsIgnoreCase("picture")) return MODE_PICTURES;
+  for (size_t index = 0; index < kModeCount; ++index)
+    if (app.equalsIgnoreCase(kModes[index]->id())) return kModes[index]->modeConst();
+  return 255;
 }
 
 
-static uint8_t g_lastTimerMode = 255;
-
 static uint8_t resolveTimerMode(const Settings& s) {
   struct tm now;
-  if (!clockNow(now)) {
-    if (g_lastTimerMode != 255) return g_lastTimerMode;
-    return MODE_STOCKS;
-  }
+  if (!clockNow(now)) return 255;
 
   int curMin = now.tm_hour * 60 + now.tm_min;
   int minElapsed = 9999;
-  uint8_t selectedMode = MODE_STOCKS;
+  uint8_t selectedMode = 255;
   bool found = false;
 
   for (uint8_t i = 0; i < 4; i++) {
     const AppTimerItem& item = s.timers.items[i];
     if (!item.enabled) continue;
-
-    int tH = 0, tM = 0;
-    if (sscanf(item.time.c_str(), "%d:%d", &tH, &tM) < 2) continue;
-    int tMin = constrain(tH, 0, 23) * 60 + constrain(tM, 0, 59);
+    const uint8_t app = modeFromApp(item.app);
+    if (app == 255 || item.time.length() != 5 || item.time[2] != ':') continue;
+    bool digits = true;
+    for (uint8_t index : {0, 1, 3, 4}) if (!isdigit((unsigned char)item.time[index])) digits = false;
+    if (!digits) continue;
+    const int hour = (item.time[0] - '0') * 10 + item.time[1] - '0';
+    const int minute = (item.time[3] - '0') * 10 + item.time[4] - '0';
+    if (hour > 23 || minute > 59) continue;
+    int tMin = hour * 60 + minute;
 
     int elapsed = (curMin >= tMin) ? (curMin - tMin) : (curMin + 1440 - tMin);
     if (elapsed < minElapsed) {
       minElapsed = elapsed;
-      selectedMode = modeFromApp(item.app);
+      selectedMode = app;
       found = true;
     }
   }
 
-  if (!found) return MODE_STOCKS;
+  if (!found) return 255;
   return selectedMode;
 }
 
 
 static DisplayMode* activeMode(const Settings& s) {
+  if (g_manualIdx >= 0 && (size_t)g_manualIdx < kModeCount) {
+    if (s.mode != MODE_TIMER || (int32_t)(millis() - g_manualUntil) < 0) return kModes[g_manualIdx];
+    g_manualIdx = -1;
+  }
   if (s.mode == MODE_CAROUSEL && kModeCount > 0) {
     if (g_carSwitch == 0) g_carSwitch = millis();
-    if (!carouselHas(s, kModes[g_carIdx])) carouselNext(s);   // settings changed
+    if (!carouselHas(s, kModes[g_carIdx])) {
+      carouselNext(s);
+      g_carSwitch = millis();
+    }
+    if (!carouselHas(s, kModes[g_carIdx])) return nullptr;
     bool dwellExpired = millis() - g_carSwitch >= (uint32_t)s.carouselSec * 1000UL;
-    if (g_carPaused) dwellExpired = false;   // button froze the rotation on the current page
     if (dwellExpired) {
       g_carSwitch = millis();
       carouselNext(s);
@@ -166,23 +188,14 @@ static DisplayMode* activeMode(const Settings& s) {
   }
   if (s.mode == MODE_TIMER && kModeCount > 0) {
     uint8_t target = resolveTimerMode(s);
-    if (target != g_lastTimerMode) {
-      g_lastTimerMode = target;
-      for (size_t i = 0; i < kModeCount; i++) {
-        if (kModes[i]->modeConst() == target) {
-          kModes[i]->wake(s);
-          return kModes[i];
-        }
-      }
-    }
     for (size_t i = 0; i < kModeCount; i++) {
       if (kModes[i]->modeConst() == target) return kModes[i];
     }
-    return kModes[0];
+    return nullptr;
   }
   for (size_t i = 0; i < kModeCount; i++)
     if (kModes[i]->modeConst() == s.mode) return kModes[i];
-  return kModeCount ? kModes[0] : nullptr;   // fall back to the first compiled mode
+  return nullptr;
 }
 
 static Settings g_settings;
@@ -270,75 +283,40 @@ static void buttonAckNotify() {
 }
 
 static void buttonGoHome() {
-  g_carPaused = false;                 // resume normal rotation
+  g_manualIdx = -1;                    // leave touch preview
+  g_visibleMode = nullptr;
+  g_modeMessageDrawn = false;
   if (g_settings.mode == MODE_CAROUSEL && kModeCount > 0) {
     g_carIdx = 0;
     g_carSwitch = millis();
     if (!carouselHas(g_settings, kModes[0])) carouselNext(g_settings);  // 0 not ticked -> first ticked
-    else kModes[0]->wake(g_settings);
-  } else {
-    DisplayMode* m = activeMode(g_settings);
-    if (m) m->invalidate(g_settings);
   }
 }
 
 static void buttonNext() {
   if (kModeCount == 0) return;
-
   if (g_settings.mode == MODE_CAROUSEL) {
-    g_carPaused = true;
-    g_carSwitch = millis();
+    g_manualIdx = -1;
     carouselNext(g_settings);
+    g_carSwitch = millis();
     return;
   }
 
-  if (g_settings.mode == MODE_TIMER) {
-    // In Timer mode, do NOT permanently overwrite g_settings.mode!
-    // Instead, cycle through the configured apps for manual preview.
-    int curIdx = -1;
-    for (size_t i = 0; i < kModeCount; i++) {
-      if (kModes[i]->modeConst() == g_lastTimerMode) {
-        curIdx = (int)i;
-        break;
-      }
-    }
-    size_t nextIdx = (curIdx >= 0) ? ((curIdx + 1) % kModeCount) : 0;
-    g_lastTimerMode = kModes[nextIdx]->modeConst();
-
-    stocksDeferNextFetch(0, 800);
-    stocksDeferNextFetch(1, 800);
-    weatherDeferNextFetch(800);
-
-    g_abortFetch = false;
-    DisplayMode* m = activeMode(g_settings);
-    if (m) m->wake(g_settings);
-    return;
-  }
-
-  // Find current index in kModes
+  // Resolve the current page once, then walk the complete compiled registry.
+  // Do not rewrite settings.mode or the Timer resolver's state for a preview.
+  DisplayMode* current = activeMode(g_settings);
   int curIdx = -1;
   for (size_t i = 0; i < kModeCount; i++) {
-    if (kModes[i]->modeConst() == g_settings.mode) {
-      curIdx = (int)i;
-      break;
-    }
+    if (kModes[i] == current) { curIdx = (int)i; break; }
   }
+  g_manualIdx = (curIdx >= 0) ? ((curIdx + 1) % kModeCount) : 0;
+  g_manualUntil = millis() + 15000;
+  g_visibleMode = nullptr;
 
-  // Advance to next mode cyclically (Stock 1 -> Stock 2 -> Weather -> ... -> Stock 1)
-  size_t nextIdx = (curIdx >= 0) ? ((curIdx + 1) % kModeCount) : 0;
-  g_settings.mode = kModes[nextIdx]->modeConst();
-
-  // Defer network fetches for 800ms so rapid clicking cycles apps instantly with 0ms network latency
-  stocksDeferNextFetch(0, 800);
-  stocksDeferNextFetch(1, 800);
+  // Rapid touches repaint cached pages immediately; network fetches follow shortly.
+  for (uint8_t set = 0; set < NUM_STOCK_SETS; set++) stocksDeferNextFetch(set, 800);
   weatherDeferNextFetch(800);
-
-  g_abortFetch = false; // Reset abort flag for the new active mode
-  DisplayMode* m = activeMode(g_settings);
-  if (m) {
-    // Only wake to repaint from cache/draw UI; do NOT force-invalidate & refetch!
-    m->wake(g_settings);
-  }
+  g_abortFetch = false;
 }
 
 static void buttonAction(uint8_t act) {
@@ -352,6 +330,7 @@ static void buttonAction(uint8_t act) {
     case BTN_ACT_ACK:        buttonAckNotify();   break;
     default: break;                                 // BTN_ACT_NONE
   }
+  g_abortFetch = false;
 }
 
 static void buttonService() {
@@ -432,11 +411,16 @@ void buttonPoll() {
 
 // Exposed to the web portal (/api/status) so the last reset reason is visible.
 const char* appResetReason() { return g_resetReason.c_str(); }
+bool appSafeMode() { return g_safeMode; }
 
 // Called by the web portal after settings are applied: re-init every mode and
 // force a fresh repaint so a mode/URL/symbol change takes effect immediately.
 void appInvalidate() {
-  g_lastTimerMode = 255;
+  g_manualIdx = -1;
+  g_carIdx = 0;
+  g_carSwitch = millis();
+  g_visibleMode = nullptr;
+  g_modeMessageDrawn = false;
   for (size_t i = 0; i < kModeCount; i++) kModes[i]->invalidate(g_settings);
 }
 
@@ -447,7 +431,7 @@ void appRelease() {
 }
 
 static void bootProgress(const char* msg) {
-  gfxBoot("SmallTV", msg);
+  gfxBoot(FW_DISPLAY_NAME, msg);
 }
 
 void setup() {
@@ -468,6 +452,11 @@ void setup() {
     g_safeMode = true;                   // crashed last boot -> stay out of the crash path
     strlcpy(g_epcStr,  pr.epc,  sizeof(g_epcStr));
     strlcpy(g_addrStr, pr.addr, sizeof(g_addrStr));
+    PlatformCrashRecord crash;
+    if (platformCrashRecordGet(crash) && crash.current && (crash.hasRegisters || crash.hasPc)) {
+      snprintf(g_epcStr, sizeof(g_epcStr), "0x%08x", (unsigned)crash.epc1);
+      if (crash.hasRegisters) snprintf(g_addrStr, sizeof(g_addrStr), "0x%08x", (unsigned)crash.excvaddr);
+    }
     char rich[80];
     snprintf(rich, sizeof(rich), "%s epc %s addr %s", pr.reason.c_str(),
              g_epcStr[0] ? g_epcStr : "-", g_addrStr[0] ? g_addrStr : "-");
@@ -490,7 +479,7 @@ void setup() {
 
   Serial.println("[boot] display");
   gfxBegin(g_settings);
-  gfxBoot(g_safeMode ? "Crashed" : "SmallTV", FW_VERSION);
+  gfxBoot(g_safeMode ? "Crashed" : FW_DISPLAY_NAME, FW_VERSION);
 
   Serial.println("[boot] net");
   netAllowRetry(!g_safeMode);   // a retry's reboot would clear the crash flag
@@ -515,9 +504,9 @@ void setup() {
   // On success it reboots into the new image; a no-op stub on the ESP32 targets.
   if (otaBootRequested()) {
     Serial.println("[boot] github update");
-    gfxBoot("SmallTV", "updating...");
+    gfxBoot(FW_DISPLAY_NAME, "updating...");
     otaBootUpdate(g_settings);
-    gfxBoot("SmallTV", "update failed");   // still here -> failed; details in the web UI
+    gfxBoot(FW_DISPLAY_NAME, "update failed");   // still here -> failed; details in the web UI
     delay(1200);
   }
 
@@ -547,7 +536,9 @@ void setup() {
 }
 
 void loop() {
+  platformCrashTrace("network");
   netLoop();
+  platformCrashTrace("web");
   webPortalLoop();
 
 #ifdef BTN_PIN
@@ -559,8 +550,8 @@ void loop() {
     if (netMode() == NET_AP) {
       gfxApInfo(g_settings.apSsid.c_str(), g_settings.apPass.c_str(), netIP().c_str(), netFailReason());
     } else {
-      DisplayMode* m = activeMode(g_settings);
-      if (m) m->wake(g_settings);
+      g_visibleMode = nullptr;
+      g_modeMessageDrawn = false;
     }
   }
 #endif
@@ -573,6 +564,7 @@ void loop() {
   // Before the safe-mode return on purpose: if the crash had nothing to do with
   // the tunnel, remote access survives it, and if it did, the three-strikes hold
   // stops the retries by itself.
+  platformCrashTrace("wireguard");
   wgService(g_settings);
 
   if (g_safeMode) {
@@ -584,6 +576,7 @@ void loop() {
   // After the safe-mode return on purpose: a fault in here (e.g. a malformed
   // retained screen that re-arrives on every connect) must not boot-loop the
   // device past its own recovery page. Self-gates on WiFi STA + broker config.
+  platformCrashTrace("mqtt");
   mqttLoop();
 #endif
 
@@ -610,6 +603,7 @@ void loop() {
 
   // Night-mode state machine (NTP-trust gate), then apply the effective brightness
   // (night override / auto-brightness / manual level).
+  platformCrashTrace("clock");
   clockService(g_settings);
   appApplyBrightness();
 
@@ -649,13 +643,23 @@ void loop() {
   }
 
   DisplayMode* m = activeMode(g_settings);
+  if (m != g_visibleMode || restore) {
+    g_visibleMode = m;
+    g_modeMessageDrawn = false;
+    if (m) { platformCrashTrace(m->id()); m->wake(g_settings); }
+  }
   if (m) {
-    if (restore) m->wake(g_settings);
+    platformCrashTrace(m->id());
     m->service(g_settings);
+  } else if (!g_modeMessageDrawn) {
+    gfxMessage(g_settings.mode == MODE_TIMER ? "TIMER" : "MODE",
+               g_settings.mode == MODE_TIMER && !clockSynced() ? "Waiting for clock" : "Select apps in General", C_WHITE);
+    g_modeMessageDrawn = true;
   }
 
   // Background polling for inactive features so switching apps is instantaneous:
   // stocksService self-times every ticker's schedule (shared across Stock 1 & Stock 2)
+  platformCrashTrace("stock-refresh");
   stocksService(g_settings);
 
   delay(5);

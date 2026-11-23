@@ -12,4 +12,8 @@ c++ -std=c++11 -Wall -Wextra -Werror -Wno-unused-parameter -g \
   tests/mode/test_settings.cpp src/Settings.cpp -lm -o /tmp/smalltv-mode-settings-tests
 /tmp/smalltv-mode-settings-tests
 node tests/mode/test_webui.js
+node tests/mode/test_webui_crypto.js
+node tests/mode/test_config_flow.js
+python3 tests/mode/test_dispatch.py
+python3 tests/mode/test_import.py
 echo "mode tests: all passed"

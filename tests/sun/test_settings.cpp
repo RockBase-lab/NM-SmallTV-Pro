@@ -41,6 +41,9 @@ static void testDefaults() {
   CHECK(s.clock.sunRise == 60 && s.clock.sunSet == 60, "fades %d %d", s.clock.sunRise, s.clock.sunSet);
   CHECK(s.clock.sunOverlap == 0, "overlap: night mode first");
   CHECK(s.clock.lat == 0.0f && s.clock.lon == 0.0f, "no location");
+  CHECK(s.clock.ntpServer.length() == 0 && s.clock.locationName.length() == 0,
+        "built-in NTP servers and no place name by default");
+  CHECK(s.weatherTempUnit == 0 && s.weatherWindUnit == 0, "Celsius and km/h by default");
   CHECK(s.radar.useDevice, "radar uses the device location by default");
 }
 
@@ -70,6 +73,36 @@ static void testLimits() {
   // A partial update leaves the other fields alone.
   apply(s, "{\"clock\":{\"sunRise\":30}}");
   CHECK(s.clock.sunRise == 30 && s.clock.sunSet == 0 && s.clock.sunLow == 100, "partial update");
+}
+
+static void testWeatherCompatibility() {
+  Settings s;
+  s.setDefaults();
+  apply(s, "{\"weatherTempUnit\":\"f\",\"weatherWindUnit\":\"m/s\","
+           "\"clock\":{\"ntpServer\":\"  ntp.example.com  \",\"locationName\":\"  Daejeon, KR  \"}}");
+  CHECK(s.weatherTempUnit == 1 && s.weatherWindUnit == 1, "Fahrenheit and m/s applied");
+  CHECK(s.clock.ntpServer == "ntp.example.com", "NTP server trimmed: %s", s.clock.ntpServer.c_str());
+  CHECK(s.clock.locationName == "Daejeon, KR", "place name trimmed: %s", s.clock.locationName.c_str());
+  apply(s, "{\"weatherTempUnit\":\"kelvin\",\"weatherWindUnit\":\"knots\"}");
+  CHECK(s.weatherTempUnit == 1 && s.weatherWindUnit == 1, "unknown units keep the old values");
+  apply(s, "{\"weatherTempUnit\":1,\"weatherWindUnit\":2}");
+  CHECK(s.weatherTempUnit == 1 && s.weatherWindUnit == 1, "wrong unit types are ignored");
+  apply(s, "{\"weatherTempUnit\":\"C\",\"weatherWindUnit\":\"KM/H\"}");
+  CHECK(s.weatherTempUnit == 0 && s.weatherWindUnit == 0, "unit aliases are case-insensitive");
+  apply(s, "{\"weatherWindUnit\":\"mph\"}");
+  CHECK(s.weatherWindUnit == 2, "mph applied");
+
+  JsonDocument doc;
+  settingsToJson(s, doc.to<JsonObject>(), true);
+  CHECK(strcmp(doc["weatherTempUnit"].as<const char*>(), "c") == 0 &&
+        strcmp(doc["weatherWindUnit"].as<const char*>(), "mph") == 0,
+        "units use stable JSON names");
+  Settings copy;
+  copy.setDefaults();
+  settingsApplyJson(copy, doc.as<JsonObjectConst>());
+  CHECK(copy.weatherTempUnit == 0 && copy.weatherWindUnit == 2, "units survive the JSON round trip");
+  CHECK(copy.clock.ntpServer == "ntp.example.com" && copy.clock.locationName == "Daejeon, KR",
+        "NTP server and place name survive the JSON round trip");
 }
 
 static void testRoundTrip() {
@@ -192,6 +225,10 @@ static void testRadarLocation() {
   CHECK(radarLat(s) == 10.0f && radarLon(s) == 20.0f, "device location");
   s.radar.useDevice = false;
   CHECK(radarLat(s) == 1.0f && radarLon(s) == 2.0f, "own location");
+  apply(s, "{\"radar\":{\"lat\":91,\"lon\":181}}");
+  CHECK(s.radar.lat == 1.0f && s.radar.lon == 2.0f, "out of range coordinates keep previous home");
+  apply(s, "{\"radar\":{\"lat\":-90,\"lon\":180}}");
+  CHECK(s.radar.lat == -90.0f && s.radar.lon == 180.0f, "coordinate boundaries accepted");
 }
 
 static void testExclusive() {
@@ -222,6 +259,7 @@ static void testExclusive() {
 int main() {
   testDefaults();
   testLimits();
+  testWeatherCompatibility();
   testRoundTrip();
   testOldConfigs();
   testRadarLocation();

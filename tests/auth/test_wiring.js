@@ -20,7 +20,7 @@ for(const f of files){
  assert.ok(!/\bauth\s*\.\s*enabled\b/.test(text),f+' still reads auth.enabled');
 }
 
-const portal=fs.readFileSync(path.join(root,'WebPortal.cpp'),'utf8');
+const portal=fs.readFileSync(path.join(root,'WebPortal.cpp'),'utf8').replace(/\r\n/g,'\n');
 const body=(text,head)=>{const i=text.indexOf(head);assert.ok(i>=0,'not found: '+head);
  const k=text.indexOf('\n}\n',i);assert.ok(k>i,'end of '+head);return text.slice(i,k)};
 

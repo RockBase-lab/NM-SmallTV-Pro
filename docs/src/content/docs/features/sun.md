@@ -15,7 +15,7 @@ You can also type a place name into the search box and pick a result. The search
 
 **0 and 0 mean "not set".** That is the default. With no location the schedule cannot run, and the screen keeps its normal brightness.
 
-The same location is used by the [plane radar](/smalltv-mod/features/radar/) unless you give the radar its own.
+The same location is used by the [plane radar](/NM-SmallTV-Pro/features/radar/) unless you give the radar its own.
 
 The times are worked out for the timezone chosen in the same card, daylight saving included. Pick the right timezone, or sunrise will land at the wrong hour. Accuracy is about one minute, except near the poles.
 

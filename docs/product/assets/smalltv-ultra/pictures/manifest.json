@@ -1,0 +1,110 @@
+{
+  "device": "SmallTV-Ultra",
+  "firmware": "Ultra-V9.0.54",
+  "sourcePage": "http://192.168.124.31/image.html",
+  "downloadedAt": "2026-11-19T16:55:27+08:00",
+  "fileCount": 10,
+  "totalBytes": 511663,
+  "files": [
+    {
+      "name": "ezgif-1-795e37b516.jpg",
+      "source": "http://192.168.124.31/image/ezgif-1-795e37b516.jpg",
+      "bytes": 22310,
+      "format": "JPEG",
+      "width": 240,
+      "height": 240,
+      "frames": 1,
+      "sha256": "0865bd6c685930ec1f8f0359cb94c79c2305ff945d405aa3a3b8055aa08d54b4"
+    },
+    {
+      "name": "ezgif-2-05016cc8ce.jpg",
+      "source": "http://192.168.124.31/image/ezgif-2-05016cc8ce.jpg",
+      "bytes": 19541,
+      "format": "JPEG",
+      "width": 240,
+      "height": 240,
+      "frames": 1,
+      "sha256": "5c173b5a20c1bae35322a5d9f7ebbd42073eeff9a73786d053342e113e7eec49"
+    },
+    {
+      "name": "ezgif-3-d2f3e68a3c.jpg",
+      "source": "http://192.168.124.31/image/ezgif-3-d2f3e68a3c.jpg",
+      "bytes": 23654,
+      "format": "JPEG",
+      "width": 240,
+      "height": 240,
+      "frames": 1,
+      "sha256": "432ac407b47a168a793683f330b13371274bb4eae81d1b100b6052b8e557caa0"
+    },
+    {
+      "name": "ezgif-3-de29a3740c.gif",
+      "source": "http://192.168.124.31/image/ezgif-3-de29a3740c.gif",
+      "bytes": 273039,
+      "format": "GIF",
+      "width": 240,
+      "height": 240,
+      "frames": 19,
+      "sha256": "f41756e370c8b5840ab37e1d36cc932a4d6588131faf129e24a206a0117298dc"
+    },
+    {
+      "name": "ezgif-4-fe80648c36.jpg",
+      "source": "http://192.168.124.31/image/ezgif-4-fe80648c36.jpg",
+      "bytes": 21430,
+      "format": "JPEG",
+      "width": 240,
+      "height": 240,
+      "frames": 1,
+      "sha256": "e250b6e9207c8e3311a529f40aa03830d2e6c3d25dd62b8a867b93e75ce3a148"
+    },
+    {
+      "name": "ezgif-5-9ed6b4baec.jpg",
+      "source": "http://192.168.124.31/image/ezgif-5-9ed6b4baec.jpg",
+      "bytes": 24875,
+      "format": "JPEG",
+      "width": 240,
+      "height": 240,
+      "frames": 1,
+      "sha256": "09c81b0aba4c20e240f8eec008c9cbff0d347dfb16978f163ab6458a2b8ac2e1"
+    },
+    {
+      "name": "ezgif-5-acf59aa68c.gif",
+      "source": "http://192.168.124.31/image/ezgif-5-acf59aa68c.gif",
+      "bytes": 19405,
+      "format": "GIF",
+      "width": 240,
+      "height": 240,
+      "frames": 12,
+      "sha256": "4172a7a4b3277d8c1b94056dbe234ef058e4ae71901e3b7589034f628b732821"
+    },
+    {
+      "name": "ezgif-5-b48d7832df.jpg",
+      "source": "http://192.168.124.31/image/ezgif-5-b48d7832df.jpg",
+      "bytes": 25368,
+      "format": "JPEG",
+      "width": 240,
+      "height": 240,
+      "frames": 1,
+      "sha256": "f0564e84bf802518e4c318401b276ab94282a980155a6ab43450eb016d2220ce"
+    },
+    {
+      "name": "ezgif-6-7a462b453f.jpg",
+      "source": "http://192.168.124.31/image/ezgif-6-7a462b453f.jpg",
+      "bytes": 19149,
+      "format": "JPEG",
+      "width": 240,
+      "height": 240,
+      "frames": 1,
+      "sha256": "ad0ed9e361c5bd30eb7c25db42da37be3242b0d4f646863c2c38ba4e7e0c1563"
+    },
+    {
+      "name": "spaceman.gif",
+      "source": "http://192.168.124.31/image/spaceman.gif",
+      "bytes": 62892,
+      "format": "GIF",
+      "width": 271,
+      "height": 271,
+      "frames": 14,
+      "sha256": "8ad4d4c02fe65f399268235aff079bc93df22635d849f720ffde877ed31d89e4"
+    }
+  ]
+}

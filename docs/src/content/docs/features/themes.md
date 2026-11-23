@@ -29,7 +29,7 @@ demonstrates scrolling text and fetched-data bindings; see
 editor for theme clocks. It runs in the browser with nothing to install; the
 source is in its own [repository](https://github.com/giovi321/smalltv-studio).
 
-[![SmallTV Studio editing the Pixel Room theme](/smalltv-mod/assets/studio.png)](https://giovi321.github.io/smalltv-studio/)
+[![SmallTV Studio editing the Pixel Room theme](/NM-SmallTV-Pro/assets/studio.png)](https://giovi321.github.io/smalltv-studio/)
 
 - Text, image, animation, and shape layers on a live 240×240 canvas
 - A timeline with a simulated date and time, and a preview of the clock before
@@ -49,7 +49,7 @@ command-line tools.
 alternative firmware for the SmallTV-ultra, has its own installable clock faces.
 The two projects are working on a shared theme format, so that one `.stheme`
 package runs on both firmwares
-([#31](https://github.com/giovi321/smalltv-mod/issues/31)). Until that lands,
+([#31](https://github.com/RockBase-lab/NM-SmallTV-Pro/issues/31)). Until that lands,
 packages for one firmware do not install on the other.
 
 Notifications keep their existing behavior and cover the active theme. When the
@@ -83,7 +83,7 @@ and 3.1.1 wrote, one per theme, are removed when the device starts.
 ## Create with an AI agent
 
 The repository includes a skill in the [Agent Skills format](https://agentskills.io/),
-[`skills/smalltv-theme-clock`](https://github.com/giovi321/smalltv-mod/tree/main/skills/smalltv-theme-clock).
+[`skills/smalltv-theme-clock`](https://github.com/RockBase-lab/NM-SmallTV-Pro/tree/main/skills/smalltv-theme-clock).
 Describe the clock you want. The agent asks a few questions (digital or analog, 12 or 24
 hours, date, live data, colors), writes the source folder, and builds the `.stheme` with a
 PNG and animated GIF preview. Where it runs on your network, it can also install the theme

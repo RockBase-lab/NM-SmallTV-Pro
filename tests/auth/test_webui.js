@@ -14,7 +14,7 @@ assert.ok(/id="authPass2"/.test(html),'a second password field is needed');
 assert.ok(/id="authRemoveBtn"[^>]*style="display:none[;"]/.test(html),'the Remove button starts hidden');
 assert.ok(!/authEnabled/.test(html),'nothing may still read the checkbox');
 
-const helpers=between('function $(id)','// sun begin');
+const helpers=between('function $(id)','// sun begin')+between('function numIn(','// sun end');
 const pwCode=between('// password begin','// password end');
 const collectCode=between('function collect(){','function saveWifi(){');   // collect() and saveAll()
 const tickerVars=between('var T_TEXT=','// IANA -> POSIX');

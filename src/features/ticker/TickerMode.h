@@ -34,3 +34,6 @@ class TickerMode : public DisplayMode {
 
 extern TickerMode g_tickerMode;
 extern TickerMode g_tickerMode2;
+#if WITH_CRYPTO
+extern TickerMode g_cryptoMode;
+#endif

@@ -6,6 +6,9 @@
 
 TickerMode g_tickerMode(0, MODE_STOCKS, "stocks");
 TickerMode g_tickerMode2(1, MODE_STOCKS2, "stocks2");
+#if WITH_CRYPTO
+TickerMode g_cryptoMode(2, MODE_CRYPTO, "crypto");
+#endif
 
 // ---- sparkline ------------------------------------------------------------
 // livePt (NAN = none) is appended as the newest point so the chart ends at the
@@ -490,10 +493,10 @@ void TickerMode::wake(const Settings& s) {
 }
 
 void TickerMode::render(const Settings& s) {
-  const TickerSettings& ts = (setIdx_ == 1) ? s.ticker2 : s.ticker;
+  const TickerSettings& ts = tickerSettings(s, setIdx_);
   uint8_t n = stocksCount(setIdx_);
   if (n == 0) {
-    const char* noMsg = (setIdx_ == 1) ? "No tickers (2)" : "No tickers (1)";
+    const char* noMsg = (setIdx_ == 2) ? "No crypto pairs" : (setIdx_ == 1) ? "No tickers (2)" : "No tickers (1)";
     gfxMessage(noMsg, netIP().c_str(), C_YELLOW);
     return;
   }
@@ -523,7 +526,7 @@ void TickerMode::service(const Settings& s) {
   stocksService(s);
 
   // 3. Page rotation & refresh tracking
-  const TickerSettings& ts = (setIdx_ == 1) ? s.ticker2 : s.ticker;
+  const TickerSettings& ts = tickerSettings(s, setIdx_);
   uint8_t n = stocksCount(setIdx_);
   uint8_t pages = n + (hasPortfolioPage(s, ts, setIdx_) ? 1 : 0);
 

@@ -24,16 +24,15 @@ class ThemeFile : public smalltv::Source {
 };
 class ThemeMode : public DisplayMode {
  public:
-  const char* id() const override { return "theme"; }
-  uint8_t modeConst() const override { return MODE_THEME; }
+  explicit ThemeMode(bool pictures = false) : pictures_(pictures) {}
+  const char* id() const override { return pictures_ ? "pictures" : "theme"; }
+  uint8_t modeConst() const override { return pictures_ ? MODE_PICTURES : MODE_THEME; }
   void begin(const Settings&) override;
   void service(const Settings&) override;
   void invalidate(const Settings&) override;
-  void wake(const Settings&) override {
-    engine_.invalidate();
-    messageDrawn_ = false;
-  }
+  void wake(const Settings&) override;
   const String& error() const { return error_; }
+  const String& activeId() const { return loadedId_; }
   // What parsing a package needs: its peak heap (tests/theme/test_memory.cpp
   // holds the examples to 5 KB) plus about 1 KB that the network code may
   // claim meanwhile, and blocks of up to 1 KB (the same test's
@@ -57,8 +56,13 @@ class ThemeMode : public DisplayMode {
   static constexpr uint32_t RequestLargestBlock = 3072;
   void freeForRequest() override { release(RequestFreeHeap, RequestLargestBlock); }
  private:
+  String selectedId(const Settings& s);
+  String nextPicture(const String& current) const;
   void unload();
   void refreshData();
+  const bool pictures_;
+  String pictureRuntimeId_;
+  uint32_t pictureNextMs_ = 0;
   smalltv::Engine engine_;
   std::unique_ptr<ThemeFile> file_;
   std::unique_ptr<smalltv::Package> package_;
@@ -74,4 +78,7 @@ class ThemeMode : public DisplayMode {
   bool attempted_ = false, messageDrawn_ = false;
 };
 extern ThemeMode g_themeMode;
+#if WITH_PICTURES
+extern ThemeMode g_pictureMode;
+#endif
 #endif

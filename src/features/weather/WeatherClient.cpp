@@ -1,6 +1,11 @@
 #include "WeatherClient.h"
 #include "../../Platform.h"
 #include <ArduinoJson.h>
+#include "OpenMeteo.h"
+#include "WeatherLocation.h"
+#include <memory>
+#include <algorithm>
+#include <new>
 
 static WeatherData g_weather;
 static bool g_fetching = false;
@@ -16,9 +21,13 @@ const char* weatherCodeToDesc(uint8_t code) {
     case 51:
     case 53:
     case 55: return "Drizzle";
+    case 56:
+    case 57: return "Freezing Drizzle";
     case 61:
     case 63:
     case 65: return "Rain";
+    case 66:
+    case 67: return "Freezing Rain";
     case 71:
     case 73:
     case 75: return "Snow";
@@ -59,23 +68,25 @@ const WeatherData& weatherGet() {
   return g_weather;
 }
 
-static bool fetchWttr(float lat, float lon, uint16_t timeoutMs, WeatherData& d) {
+static bool fetchOpenMeteo(float lat, float lon, uint16_t timeoutMs, WeatherData& data) {
   if (g_abortFetch) return false;
 
-  // wttr.in format=j2 provides compact 3KB JSON containing current + daily min/max
-  char url[128];
-  snprintf(url, sizeof(url), "http://wttr.in/%.4f,%.4f?format=j2", lat, lon);
+  char url[512];
+  snprintf(url, sizeof(url), "https://api.open-meteo.com/v1/forecast?latitude=%.4f&longitude=%.4f"
+           "&current=temperature_2m,relative_humidity_2m,is_day,weather_code,wind_speed_10m"
+           "&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset"
+           "&forecast_days=3&timezone=auto&temperature_unit=celsius&wind_speed_unit=kmh", lat, lon);
 
-  std::unique_ptr<WiFiClient> client(new WiFiClient());
+  std::unique_ptr<SecureClient> client(platformMakeSecureClient(4096));
   if (!client) return false;
 
   HTTPClient http;
-  uint16_t t = (timeoutMs > 2500) ? 2500 : timeoutMs;
+  uint16_t t = timeoutMs < 1000 ? 1000 : (timeoutMs > 8000 ? 8000 : timeoutMs);
   http.setTimeout(t);
   http.setReuse(false);
   http.useHTTP10(true);
   if (!http.begin(*client, url)) return false;
-  http.setUserAgent(F("curl/7.88.1"));
+  http.setUserAgent(F("SmallTV/Open-Meteo"));
   http.addHeader("Accept", "application/json");
 
   yield();
@@ -86,68 +97,50 @@ static bool fetchWttr(float lat, float lon, uint16_t timeoutMs, WeatherData& d) 
     return false;
   }
 
-  String payload = http.getString();
+  constexpr size_t limit = 4096;
+  const int expected = http.getSize();
+  if (expected > static_cast<int>(limit)) { http.end(); return false; }
+  std::unique_ptr<char[]> payload(new(std::nothrow) char[limit + 1]);
+  if (!payload) { http.end(); return false; }
+  Stream& stream = http.getStream();
+  size_t used = 0;
+  uint32_t started = millis();
+  bool complete = false;
+  while (!g_abortFetch && uint32_t(millis() - started) < t) {
+    int available = stream.available();
+    if (available > 0) {
+      size_t count = std::min<size_t>(available, limit - used);
+      if (!count) break;
+      used += stream.readBytes(payload.get() + used, count);
+    }
+    if ((expected >= 0 && used == static_cast<size_t>(expected)) ||
+        (expected < 0 && !http.connected() && !stream.available())) { complete = true; break; }
+    delay(1);
+  }
   http.end();
-
-  JsonDocument filter;
-  filter["current_condition"][0]["temp_C"] = true;
-  filter["current_condition"][0]["humidity"] = true;
-  filter["current_condition"][0]["windspeedKmph"] = true;
-  filter["current_condition"][0]["weatherDesc"][0]["value"] = true;
-  filter["weather"][0]["maxtempC"] = true;
-  filter["weather"][0]["mintempC"] = true;
-
-  JsonDocument doc;
-  DeserializationError err = deserializeJson(doc, payload.c_str(), DeserializationOption::Filter(filter));
-  if (err) return false;
-
-  JsonObjectConst cur = doc["current_condition"][0];
-  if (cur.isNull()) return false;
-
-  const char* tempStr = cur["temp_C"] | "0";
-  d.temp = atof(tempStr);
-
-  const char* humStr = cur["humidity"] | "0";
-  d.humidity = atoi(humStr);
-
-  const char* windStr = cur["windspeedKmph"] | "0";
-  d.windSpeed = atof(windStr);
-
-  const char* descStr = cur["weatherDesc"][0]["value"] | "Clear";
-  d.weatherCode = 0;
-  if (strstr(descStr, "Cloud") || strstr(descStr, "Overcast")) d.weatherCode = 2;
-  else if (strstr(descStr, "Rain") || strstr(descStr, "Drizzle")) d.weatherCode = 61;
-  else if (strstr(descStr, "Snow")) d.weatherCode = 71;
-  else if (strstr(descStr, "Mist") || strstr(descStr, "Fog") || strstr(descStr, "Haze")) d.weatherCode = 45;
-  else if (strstr(descStr, "Thunder")) d.weatherCode = 95;
-
-  const char* maxStr = doc["weather"][0]["maxtempC"] | tempStr;
-  const char* minStr = doc["weather"][0]["mintempC"] | tempStr;
-  d.tempMax = atof(maxStr);
-  d.tempMin = atof(minStr);
-
-  d.valid = true;
-  d.error = false;
-  d.lastOkMs = millis();
+  if (!complete || g_abortFetch || !used) return false;
+  payload[used] = 0;
+  JsonDocument document;
+  if (deserializeJson(document, payload.get(), used)) return false;
+  WeatherObservation candidate;
+  if (!parseOpenMeteo(document.as<JsonVariantConst>(), candidate)) return false;
+  static_cast<WeatherObservation&>(data) = candidate;
   return true;
 }
 
 void weatherService(const Settings& s) {
+  if (!weatherLocationSet(s.clock.lat, s.clock.lon)) return;
   if (g_fetching) return;
   if ((int32_t)(millis() - g_weather.nextTryMs) < 0) return;
 
   float lat = s.clock.lat;
   float lon = s.clock.lon;
-  if (lat == 0.0f && lon == 0.0f) {
-    lat = 37.566f;
-    lon = 126.9784f; // Default Seoul
-  }
 
   uint32_t pollInterval = (uint32_t)(s.weatherPollMin ? s.weatherPollMin : 10) * 60000UL;
 
   g_abortFetch = false;
   g_fetching = true;
-  if (fetchWttr(lat, lon, s.httpTimeout, g_weather)) {
+  if (fetchOpenMeteo(lat, lon, s.httpTimeout, g_weather)) {
     g_weather.valid = true;
     g_weather.error = false;
     g_weather.lastOkMs = millis();

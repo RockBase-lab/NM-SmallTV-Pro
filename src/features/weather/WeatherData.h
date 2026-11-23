@@ -1,13 +1,8 @@
 #pragma once
 #include <Arduino.h>
+#include "WeatherForecast.h"
 
-struct WeatherData {
-  float    temp;        // current temp (C)
-  uint8_t  humidity;    // %
-  uint8_t  weatherCode; // WMO code (0..99)
-  float    windSpeed;   // km/h
-  float    tempMax;     // today max (C)
-  float    tempMin;     // today min (C)
+struct WeatherData : WeatherObservation {
 
   bool     valid;
   bool     error;
@@ -16,8 +11,7 @@ struct WeatherData {
   uint8_t  fails;
 
   void clear() {
-    temp = tempMax = tempMin = windSpeed = 0;
-    humidity = weatherCode = 0;
+    static_cast<WeatherObservation&>(*this) = WeatherObservation{};
     valid = error = false;
     lastOkMs = nextTryMs = 0;
     fails = 0;

@@ -17,7 +17,7 @@ const saveAllCode=between('function saveAll(){','function saveWifi(){');
 // ---- Status tab ----
 function statusRows(s){
  const els={};
- const el=id=>els[id]||(els[id]={id,textContent:'',innerHTML:'',className:'',href:''});
+ const el=id=>els[id]||(els[id]={id,textContent:'',innerHTML:'',className:'',href:'',style:{}});
  const ctx={$:el,C:{},window:{},statusTimer:0,
   // showStatus() reads the Stock 1 table to split the tickers into the two boxes.
   document:{querySelectorAll:()=>[]},
@@ -27,11 +27,15 @@ function statusRows(s){
  vm.runInContext(note+kvCode+showStatus,ctx);
  ctx.showStatus(Object.assign({fw:'smalltv-mod',version:'0.0.0',mode:'sta',connected:true,ssid:'home-wifi-01',ip:'192.0.2.10',
   rssi:-60,heap:7000,maxblk:3000,uptime:60,reset:'Power on'},s));
+ statusRows.recoveryDisplay=els.recoveryBox.style.display;
  return els.statusBox.innerHTML;
 }
 
 // Nothing wrong: the row is not there at all.
 assert.ok(!/Home Assistant/.test(statusRows({})),'no Home Assistant row when the device reports no problem');
+assert.equal(statusRows.recoveryDisplay,'none');
+statusRows({safeMode:true});
+assert.equal(statusRows.recoveryDisplay,'block');
 
 // Out of memory at boot: the row says it, says how to get out of it.
 {
@@ -62,7 +66,7 @@ async function saveWith(reply){
  const ctx={j:()=>Promise.resolve(reply),collect:()=>({}),JSON,
   toast:m=>toasts.push(m),loadStatus:()=>{statusReads++},
   location:{reload:()=>{reloaded=true}},setTimeout:()=>0,Promise,
-  authProblem:()=>'',gv:()=>'',authShow:()=>{}};   // saveAll() checks the password fields first
+  authProblem:()=>'',gv:()=>'',authShow:()=>{},$:()=>null};
  vm.createContext(ctx);
  vm.runInContext(note+saveAllCode,ctx);
  ctx.saveAll();

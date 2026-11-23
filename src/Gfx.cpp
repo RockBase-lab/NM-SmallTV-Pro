@@ -159,7 +159,7 @@ uint8_t gfxFitSize(const char* s, int maxW, uint8_t maxSize) {
 void gfxBoot(const char* line1, const char* line2) {
   if (!gfx) return;
   gfx->fillScreen(C_BLACK);
-  gfxDrawCentered(line1, 95, 3, C_WHITE);
+  gfxDrawCentered(line1, 95, gfxFitSize(line1, 232, 3), C_WHITE);
   if (line2 && line2[0]) gfxDrawCentered(line2, 130, 2, C_GRAY);
 }
 
@@ -213,6 +213,7 @@ void gfxCrash(const char* epc, const char* addr, const char* ip) {
   gfxDrawCentered(epc && epc[0] ? epc : "-", 80, 3, C_WHITE);
   gfxDrawCentered("addr", 124, 2, C_GRAY);
   gfxDrawCentered(addr && addr[0] ? addr : "-", 146, 2, C_WHITE);
-  gfxDrawCentered("OTA flash to fix:", 182, 2, C_GRAY);
-  gfxDrawCentered(ip && ip[0] ? ip : "-", 204, 2, C_GREEN);
+  gfxDrawCentered("Web: diagnostics", 174, 2, C_GRAY);
+  gfxDrawCentered("System > Reboot", 194, 2, C_GRAY);
+  gfxDrawCentered(ip && ip[0] ? ip : "-", 218, 2, C_GREEN);
 }

@@ -3,7 +3,15 @@ title: Stock and crypto ticker
 description: Show live prices, change, and a sparkline for up to 8 rotating symbols.
 ---
 
-The ticker is the default mode. It shows one symbol at a time and rotates through your list on a timer. For each symbol it draws the price, the absolute change, the percent change with an up or down arrow, and a small sparkline chart.
+The ticker shows one symbol at a time and rotates through your list on a timer. For each symbol it draws the price, the absolute change, the percent change with an up or down arrow, and a small sparkline chart. NM-TV-154 starts on Detailed weather; select Stock 1 to view stocks.
+
+## Ready to use defaults
+
+Stock 1 starts with Samsung Electronics (`005930`, Naver Finance), NVIDIA (`NVDA`, Yahoo Finance) and Apple (`AAPL`, Yahoo Finance). No API key, webhook or intermediary server is required. Prices refresh every 120 seconds, symbols rotate every 10 seconds, and line charts show approximately one month with up to 20 points. Samsung uses 20 daily trading bars; Yahoo uses the last calendar month, sampled to the configured point count. Stock 2 stays available for another custom list.
+
+When upgrading an older stored configuration, an empty Stock 1 list receives these presets. Existing nonempty lists keep their symbols, providers and chart settings. Saving or exporting settings writes a defaults version, so a list you subsequently clear stays empty after reboot. Partial API updates do not install presets.
+
+The providers are public endpoints and may delay quotes, limit requests or become unavailable. Closed markets retain the latest available quote and historical chart. Yahoo automatically retries its second chart host when the first fails.
 
 ## What it shows
 
@@ -27,7 +35,7 @@ Add up to 8 tickers in the **Ticker** tab. Each row has a symbol, an optional na
 | Crypto | `BTC-USD`, `ETH-EUR` |
 | FX | `EURUSD=X`, `EURCHF=X` |
 
-With the cash.ch source the `symbol` field takes a cash.ch listing key instead (`valor-marketId-currencyId`, e.g. `123456789-246-333`), which covers Swiss structured products and AMCs that Yahoo does not list. The built-in finder in the Ticker tab turns a cash.ch link, ISIN, or name into the key; [Data sources](/smalltv-mod/reference/data-sources/) has the details.
+With the cash.ch source the `symbol` field takes a cash.ch listing key instead (`valor-marketId-currencyId`, e.g. `123456789-246-333`), which covers Swiss structured products and AMCs that Yahoo does not list. The built-in finder in the Ticker tab turns a cash.ch link, ISIN, or name into the key; [Data sources](/NM-SmallTV-Pro/reference/data-sources/) has the details.
 
 ## Positions and the portfolio page
 
@@ -39,4 +47,4 @@ Two intervals control the display: how often each symbol is shown (rotation) and
 
 Every symbol keeps its own schedule. A successful fetch waits the poll interval; one that fails is retried after 12 seconds, then 24, 48, 96, and from there at the poll interval for as long as it keeps failing, so a symbol is never given up on and a healthy one is not dragged into a failing one's retries. This also covers the ESP8266's heap-guard skip, where a cash.ch fetch is dropped because the heap is momentarily too fragmented for the handshake: that counts as a failure and comes back a few seconds later. The Ticker tab's **Live data** card lists what the device currently holds per symbol and, for the failing ones, how long until the next attempt.
 
-Where the prices come from is chosen per ticker. By default a ticker fetches Yahoo Finance directly over HTTPS with no backend; cash.ch works the same way for Swiss instruments, GitHub is a serverless cash.ch proxy you host yourself from a fork, and a webhook ticker calls your own endpoint. All four are covered in [Data sources](/smalltv-mod/reference/data-sources/).
+Where the prices come from is chosen per ticker. By default a ticker fetches Yahoo Finance directly over HTTPS with no backend; cash.ch works the same way for Swiss instruments, GitHub is a serverless cash.ch proxy you host yourself from a fork, and a webhook ticker calls your own endpoint. All four are covered in [Data sources](/NM-SmallTV-Pro/reference/data-sources/).

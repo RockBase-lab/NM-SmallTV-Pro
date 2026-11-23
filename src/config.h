@@ -12,22 +12,23 @@
 // ---------------------------------------------------------------------------
 // Firmware identity
 // ---------------------------------------------------------------------------
-#define FW_NAME     "smalltv-mod"
-#define FW_VERSION  "3.12.0"
+#define FW_DISPLAY_NAME "NMMiner SmallTV Pro"
+#define FW_NAME     "nm-smalltv-pro"
+#define FW_VERSION  "3.13.1"
 
 // Project / update references (shown in the web UI; used by the GitHub self-update)
 //
 // These point at this fork, not at the upstream it was forked from
-// (giovi321/smalltv-mod), and that is the whole point: the self-updater asks
+// (RockBase-lab/NM-SmallTV-Pro), and that is the whole point: the self-updater asks
 // REPO_OWNER/REPO_NAME for the newest release and downloads UPDATE_ASSET from
 // it. Left on upstream, "Update now" would offer an upstream release and, if
 // installed, replace this image with one that lacks the fork's features (the
 // burn-in refreshing engine, the Naver/Yahoo dual stock screens, the HD notify
 // engine). Bump FW_VERSION together with each tagged release here, so the
 // comparison against the fork's own latest tag stays meaningful.
-#define REPO_URL      "https://github.com/twoarchi/smalltv-pro-mod"
-#define REPO_OWNER    "twoarchi"
-#define REPO_NAME     "smalltv-pro-mod"
+#define REPO_URL      "https://github.com/RockBase-lab/NM-SmallTV-Pro"
+#define REPO_OWNER    "RockBase-lab"
+#define REPO_NAME     "NM-SmallTV-Pro"
 // Release asset the GitHub self-updater pulls, and the short variant name shown
 // in the web UI. One app image per target, plus a second one for the two boards
 // that ship a stripped or extended build of the same hardware: the ESP8266
@@ -40,22 +41,22 @@
 // it, so they have to be tested first or they fall into the plain esp32 case
 // and the device self-updates itself onto the wrong image.
 #if defined(SMALLTV_ESP32C2)
-  #define UPDATE_ASSET "smalltv-mod-firmware-c2.bin"
+  #define UPDATE_ASSET "nm-smalltv-pro-firmware-c2.bin"
   #define FW_VARIANT   "c2"
 #elif defined(SMALLTV_ESP32_PRO)
-  #define UPDATE_ASSET "smalltv-mod-firmware-esp32-pro.bin"
+  #define UPDATE_ASSET "nm-smalltv-pro-firmware-esp32-pro.bin"
   #define FW_VARIANT   "esp32-pro"
 #elif defined(SMALLTV_ESP32_WG)
-  #define UPDATE_ASSET "smalltv-mod-firmware-esp32-wg.bin"
+  #define UPDATE_ASSET "nm-smalltv-pro-firmware-esp32-wg.bin"
   #define FW_VARIANT   "esp32-wg"
 #elif defined(SMALLTV_ESP32)
-  #define UPDATE_ASSET "smalltv-mod-firmware-esp32.bin"
+  #define UPDATE_ASSET "nm-smalltv-pro-firmware-esp32.bin"
   #define FW_VARIANT   "esp32"
 #elif defined(SMALLTV_LEAN)
-  #define UPDATE_ASSET "smalltv-mod-firmware-lean.bin"
+  #define UPDATE_ASSET "nm-smalltv-pro-firmware-lean.bin"
   #define FW_VARIANT   "esp8266-lean"
 #else
-  #define UPDATE_ASSET "smalltv-mod-firmware.bin"
+  #define UPDATE_ASSET "nm-smalltv-pro-firmware.bin"
   #define FW_VARIANT   "esp8266"
 #endif
 #define GH_API_HOST   "api.github.com"
@@ -154,8 +155,18 @@
 #define MODE_STOCKS2   7             // second stock ticker set (Stock 2)
 #define MODE_WEATHER   8             // Weather display
 #define MODE_TIMER     9             // Scheduled app timer mode
+#define MODE_CRYPTO   10             // independent Binance crypto ticker set
+#define MODE_PICTURES 11             // fullscreen 240x240 picture screensaver
+#if defined(SMALLTV_ESP32) && !defined(SMALLTV_ESP32_PRO)
+#define DEFAULT_MODE MODE_WEATHER
+#define DEFAULT_WEATHER_STYLE 1
+#else
 #define DEFAULT_MODE MODE_TIMER
+#define DEFAULT_WEATHER_STYLE 0
+#endif
 #define DEFAULT_CAROUSEL_SEC 30      // per-mode dwell in carousel
+#define DEFAULT_PICTURE_ID "ultra-01"
+#define DEFAULT_PICTURE_ROTATE_SEC 10
 
 // ---------------------------------------------------------------------------
 // Physical button (boards that define BTN_PIN). Short and long press each run
@@ -182,7 +193,11 @@
 #define DEFAULT_BTN_SENS   85
 #endif
 #define DEFAULT_BTN_SHORT  BTN_ACT_NEXT
+#if defined(SMALLTV_ESP32) && !defined(SMALLTV_ESP32_PRO)
+#define DEFAULT_BTN_LONG   BTN_ACT_HOME     // NM-TV-154: leave manual preview / resume automation
+#else
 #define DEFAULT_BTN_LONG   BTN_ACT_NETINFO
+#endif
 
 // Full-screen attention overlay (POST /api/notify), in seconds.
 #define NOTIFY_TTL_DEFAULT_SEC  20
@@ -260,13 +275,16 @@
 #define HA_DWELL_MAX_SEC      300
 
 // ---------------------------------------------------------------------------
-// Compile-time feature toggles. All shipping features are on by default; a lean
-// build drops one by setting e.g. -D WITH_RADAR=0 in a PlatformIO env, which
-// omits that feature's module from the registry and its web UI section.
-// (WITH_RADAR ships off until the radar module lands.)
+// Compile-time feature toggles. Product environments can override these to
+// trade an unused module for flash/heap; the full NM-TV-154 image enables all of
+// ticker, crypto, usage, radar, notify, HA and theme support. Crypto is opt-in:
+// its third set of chart buffers is too costly for the ESP8266's shared RAM.
 // ---------------------------------------------------------------------------
 #ifndef WITH_TICKER
 #define WITH_TICKER 1
+#endif
+#ifndef WITH_CRYPTO
+#define WITH_CRYPTO 0
 #endif
 #ifndef WITH_USAGE
 #define WITH_USAGE 0
@@ -279,6 +297,11 @@
 #endif
 #ifndef WITH_HA
 #define WITH_HA 0
+#endif
+// Keep the text renderer and ASCII bitmaps when the Hangul tables are too large
+// for a product's flash layout. Unsupported UTF-8 code points display as '?'.
+#ifndef WITH_KOREAN_FONT
+#define WITH_KOREAN_FONT 1
 #endif
 
 // Claude usage mode: once data stops arriving for this long (PC asleep, daemon
@@ -303,6 +326,7 @@
 #define SRC_CASH     2
 #define SRC_GHUB     3   // static JSON read from a repo's data branch (see below)
 #define SRC_NAVER    4   // Naver Finance mobile API (real-time Korean stocks)
+#define SRC_BINANCE  5   // Binance Spot public K-lines (no API key)
 #define DEFAULT_SOURCE  SRC_YAHOO            // works out of the box, no server
 
 // Yahoo Finance public chart endpoint. A browser-like User-Agent is required —
@@ -314,6 +338,13 @@
 #define YAHOO_CHART_HOST2 "query2.finance.yahoo.com"
 #define YAHOO_CHART_PATH  "/v8/finance/chart/"
 #define YAHOO_USER_AGENT  "Mozilla/5.0 (SmallTV)"
+
+// Binance Spot public market data. The second host is Binance's market-data-only
+// endpoint; neither request needs credentials. Availability still depends on the
+// user's network/region, and normal HTTP failures use the ticker retry backoff.
+#define BINANCE_HOST1     "api.binance.com"
+#define BINANCE_HOST2     "data-api.binance.vision"
+#define BINANCE_KLINES_PATH "/api/v3/klines"
 
 // cash.ch public GraphQL endpoint. The device sends two small hand-written
 // GraphQL queries per symbol as plain GETs (?query=...): a ~200 B quote and a
@@ -395,7 +426,15 @@
 // Defaults (used on first boot / factory reset)
 // ---------------------------------------------------------------------------
 #define DEFAULT_AP_SSID      "SmallTV-Setup"
+#if defined(SMALLTV_ESP32) && !defined(SMALLTV_ESP32_PRO)
+#define DEFAULT_AP_PASS      "12345678"      // NM-TV-154 production fallback hotspot
+#define DEFAULT_STA_SSID     "NMTech-2.4G"  // first boot / factory reset only
+#define DEFAULT_STA_PASS     "NMMiner2048"
+#else
 #define DEFAULT_AP_PASS      ""              // empty => open AP
+#define DEFAULT_STA_SSID     ""
+#define DEFAULT_STA_PASS     ""
+#endif
 #define DEFAULT_HOSTNAME     "smalltv"
 #define DEFAULT_POLL_SEC      120            // how often to refresh data
 // Per-symbol retry after a failed or skipped fetch: the first retry comes after
@@ -426,8 +465,19 @@
 // --- Clock / night mode (device-wide) ---
 #define NTP_SERVER1             "pool.ntp.org"
 #define NTP_SERVER2             "time.nist.gov"
-#define DEFAULT_TZ_NAME         ""        // IANA display name; empty = UTC
-#define DEFAULT_TZ_POSIX        "UTC0"    // POSIX TZ rule the device feeds SNTP
+#if defined(SMALLTV_ESP32) && !defined(SMALLTV_ESP32_PRO)
+#define DEFAULT_TZ_NAME         "Asia/Shanghai"
+#define DEFAULT_TZ_POSIX        "CST-8"
+#define DEFAULT_LOCATION_NAME   "Chengdu, China"
+#define DEFAULT_LOCATION_LAT    30.5728f
+#define DEFAULT_LOCATION_LON    104.0668f
+#else
+#define DEFAULT_TZ_NAME         ""
+#define DEFAULT_TZ_POSIX        "UTC0"
+#define DEFAULT_LOCATION_NAME   ""
+#define DEFAULT_LOCATION_LAT    0.0f
+#define DEFAULT_LOCATION_LON    0.0f
+#endif
 #define DEFAULT_NIGHT_ENABLED   false
 #define DEFAULT_NIGHT_START_MIN 1320      // 22:00
 #define DEFAULT_NIGHT_END_MIN   420       // 07:00
@@ -446,4 +496,9 @@
 // platformio.ini) to keep the heap headroom it exists to protect.
 #ifndef WITH_THEME
 #define WITH_THEME 1
+#endif
+// NM-TV-154 adds a second ThemeMode instance as a fullscreen picture
+// screensaver. Other boards keep only the original clock-theme mode.
+#ifndef WITH_PICTURES
+#define WITH_PICTURES 0
 #endif

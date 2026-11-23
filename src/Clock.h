@@ -11,7 +11,7 @@
 #include <time.h>
 
 void   clockBegin(const Settings& s);        // arm SNTP + register sync callback (once WiFi is up)
-void   clockReapply(const Settings& s);      // re-arm iff tzPosix changed
+void   clockReapply(const Settings& s, bool clockVisible = false);
 void   clockForceResync(const Settings& s);  // re-arm SNTP now (fresh query)
 void   clockService(const Settings& s);      // drive the night-mode state machine (call each loop)
 

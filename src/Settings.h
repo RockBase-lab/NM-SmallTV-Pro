@@ -59,6 +59,7 @@ struct TickerSettings {
   uint8_t   symbolCount;
 
   void setDefaults();
+  void setDefaultStocks();
   void toJson(JsonObject o) const;
   void fromJson(JsonObjectConst o);   // applies only the keys present
 };
@@ -79,6 +80,8 @@ struct ClockSettings {
   String   tz;            // IANA display name, e.g. "Europe/Rome" (UI round-trip)
   String   tzPosix;       // POSIX TZ rule the device feeds SNTP
   String   lang;          // device language code (en, pt, es, fr, de, it); picks the names theme clocks show
+  String   ntpServer;     // optional primary SNTP server; built-ins remain fallbacks
+  String   locationName;  // full browser display name; WeatherMode uses it only when ASCII-safe
   bool     nightEnabled;  // dim/blank on a nightly schedule
   uint16_t nightStartMin; // minutes since local midnight (0..1439)
   uint16_t nightEndMin;
@@ -245,13 +248,21 @@ struct Settings {
   String hostname;      // mDNS name => http://<hostname>.local
 
   // --- Active feature ---
-  String themeId;       // installed .stheme ID; empty until selected
+  String themeId;       // installed clock .stheme ID; empty until selected
+  String pictureId;     // fullscreen picture/animation package ID
+  bool pictureAuto;     // rotate through installed picture packages
+  uint16_t pictureRotateSec;
   uint8_t mode;         // MODE_TIMER / MODE_CAROUSEL / MODE_STOCKS / ...
 
   // --- Carousel (mode == MODE_CAROUSEL): dwell + which features rotate ---
   uint16_t carouselSec;
-  bool carouselTicker, carouselTicker2, carouselUsage, carouselRadar, carouselHa, carouselTheme, carouselWeather;
+  bool carouselTicker, carouselTicker2, carouselCrypto, carouselUsage, carouselRadar, carouselHa, carouselTheme, carouselPictures, carouselWeather;
   uint16_t weatherPollMin; // Weather refresh interval in minutes (default 10)
+  uint8_t  weatherTempUnit; // WEATHER_TEMP_C / WEATHER_TEMP_F; display only
+  uint8_t  weatherWindUnit; // WEATHER_WIND_KMH / _MS / _MPH; display only
+  uint8_t weatherStyle;
+  bool weatherAuto;
+  uint16_t weatherRotateSec;
 
   // --- App Timers (mode == MODE_TIMER) ---
   AppTimerSettings timers;
@@ -266,6 +277,7 @@ struct Settings {
   // --- Feature slices ---
   TickerSettings  ticker;     // Stock 1
   TickerSettings  ticker2;    // Stock 2
+  TickerSettings  crypto;     // Crypto (Binance; runtime buffers only on WITH_CRYPTO)
   UsageSettings   usage;
   RadarSettings   radar;
   HaSettings      ha;        // MQTT broker for HA screens
@@ -278,6 +290,12 @@ struct Settings {
 
   void setDefaults();
 };
+
+// Shared selector for Stock 1, Stock 2 and Crypto. Keeping this in one place
+// prevents the three features from drifting into separate set-index mappings.
+inline const TickerSettings& tickerSettings(const Settings& s, uint8_t set) {
+  return set == 2 ? s.crypto : (set == 1 ? s.ticker2 : s.ticker);
+}
 
 // The radar's home: the device location unless the radar has its own.
 inline float radarLat(const Settings& s) { return s.radar.useDevice ? s.clock.lat : s.radar.lat; }
@@ -292,4 +310,4 @@ size_t settingsStoredSize();                // bytes of the last load or save
 
 // JSON <-> struct. `includeSecrets=false` masks passwords for the web API.
 void settingsToJson(const Settings& s, JsonObject root, bool includeSecrets);
-void settingsApplyJson(Settings& s, JsonObjectConst root); // partial update allowed
+void settingsApplyJson(Settings& s, JsonObjectConst root, bool fromStorage = false);

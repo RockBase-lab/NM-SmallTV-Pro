@@ -16,10 +16,77 @@ void platformOnTimeSync(void (*cb)()) {
   sntp_set_time_sync_notification_cb(sntpSyncNotify);
 }
 
-// No crash record on the ESP32 targets (the core exposes no exception PC).
+#if defined(SMALLTV_ESP32) && !defined(SMALLTV_ESP32_PRO)
+#include "Esp32CrashRecord.h"
+#include <esp_attr.h>
+#include <esp_private/panic_internal.h>
+
+static RTC_NOINIT_ATTR Esp32CrashSnapshot s_crashSnapshot;
+static DRAM_ATTR char s_crashVersion[] = FW_VERSION;
+static DRAM_ATTR char s_abortReason[] = "Abort/assert";
+static DRAM_ATTR char s_crashOperation[24];
+static DRAM_ATTR uint32_t s_crashUptime;
+static DRAM_ATTR bool s_crashClockKnown;
+static bool s_currentCrash;
+
+static void IRAM_ATTR capturePanic(arduino_panic_info_t* info, void*) {
+  s_crashSnapshot.magic = 0;
+  s_crashSnapshot.pc = reinterpret_cast<uintptr_t>(info->pc);
+  s_crashSnapshot.cause = 0;
+  s_crashSnapshot.address = 0;
+  s_crashSnapshot.flags = 1 | (s_crashClockKnown ? 2 : 0);
+  s_crashSnapshot.backtraceCount = info->backtrace_len < 12 ? info->backtrace_len : 12;
+  for (unsigned index = 0; index < 12; ++index)
+    s_crashSnapshot.backtrace[index] = index < s_crashSnapshot.backtraceCount ? info->backtrace[index] : 0;
+  s_crashSnapshot.uptimeS = s_crashUptime;
+  const char* reason = g_panic_abort ? (g_panic_abort_details ? g_panic_abort_details : s_abortReason) : info->reason;
+  esp32CrashCopy(s_crashSnapshot.reason, sizeof(s_crashSnapshot.reason), reason ? reason : s_abortReason);
+  esp32CrashCopy(s_crashSnapshot.fw, sizeof(s_crashSnapshot.fw), s_crashVersion);
+  esp32CrashCopy(s_crashSnapshot.operation, sizeof(s_crashSnapshot.operation), s_crashOperation);
+  crashSeal(s_crashSnapshot);
+}
+
+void platformCrashTrace(const char* operation) {
+  s_crashUptime = millis() / 1000;
+  s_crashClockKnown = true;
+  esp32CrashCopy(s_crashOperation, sizeof(s_crashOperation), operation);
+}
+
+void platformCrashRecordBegin() {
+  s_currentCrash = esp32CrashCurrent(s_crashSnapshot, platformResetInfo().wasCrash);
+  if (esp_reset_reason() == ESP_RST_POWERON || !esp32CrashValid(s_crashSnapshot)) s_crashSnapshot.magic = 0;
+  if (esp32CrashValid(s_crashSnapshot)) {
+    s_crashSnapshot.flags &= ~1u;
+    crashSeal(s_crashSnapshot);
+  }
+  platformCrashTrace("boot");
+  set_arduino_panic_handler(capturePanic, nullptr);
+}
+
+bool platformCrashRecordGet(PlatformCrashRecord& out) {
+  if (!esp32CrashValid(s_crashSnapshot)) return false;
+  memset(&out, 0, sizeof(out));
+  esp32CrashCopy(out.reason, sizeof(out.reason), s_crashSnapshot.reason);
+  esp32CrashCopy(out.fw, sizeof(out.fw), s_crashSnapshot.fw);
+  esp32CrashCopy(out.operation, sizeof(out.operation), s_crashSnapshot.operation);
+  out.hasPc = s_crashSnapshot.pc != 0;
+  out.epc1 = s_crashSnapshot.pc;
+  out.exccause = s_crashSnapshot.cause;
+  out.excvaddr = s_crashSnapshot.address;
+  out.uptimeS = s_crashSnapshot.uptimeS;
+  out.uptimeKnown = (s_crashSnapshot.flags & 2) != 0;
+  out.current = s_currentCrash;
+  out.backtraceCount = s_crashSnapshot.backtraceCount < 12 ? s_crashSnapshot.backtraceCount : 12;
+  memcpy(out.backtrace, s_crashSnapshot.backtrace, sizeof(out.backtrace));
+  return true;
+}
+
+void platformCrashRecordClear() { s_crashSnapshot.magic = 0; s_currentCrash = false; }
+#else
 void platformCrashRecordBegin() {}
 bool platformCrashRecordGet(PlatformCrashRecord&) { return false; }
 void platformCrashRecordClear() {}
+#endif
 
 #else  // ESP8266
 #include <coredecls.h>

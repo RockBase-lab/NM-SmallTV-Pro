@@ -19,6 +19,13 @@ uint32_t uploaded = 0, uploadBudget = 0;
 constexpr unsigned MaxThemes = 16;
 static_assert(MaxThemes <= 32, "listThemes() marks packages in a 32-bit mask");
 const char* staging = "/themes/.upload";
+void releaseModes(uint32_t needFree = ThemeMode::ParseFreeHeap,
+                  uint32_t needLargestBlock = ThemeMode::ParseLargestBlock) {
+  g_themeMode.release(needFree, needLargestBlock);
+#if WITH_PICTURES
+  g_pictureMode.release(needFree, needLargestBlock);
+#endif
+}
 // Every theme API route replies with the same small JSON shape: `{"id":...}`
 // on success, `{"error":...}` otherwise, keyed by whether `code` is a success
 // status.
@@ -162,7 +169,7 @@ void receiveUpload() {
     // a running theme (a 16-byte allocation failed here with 160 B free), so
     // an install always frees it; there the hook in themeWebBegin() has freed
     // it already.
-    g_themeMode.release(UINT32_MAX);
+    releaseModes(UINT32_MAX);
     LittleFS.remove(staging);
     // Preserve room for a settings rewrite plus filesystem metadata overhead,
     // so a large upload cannot leave too little space for the device to save
@@ -218,7 +225,7 @@ void finishUpload() {
   }
   // Validation parses a second theme; free the running one first if the heap
   // is short (issue #30).
-  g_themeMode.release();
+  releaseModes();
   smalltv::Theme theme;
   std::string error;
   bool valid = false;
@@ -233,6 +240,14 @@ void finishUpload() {
     reply(400, error.c_str());
     resetUpload();
     return;
+  }
+  if (server->arg("category") == "picture") {
+    const String id(theme.id.c_str());
+    if (!(id == "pixel-motion" || id.startsWith("ultra-") || id.startsWith("picture-"))) {
+      reply(400, "Invalid picture package ID");
+      resetUpload();
+      return;
+    }
   }
   String target = "/themes/" + String(theme.id.c_str()) + ".stheme";
   if (LittleFS.exists(target)) {
@@ -417,7 +432,7 @@ void listThemes() {
   for (unsigned i = 0; i < list.size(); ++i) {
     if (listed & (1u << i)) continue;
     if (!released) {
-      g_themeMode.release();
+      releaseModes();
       released = true;
     }
     if (inspectInto(list[i])) rewrite = true;
@@ -437,7 +452,7 @@ void selectTheme() {
   if (!requestId(id)) return;
   // Validation parses a second theme; free the running one first if the heap
   // is short (issue #30).
-  g_themeMode.release();
+  releaseModes();
   {
     ThemeFile file;
     smalltv::Theme theme;
@@ -466,10 +481,58 @@ void selectTheme() {
   appInvalidate();
   reply(200, id);
 }
-// POST /api/themes/delete: refuses to remove a package that is both selected
-// and currently valid (it would silently blank the active display); removing
-// a selected-but-invalid one is allowed, since keeping it installed serves no
-// purpose once it can never render.
+#if WITH_PICTURES
+// Select and show a fullscreen picture. The same request may update the
+// screensaver's cadence, so the Pictures page needs only one save operation.
+void selectPicture() {
+  if (!auth()) return;
+  String id;
+  if (!requestId(id)) return;
+  if (!(id == "pixel-motion" || id.startsWith("ultra-") || id.startsWith("picture-"))) {
+    reply(400, "Expected a picture package");
+    return;
+  }
+  releaseModes();
+  {
+    ThemeFile file;
+    smalltv::Theme theme;
+    std::string error;
+    if (!file.open("/themes/" + id + ".stheme")) {
+      reply(404, "Picture not installed");
+      return;
+    }
+    smalltv::Package package(file);
+    if (!package.load(theme, error) || theme.id != id.c_str()) {
+      reply(400, "Invalid installed picture");
+      return;
+    }
+  }
+  String oldId = settings->pictureId;
+  uint8_t oldMode = settings->mode;
+  bool oldAuto = settings->pictureAuto;
+  uint16_t oldRotate = settings->pictureRotateSec;
+  JsonDocument doc;
+  if (!deserializeJson(doc, server->arg("plain"))) {
+    if (doc["pictureAuto"].is<bool>()) settings->pictureAuto = doc["pictureAuto"];
+    if (doc["pictureRotateSec"].is<int>())
+      settings->pictureRotateSec = constrain((int)doc["pictureRotateSec"], 2, 3600);
+  }
+  settings->pictureId = id;
+  settings->mode = MODE_PICTURES;
+  if (!saveSettings(*settings)) {
+    settings->pictureId = oldId;
+    settings->mode = oldMode;
+    settings->pictureAuto = oldAuto;
+    settings->pictureRotateSec = oldRotate;
+    reply(500, "Could not save selection");
+    return;
+  }
+  appInvalidate();
+  reply(200, id);
+}
+#endif
+// POST /api/themes/delete: protects a valid package used by either the clock
+// or fullscreen picture mode, including the screensaver's current runtime ID.
 void deleteTheme() {
   if (!auth()) return;
   String id;
@@ -479,23 +542,32 @@ void deleteTheme() {
     reply(404, "Theme not found");
     return;
   }
-  bool onScreen = settings->mode == MODE_THEME || (settings->mode == MODE_CAROUSEL && settings->carouselTheme);
-  if (settings->themeId == id && onScreen) {
-    // Inspecting parses the package; free the running copy first if the heap
-    // is short (issue #30).
-    g_themeMode.release();
+  bool themeOnScreen = settings->mode == MODE_THEME ||
+                       (settings->mode == MODE_CAROUSEL && settings->carouselTheme);
+  bool inUse = settings->themeId == id && themeOnScreen;
+#if WITH_PICTURES
+  bool picturesOnScreen = settings->mode == MODE_PICTURES ||
+                          (settings->mode == MODE_CAROUSEL && settings->carouselPictures);
+  inUse = inUse || (picturesOnScreen && (settings->pictureId == id || g_pictureMode.activeId() == id));
+#endif
+  if (inUse) {
+    releaseModes();
     ThemeFile file;
     file.open(path);
     auto info = smalltv::inspectInstalledTheme(file, id.c_str());
     if (info.valid) {
-      reply(409, "Switch away from theme mode or untick it in the carousel before removing this theme");
+      reply(409, "Switch away from this package or untick it in the carousel before removing it");
       return;
     }
   }
-  if (settings->themeId == id) {
-    settings->themeId = "";
+  bool clearTheme = settings->themeId == id;
+  bool clearPicture = settings->pictureId == id;
+  if (clearTheme || clearPicture) {
+    if (clearTheme) settings->themeId = "";
+    if (clearPicture) settings->pictureId = "";
     if (!saveSettings(*settings)) {
-      settings->themeId = id;
+      if (clearTheme) settings->themeId = id;
+      if (clearPicture) settings->pictureId = id;
       reply(500, "Could not clear saved selection");
       return;
     }
@@ -522,6 +594,9 @@ void themeWebBegin(WebServerClass& web, Settings& s, bool (*requireAuth)(), bool
   web.on("/api/themes", HTTP_GET, listThemes);
   web.on("/api/themes/install", HTTP_POST, finishUpload, receiveUpload);
   web.on("/api/themes/select", HTTP_POST, selectTheme);
+#if WITH_PICTURES
+  web.on("/api/pictures/select", HTTP_POST, selectPicture);
+#endif
   web.on("/api/themes/delete", HTTP_POST, deleteTheme);
   removeSidecars();
 #if defined(SMALLTV_ESP8266)
@@ -532,7 +607,7 @@ void themeWebBegin(WebServerClass& web, Settings& s, bool (*requireAuth)(), bool
   // the headers and the body, so an install frees the theme first. (The
   // ESP32 WebServer has no hooks, and has the heap.)
   web.addHook([](const String& method, const String& url, WiFiClient*, WebServerClass::ContentTypeFunction) {
-    if (method == "POST" && url == "/api/themes/install") g_themeMode.release(UINT32_MAX);
+    if (method == "POST" && url == "/api/themes/install") releaseModes(UINT32_MAX);
     return WebServerClass::CLIENT_REQUEST_CAN_CONTINUE;
   });
 #endif

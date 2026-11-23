@@ -1,11 +1,15 @@
 // StockClient.h — fetches ticker data from the configured source
-// (Naver Finance, Yahoo Finance, cash.ch, or a custom webhook)
+// (Naver Finance, Yahoo Finance, Binance, cash.ch, or a custom webhook)
 #pragma once
 #include <Arduino.h>
 #include "Settings.h"
 #include "StockData.h"
 
+#if WITH_CRYPTO
+#define NUM_STOCK_SETS 3
+#else
 #define NUM_STOCK_SETS 2
+#endif
 
 void  stocksInit(const Settings& s, uint8_t set = 0);        // (re)build list from settings
 void  stocksService(const Settings& s);                      // call often; self-times the polling

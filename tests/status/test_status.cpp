@@ -61,6 +61,7 @@ static std::string reference(const Case& c) {
   o["contstk"] = d.contstk;
   o["uptime"] = d.uptime;
   o["reset"] = d.reset;
+  if (d.safeMode) o["safeMode"] = true;
   o["synced"] = d.synced;
   if (d.time[0]) o["time"] = std::string(d.time);
   o["tz"] = std::string(d.tz);
@@ -76,6 +77,7 @@ static std::string reference(const Case& c) {
     for (const StatusTicker& d : c.tickers) {
       JsonObject t = arr.add<JsonObject>();
       t["symbol"] = d.symbol;
+      t["set"] = d.set;
       t["valid"] = d.valid;
       t["error"] = d.error;
       if (d.error) t["retryIn"] = d.retryIn;
@@ -189,8 +191,8 @@ static std::vector<Case> cases() {
   full.d.wg.endpointIp = "203.0.113.9";
   full.d.wg.lastHandshake = 1793532000;
   StatusTicker aapl{}; aapl.symbol = "AAPL"; aapl.valid = true; aapl.price = 189.37f; aapl.hasChange = true; aapl.changePct = -1.25f;
-  StatusTicker btc{};  btc.symbol = "BTC-USD"; btc.valid = true; btc.price = 67123.5f; btc.hasChange = true; btc.changePct = 12.5f; btc.onRange = true;
-  StatusTicker nochg{}; nochg.symbol = "^GSPC"; nochg.valid = true; nochg.price = 0.0001f;
+  StatusTicker btc{};  btc.symbol = "BTC-USD"; btc.set = 2; btc.valid = true; btc.price = 67123.5f; btc.hasChange = true; btc.changePct = 12.5f; btc.onRange = true;
+  StatusTicker nochg{}; nochg.symbol = "^GSPC"; nochg.set = 1; nochg.valid = true; nochg.price = 0.0001f;
   StatusTicker bad{};  bad.symbol = "NOPE"; bad.error = true; bad.retryIn = 45;
   StatusTicker both{}; both.symbol = "KEPT"; both.valid = true; both.error = true; both.retryIn = 0; both.price = 12.0f; both.hasChange = true; both.changePct = 0.0f;
   StatusTicker wait{}; wait.symbol = "SOON";
@@ -285,6 +287,15 @@ int main() {
     StringSink s2;
     { PieceWriter<128> out(s2); writeStatusCrash(out, a); out.flush(); }
     assert(s2.text == ",\"lastCrash\":{\"reason\":\"Abort/out of memory\",\"fw\":\"3.2.1\"}");
+    a.operation = "stock-refresh";
+    StringSink extended;
+    { PieceWriter<5> out(extended); writeStatusCrash(out, a); out.flush(); }
+    assert(extended.text.find("\"operation\":\"stock-refresh\"") != std::string::npos);
+    StatusData safe = idleData();
+    safe.safeMode = true;
+    StringSink recovery;
+    { PieceWriter<5> out(recovery); writeStatusHead(out, safe); out.flush(); }
+    assert(recovery.text.find("\"safeMode\":true") != std::string::npos);
   }
   std::printf("status reply tests passed (%d replies, byte for byte)\n", checked);
   return 0;

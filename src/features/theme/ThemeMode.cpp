@@ -4,11 +4,15 @@
 #include "Gfx.h"
 #include "Platform.h"
 #include "ThemeDataClient.h"
+#include "JpegPicture.h"
 #include <Arduino_GFX_Library.h>
 #include <font/glcdfont.h>
 #include <algorithm>
 
 ThemeMode g_themeMode;
+#if WITH_PICTURES
+ThemeMode g_pictureMode(true);
+#endif
 namespace {
 // Adapts the portable engine's Display interface to this device's actual
 // panel: glyphColumn() reads the built-in font from flash (PROGMEM), and
@@ -39,6 +43,11 @@ void ThemeMode::begin(const Settings&) {
   // An interrupted install leaves its staging file behind; boot is the one
   // point it is safe to remove without racing a request in progress.
   LittleFS.remove("/themes/.upload");
+}
+void ThemeMode::wake(const Settings& settings) {
+  if (!pictures_) clockReapply(settings, true);
+  engine_.invalidate();
+  messageDrawn_ = false;
 }
 // Drops every bit of state for the currently loaded theme -- the open
 // package/file, any in-flight or fetched data, and the engine itself -- so
@@ -105,27 +114,66 @@ void ThemeMode::refreshData() {
     break;
   }
 }
-// Called when the theme should be redrawn from scratch, e.g. when a
-// notification overlay just finished. Switches to a different theme by
-// unloading first; otherwise leaves the loaded package alone and only marks
-// the engine's next update() as a full repaint.
+String ThemeMode::selectedId(const Settings& s) {
+  return pictures_ ? pictureRuntimeId_ : s.themeId;
+}
+// The screensaver rotates only picture packages, never the two clock faces.
+// The runtime selection is deliberately not persisted on every transition.
+String ThemeMode::nextPicture(const String& current) const {
+#if WITH_PICTURES
+  std::vector<String> ids;
+  File dir = LittleFS.open("/themes", "r");
+  for (File entry = dir.openNextFile(); entry; entry = dir.openNextFile()) {
+    String name = entry.name();
+    if (entry.isDirectory() || !name.endsWith(".stheme")) continue;
+    int slash = name.lastIndexOf('/');
+    if (slash >= 0) name = name.substring(slash + 1);
+    String id = name.substring(0, name.length() - 7);
+    if (id == "pixel-motion" || id.startsWith("ultra-") || id.startsWith("picture-")) ids.push_back(id);
+  }
+  dir.close();
+  std::sort(ids.begin(), ids.end(), [](const String& a, const String& b) { return a < b; });
+  if (ids.empty()) return current;
+  for (size_t i = 0; i < ids.size(); ++i) if (ids[i] == current) return ids[(i + 1) % ids.size()];
+  return ids[0];
+#else
+  return current;
+#endif
+}
+// Called when the mode should be redrawn from scratch, e.g. when a
+// notification overlay just finished. A web settings save also returns the
+// screensaver to its configured starting picture and restarts its dwell.
 void ThemeMode::invalidate(const Settings& s) {
-  const bool onScreen = s.mode == MODE_THEME || (s.mode == MODE_CAROUSEL && s.carouselTheme);
-  if (loadedId_ != s.themeId || !onScreen) unload();
+  if (pictures_) {
+    pictureRuntimeId_ = s.pictureId;
+    pictureNextMs_ = millis() + uint32_t(s.pictureRotateSec) * 1000UL;
+  }
+  const bool onScreen = pictures_
+      ? (s.mode == MODE_PICTURES || (s.mode == MODE_CAROUSEL && s.carouselPictures))
+      : (s.mode == MODE_THEME || (s.mode == MODE_CAROUSEL && s.carouselTheme));
+  const String wanted = selectedId(s);
+  if (loadedId_ != wanted || !onScreen) unload();
   // A failed load may be retried after installation or settings changes.
   if (!package_) attempted_ = false;
   engine_.invalidate();
   messageDrawn_ = false;
 }
-// Per-frame entry point: loads the selected theme at most once per selection
-// (via `attempted_`, so a failed load is not retried every call -- only on
-// the next invalidate()/selection change), then renders it. `attempted_` and
-// `loadedId_` together are the load state machine; everything past the load
-// block runs every call once a package is open.
+// Per-frame entry point: loads the selected package at most once per selection
+// (via `attempted_`, so a failed load is not retried every call). In Pictures
+// mode an expired dwell selects the next package even after such a failure.
 void ThemeMode::service(const Settings& s) {
-  if (loadedId_ != s.themeId) {
+  if (pictures_) {
+    if (!pictureRuntimeId_.length()) pictureRuntimeId_ = s.pictureId;
+    if (!pictureNextMs_) pictureNextMs_ = millis() + uint32_t(s.pictureRotateSec) * 1000UL;
+    if (s.pictureAuto && static_cast<int32_t>(millis() - pictureNextMs_) >= 0) {
+      pictureRuntimeId_ = nextPicture(pictureRuntimeId_);
+      pictureNextMs_ = millis() + uint32_t(s.pictureRotateSec) * 1000UL;
+    }
+  }
+  const String wanted = selectedId(s);
+  if (loadedId_ != wanted) {
     unload();
-    loadedId_ = s.themeId;
+    loadedId_ = wanted;
   }
   // A web request, or the buffers of its reply, can briefly hold the heap a
   // load needs; the load then waits, checked again every frame.
@@ -138,21 +186,21 @@ void ThemeMode::service(const Settings& s) {
     attempted_ = true;
     std::string error;
     smalltv::Theme theme;
-    if (!smalltv::validId(s.themeId.c_str())) error = "Select an installed theme";
+    if (!smalltv::validId(wanted.c_str())) error = pictures_ ? "Select an installed picture" : "Select an installed theme";
     else {
       file_.reset(new ThemeFile);
-      if (!file_->open("/themes/" + s.themeId + ".stheme")) error = "Theme file not found";
+      if (!file_->open("/themes/" + wanted + ".stheme")) error = "Theme file not found";
       else {
         package_.reset(new smalltv::Package(*file_));
         if (!package_->load(theme, error)) package_.reset();
-        else if (theme.id != s.themeId.c_str()) {
+        else if (theme.id != wanted.c_str()) {
           error = "Theme ID mismatch";
           package_.reset();
         }
       }
     }
     if (!error.empty()) {
-      error_ = error.c_str();
+      error_ = pictures_ && error.find(".loop") != std::string::npos ? "Update picture library" : error.c_str();
       package_.reset();
       file_.reset();
     } else {
@@ -172,21 +220,27 @@ void ThemeMode::service(const Settings& s) {
   }
   if (!package_) {
     if (!messageDrawn_) {
-      gfxMessage("THEMES", error_.c_str(), C_WHITE);
+      gfxMessage(pictures_ ? "PICTURES" : "THEMES", error_.c_str(), C_WHITE);
       messageDrawn_ = true;
     }
     return;
   }
   refreshData();
   tm t{};
-  bool valid = clockNow(t);
+  bool valid = !pictures_ && clockNow(t);
   Panel panel;
   engine_.setLanguage(smalltv::languageFromCode(s.clock.lang.c_str()));
   auto dirty = engine_.update(millis(), valid ? &t : nullptr);
   // A render failure (a corrupt or truncated asset read mid-frame) is treated
   // like a load failure: drop the package and show an error rather than
   // risk repeatedly failing on every subsequent frame.
-  if (!smalltv::render(engine_, dirty, *package_, panel)) {
+  uint32_t jpegOffset = 0, jpegLength = 0;
+  const auto& layers = engine_.theme().layers;
+  const bool jpeg = layers.size() == 1 && package_->jpeg(package_->resolve(
+      smalltv::assetPath(layers[0], engine_.states()[0].frame)), jpegOffset, jpegLength);
+  const bool rendered = jpeg ? (dirty.empty() || drawJpegPicture(*file_, jpegOffset, jpegLength))
+                             : smalltv::render(engine_, dirty, *package_, panel);
+  if (!rendered) {
     dataRequests_.cancel();
     dataRequests_.take();
     error_ = "Could not read theme asset";

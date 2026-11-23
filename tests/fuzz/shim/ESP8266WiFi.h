@@ -33,5 +33,5 @@ struct EspClass {
   unsigned getFreeHeap() { return 0; }
 };
 extern EspClass ESP;
-inline void configTime(const char*, const char*, const char*) {}
+inline void configTime(const char*, const char*, const char*, const char* = nullptr) {}
 inline void analogWriteRange(int) {}

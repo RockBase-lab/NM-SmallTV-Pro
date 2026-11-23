@@ -12,8 +12,8 @@ const feat=between('var MODEOPT=','function modeChanged()');
 const collectCode=between('function collect(){','function saveAll(){');
 const tickerVars=between('var T_TEXT=','// IANA -> POSIX');  // field lists collect() reads
 
-const FEATS=['ticker','usage','radar','ha','theme'];
-const BOX={ticker:'carouselTicker',usage:'carouselUsage',radar:'carouselRadar',ha:'carouselHa',theme:'carouselTheme'};
+const FEATS=['ticker','usage','radar','ha','theme','pictures'];
+const BOX={ticker:'carouselTicker',usage:'carouselUsage',radar:'carouselRadar',ha:'carouselHa',theme:'carouselTheme',pictures:'carouselPictures'};
 
 // A fake page: elements by id. A feature section holds its carousel box.
 function makePage(ticked){
@@ -22,12 +22,14 @@ function makePage(ticked){
  add('mode',{value:'carousel'});add('carouselMin',{value:'1'});  // the page's dwell field is minutes
  add('brightness',{value:'80'});add('rotation',{value:'0'});
  add('hostname',{value:'smalltv-test'});add('apSsid',{value:'SmallTV-Test'});
+ add('pictureSelect',{value:'ultra-01'});add('pictureAuto',{checked:true});add('pictureRotateSec',{value:'10'});
  for(const f of FEATS){
   add(f,{remove(){delete els[f]}});
   add(BOX[f],{checked:!!ticked[f],closest(){return {remove(){delete els[BOX[f]]}}}});
  }
  const document={getElementById:id=>els[id]||null,querySelector:()=>null,querySelectorAll:()=>[]};
- const ctx={document,C:{},parseInt,parseFloat,Object,collectWifi:()=>[],toast:()=>{}};
+ const ctx={document,C:{},parseInt,parseFloat,Object,collectWifi:()=>[],toast:()=>{},
+  numIn:(v,fallback,min,max)=>Math.max(min,Math.min(max,parseInt(v,10)||fallback))};
  vm.createContext(ctx);
  vm.runInContext(helpers+feat+tickerVars+collectCode,ctx);
  return {ctx,els};
@@ -35,11 +37,11 @@ function makePage(ticked){
 
 // Build with every feature: each flag is sent as ticked.
 {
- const ticked={ticker:true,usage:false,radar:true,ha:false,theme:true};
+ const ticked={ticker:true,usage:false,radar:true,ha:false,theme:true,pictures:true};
  const {ctx}=makePage(ticked);
  const o=ctx.collect();
  for(const f of FEATS)assert.strictEqual(o[BOX[f]],ticked[f],'full build, '+BOX[f]);
- const flipped={ticker:false,usage:true,radar:false,ha:true,theme:false};
+ const flipped={ticker:false,usage:true,radar:false,ha:true,theme:false,pictures:false};
  const p=makePage(flipped);
  const o2=p.ctx.collect();
  for(const f of FEATS)assert.strictEqual(o2[BOX[f]],flipped[f],'full build flipped, '+BOX[f]);

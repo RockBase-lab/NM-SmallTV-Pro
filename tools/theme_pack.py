@@ -170,7 +170,7 @@ def font_glyphs(stf):
     return {chr(stf[6] + i) for i in range(stf[7]) if stf[12 + 8 * i + 2]}
 
 
-def build(directory):
+def build(directory, jpeg=False, jpeg_quality=60):
     root = Path(directory).resolve()
     manifest_path = root / 'theme.json'
     if manifest_path.stat().st_size > 16384:
@@ -240,7 +240,13 @@ def build(directory):
                 with Image.open(source_file(root, name)) as image:
                     if kind == 'animation' and image.size != (layer.get('width'), layer.get('height')):
                         raise ValueError('frame dimensions must match width and height')
-                    entries[asset_name] = encode_image(image, sti2)
+                    if jpeg:
+                        import io
+                        stream = io.BytesIO()
+                        image.convert('RGB').save(stream, format='JPEG', quality=jpeg_quality, optimize=True, progressive=False)
+                        entries[asset_name] = b'STJ1' + struct.pack('<HHI', *image.size, 0) + stream.getvalue()
+                    else:
+                        entries[asset_name] = encode_image(image, sti2)
             except (OSError, ValueError, Image.DecompressionBombError) as error:
                 raise ValueError(f'layers[{index}].source: {name}: {error}') from error
             if len(entries) > 256 or sum(map(len, entries.values())) > MAX_PACKAGE:

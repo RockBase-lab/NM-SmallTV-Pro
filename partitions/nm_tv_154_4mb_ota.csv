@@ -1,0 +1,13 @@
+# NMMiner NM-TV-154 4 MB flash layout for the full-feature firmware.
+# Two OTA app slots + 192 KiB LittleFS. The larger app slots make room for
+# ticker, weather, usage, radar, HA, themes, notifications and WireGuard while
+# retaining OTA updates. ASCII glyphs are built in; Hangul bitmap tables are not.
+#
+# This layout differs from partitions/smalltv_4mb_ota.csv. Install it with the
+# merged firmware.factory.bin over USB; an app-only OTA cannot change partitions.
+# Name,   Type, SubType, Offset,   Size,     Flags
+nvs,      data, nvs,     0x9000,   0x5000,
+otadata,  data, ota,     0xE000,   0x2000,
+app0,     app,  ota_0,   0x10000,  0x1E0000,
+app1,     app,  ota_1,   0x1F0000, 0x1E0000,
+spiffs,   data, spiffs,  0x3D0000, 0x30000,

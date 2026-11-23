@@ -30,6 +30,7 @@ class Package : public Assets {
   using Assets::row;
   bool row(AssetHandle handle, int y, int x, int count, uint16_t* colors, uint8_t* alpha) override;
   bool glyphRow(AssetHandle font, uint8_t code, int y, uint8_t* coverage, int& left, int& width) override;
+  bool jpeg(AssetHandle handle, uint32_t& offset, uint32_t& length) const;
  private:
   // Every animation frame is an entry, so an entry is kept small: its path
   // is not held in RAM (that took ~45 bytes more per frame), only its FNV-1a
@@ -40,6 +41,7 @@ class Package : public Assets {
     uint16_t width = 0, height = 0;
     uint8_t pathLength = 0, stride = 0;
     bool compressed = false;   // STI2: rows as runs (see row())
+    bool jpeg = false;
     uint8_t palette = 0;       // STI2 palette size, 0 for direct colours
     // A font has stride 0 (it is no image) and, unlike the manifest,
     // `compressed` set; its width is its first code point and its height
@@ -64,6 +66,7 @@ class Package : public Assets {
   std::vector<Glyph> glyphs_;
   bool samePath(const Entry& entry, const std::string& path) const;
   bool checkRows(const Entry& entry) const;
+  bool checkJpeg(const Entry& entry) const;
   bool checkFont(const Entry& entry) const;
   bool loadFonts(Theme& theme, std::string& error);
   size_t indexOf(const std::string& path) const;

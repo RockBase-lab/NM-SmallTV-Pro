@@ -5,7 +5,7 @@ description: Full screens pushed from Home Assistant over MQTT as small JSON dra
 
 The other features are things the device fetches itself. This one is the opposite: you publish a small JSON document to an MQTT topic, and the device draws it as a full 240×240 screen and keeps it in the carousel. A temperature warning, a door-left-open reminder, the day's energy total. Anything Home Assistant can template, the panel can show.
 
-This feature is not in `smalltv-mod-firmware-lean.bin`. That ESP8266 image compiles it out, and the web UI hides the tab when it is missing. Use `smalltv-mod-firmware.bin` on an ESP8266 that needs HA screens, or any of the ESP32 images. From v3.5.0 the standard image takes Home Assistant's memory only when a broker host is set (see [below](#switching-it-on-and-off-needs-a-restart)), so a device that does not use it gets most of that memory back without the lean image.
+This feature is omitted from the ESP8266 lean build and the current 8 MB Pro target. Both NM-TV-154 builds include it. The browser hides controls when the installed build lacks the feature. Home Assistant takes its screen-store memory only when a broker host is set (see [below](#switching-it-on-and-off-needs-a-restart)). See the [current manual](/NM-SmallTV-Pro/manual/user-manual-en/) for the hardware matrix.
 
 Because every screen is a retained message, the broker holds the last copy. The device can reboot, Home Assistant can reboot, and the screens come back on their own.
 
@@ -13,7 +13,7 @@ Brightness is on MQTT too, with its own topics and Home Assistant auto-discovery
 
 ## Pointing the device at your broker
 
-Open the settings page and find the MQTT card. Enter your broker's host, port (1883 by default), and an optional username and password, then save. The connection is plain TCP, not TLS, so keep the broker on your LAN.
+Open Display and find the MQTT/Home Assistant card. Enter your broker's host, port (1883 by default), and optional credentials, then save. After publishing compatible screen definitions, choose Home Assistant under General and save to display them. The connection is plain TCP, not TLS, so keep the broker on your LAN.
 
 The device identifies itself by its hostname, the same name you see in the web UI and browse to as `<hostname>.local`. That name appears in every topic below; the examples use `smalltv`.
 
@@ -153,12 +153,12 @@ The three blueprints below live in the repository and install the same way.
 The easy route, straight from the Home Assistant UI:
 
 1. Open **Settings → Automations & scenes → Blueprints → Import blueprint**.
-2. Paste the blueprint's GitHub URL, for example `https://github.com/giovi321/smalltv-mod/blob/main/blueprints/automation/smalltv/screen_board.yaml`. Home Assistant downloads and validates it, and tells you if anything is wrong.
+2. Paste the blueprint's GitHub URL, for example `https://github.com/RockBase-lab/NM-SmallTV-Pro/blob/main/blueprints/automation/smalltv/screen_board.yaml`. Home Assistant downloads and validates it, and tells you if anything is wrong.
 3. Open the blueprint and pick **Create automation**, fill in the inputs, save.
 
 The manual route, if you prefer files or run an older Home Assistant:
 
-1. Copy the YAML file from [`blueprints/automation/smalltv/`](https://github.com/giovi321/smalltv-mod/tree/main/blueprints/automation/smalltv/) to `config/blueprints/automation/smalltv/` on your Home Assistant host. The `automation` folder in that path is required; without it the blueprint is ignored.
+1. Copy the YAML file from [`blueprints/automation/smalltv/`](https://github.com/RockBase-lab/NM-SmallTV-Pro/tree/main/blueprints/automation/smalltv/) to `config/blueprints/automation/smalltv/` on your Home Assistant host. The `automation` folder in that path is required; without it the blueprint is ignored.
 2. Go to **Developer tools → YAML → Reload automations**. The blueprint shows up under **Settings → Blueprints**.
 
 Two things to know when updating to a newer version of a blueprint:
@@ -212,7 +212,7 @@ automation:
 
 Every time either sensor moves, the screen republishes; the retained message keeps the broker's copy current. The time-pattern trigger republishes within five minutes even if a state change slipped past, and the startup trigger puts the screen back after a Home Assistant restart.
 
-The same automation exists as an importable blueprint, with the sensors, delta, hostname, slot, and labels as inputs: [`blueprints/automation/smalltv/temp_compare.yaml`](https://github.com/giovi321/smalltv-mod/blob/main/blueprints/automation/smalltv/temp_compare.yaml) in the repository. Import it under **Settings → Automations & scenes → Blueprints → Import blueprint** by pasting that URL. Ready-made YAML for all of these examples also lives in [`examples/ha/`](https://github.com/giovi321/smalltv-mod/tree/main/examples/ha/).
+The same automation exists as an importable blueprint, with the sensors, delta, hostname, slot, and labels as inputs: [`blueprints/automation/smalltv/temp_compare.yaml`](https://github.com/RockBase-lab/NM-SmallTV-Pro/blob/main/blueprints/automation/smalltv/temp_compare.yaml) in the repository. Import it under **Settings → Automations & scenes → Blueprints → Import blueprint** by pasting that URL. Ready-made YAML for all of these examples also lives in [`examples/ha/`](https://github.com/RockBase-lab/NM-SmallTV-Pro/tree/main/examples/ha/).
 
 ## More than one screen
 
@@ -252,13 +252,13 @@ Slot order is the carousel order, so the leading `z` on `zenergy` is deliberate:
 
 ## A whole board from one blueprint
 
-Writing four near-identical automations gets old. The [`screen_board.yaml`](https://github.com/giovi321/smalltv-mod/blob/main/blueprints/automation/smalltv/screen_board.yaml) blueprint publishes up to four independent screens from a single automation, one retained message per slot. Each screen is a collapsed input section with an entity (any domain), an optional title (the entity's friendly name is used when empty), an icon from the built-in set, foreground and background colours, and a slot name. Each rendered screen is the icon centred at the top, the title below it, and the value in big type underneath, at y 30, 110, and 150 by default. Every position and size is a per-screen input, and the defaults recreate that classic layout. When a big bitmap crowds the top of the screen, move the icon up or push the title and value down to rebalance: a 24 px bitmap at scale 2 draws 48 px down from the icon's top edge. An empty entity disables that screen, unless you set its value template.
+Writing four near-identical automations gets old. The [`screen_board.yaml`](https://github.com/RockBase-lab/NM-SmallTV-Pro/blob/main/blueprints/automation/smalltv/screen_board.yaml) blueprint publishes up to four independent screens from a single automation, one retained message per slot. Each screen is a collapsed input section with an entity (any domain), an optional title (the entity's friendly name is used when empty), an icon from the built-in set, foreground and background colours, and a slot name. Each rendered screen is the icon centred at the top, the title below it, and the value in big type underneath, at y 30, 110, and 150 by default. Every position and size is a per-screen input, and the defaults recreate that classic layout. When a big bitmap crowds the top of the screen, move the icon up or push the title and value down to rebalance: a 24 px bitmap at scale 2 draws 48 px down from the icon's top edge. An empty entity disables that screen, unless you set its value template.
 
 The title, value, icon, foreground, and background of each screen also take an optional Jinja template, which you edit in a template editor in the blueprint UI. A template that is set wins over its static input; one left empty, or one that renders to an empty string, falls back to the static value. With the value template set you can skip the entity entirely and treat the screen like a small Lovelace card: combine two sensors into one line, switch the icon between `window-open` and `window-closed`, turn the foreground red above a threshold.
 
 Text always fits the panel. Each line gets a 232 px budget (a 4 px margin on each side). The title stays a single line: like the value, it takes a minimum and maximum size per screen (1 to 2 by default), uses the largest scale in that range that fits, and cuts longer text at the smallest size. The value line takes a minimum and maximum text size per screen (scales 1 to 4, the full range by default). The blueprint picks the largest size in that range that fits on one line; text that does not fit even at the smallest size wraps onto up to four lines at that size, and only the last line is cut if the text runs longer. A runaway template cannot overflow the screen or break the JSON. Other failures degrade instead of breaking the board: a template that renders a malformed colour makes the device skip that primitive, an unknown icon name draws no icon, and the rest of the screen still draws.
 
-Templates do not add triggers. List every entity your templates use in the `watched_entities` input, or that screen only refreshes on the one-minute safety timer. Slot names sort lexicographically and must be unique per device across every automation publishing to the same hostname. Import it like the window blueprint above; a filled-in example with one templated screen lives in [`examples/ha/screen_board_instance.md`](https://github.com/giovi321/smalltv-mod/blob/main/examples/ha/screen_board_instance.md).
+Templates do not add triggers. List every entity your templates use in the `watched_entities` input, or that screen only refreshes on the one-minute safety timer. Slot names sort lexicographically and must be unique per device across every automation publishing to the same hostname. Import it like the window blueprint above; a filled-in example with one templated screen lives in [`examples/ha/screen_board_instance.md`](https://github.com/RockBase-lab/NM-SmallTV-Pro/blob/main/examples/ha/screen_board_instance.md).
 
 Each screen also takes a custom bitmap: a hex string from the MDI converter above, at 24, 32, or 48 px, pasted into a multiline field. A bitmap that is set wins over the icon template and the icon picker, and draws centred at the icon spot in the resolved foreground colour. A template variant of the field renders to a hex string and can switch bitmaps by state; when it renders non-empty it wins over the pasted bitmap, and the size picker still applies. A separate scale input (1 to 4, default 2) upscales the bitmap on the device, so a 24 px source at scale 2 draws 48 px while the payload stays small. The hex length must match the size picker (144 chars for 24 px, 256 for 32 px, 576 for 48 px) or the firmware silently skips the bitmap.
 
@@ -301,11 +301,11 @@ which fits the ESP8266's ~700 B budget. Adding a per-column icon costs roughly
 60 bytes each, so on an ESP8266 an icon means dropping the title or moving the
 unit onto the value line. The ESP32 builds have ~2 KB and do not care. The full
 automation, with triggers and an availability guard, is in
-[`examples/ha/dual_sensor_two_temperatures.yaml`](https://github.com/giovi321/smalltv-mod/blob/main/examples/ha/dual_sensor_two_temperatures.yaml).
+[`examples/ha/dual_sensor_two_temperatures.yaml`](https://github.com/RockBase-lab/NM-SmallTV-Pro/blob/main/examples/ha/dual_sensor_two_temperatures.yaml).
 
 ### The same screen from a blueprint
 
-[`dual_sensor.yaml`](https://github.com/giovi321/smalltv-mod/blob/main/blueprints/automation/smalltv/dual_sensor.yaml)
+[`dual_sensor.yaml`](https://github.com/RockBase-lab/NM-SmallTV-Pro/blob/main/blueprints/automation/smalltv/dual_sensor.yaml)
 publishes that layout from inputs, and sizes the text for you: each column's
 label and value take a minimum and maximum size, the blueprint picks the
 largest that fits 112 px, and cuts the string at the smallest size if even that
@@ -468,7 +468,7 @@ font and is dropped silently, leaving the row as ` °C`. The full character set
 is listed under [Drawing on the screen](#drawing-on-the-screen).
 
 A filled-in instance, with the threshold colour wired up, is in
-[`examples/ha/dual_sensor_instance.md`](https://github.com/giovi321/smalltv-mod/blob/main/examples/ha/dual_sensor_instance.md).
+[`examples/ha/dual_sensor_instance.md`](https://github.com/RockBase-lab/NM-SmallTV-Pro/blob/main/examples/ha/dual_sensor_instance.md).
 Two icons plus a title bring that one to about 715 bytes, just past the
 ESP8266's limit; the file lists what to turn off to get back under it.
 

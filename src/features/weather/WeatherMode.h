@@ -18,6 +18,16 @@ class WeatherMode : public DisplayMode {
   uint32_t renderedLastOk_ = 0xFFFFFFFF;
   bool     renderedError_ = false;
   bool     needRender_ = true;
+  float latitude_ = 999;
+  float longitude_ = 999;
+  uint32_t renderedMinute_ = 0xffffffff;
+  int renderedSecond_ = -1;
+  uint8_t activeStyle_ = 0;
+  uint32_t nextStyleMs_ = 0;
+  uint32_t dashboardStartedMs_ = 0;
+  uint32_t dashboardNetworkMs_ = 0;
+  uint8_t renderedSpacemanFrame_ = 255;
+  char renderedDashboardInfo_[40] = {};
 };
 
 extern WeatherMode g_weatherMode;

@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SmallTV</title>
+<title>NMMiner SmallTV Pro</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+PGcgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMjJjNTVlIiBzdHJva2Utd2lkdGg9IjMiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHJlY3QgeD0iNyIgeT0iMTMiIHdpZHRoPSI1MCIgaGVpZ2h0PSIzOCIgcng9IjYiLz48cG9seWxpbmUgcG9pbnRzPSIxNSwzOCAyMywzMCAzMCwzNCAzNywyMiA0NCwyOCA1MCwyMCIvPjxwYXRoIGQ9Ik0yNCA1MXY2TTQwIDUxdjZNMjAgNTdoOE0zNiA1N2g4Ii8+PC9nPjwvc3ZnPg==">
 <style>
 :root{--bg:#0e1116;--card:#171c24;--mut:#8b96a5;--fg:#e6edf3;--acc:#3fb950;--acc2:#2f81f7;--red:#f85149;--bd:#262d38}
 *{box-sizing:border-box}
 body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--fg);font-size:15px}
-header{padding:14px 16px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:10px}
+header{padding:14px 16px;border-bottom:1px solid var(--bd);display:flex;align-items:center;flex-wrap:wrap;gap:10px}
 header h1{font-size:17px;margin:0;font-weight:600}
 header .logo{width:26px;height:26px;flex:0 0 auto}
 header .dot{width:9px;height:9px;border-radius:50%;background:var(--mut)}
@@ -22,7 +22,7 @@ main{padding:16px;max-width:680px;margin:0 auto}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px;margin-bottom:14px}
 h2{font-size:14px;text-transform:uppercase;letter-spacing:.04em;color:var(--mut);margin:0 0 12px}
 label{display:block;margin:10px 0 4px;font-size:13px;color:var(--mut)}
-input[type=text],input[type=password],input[type=number],input[type=url],input[type=time],select{
+input[type=text],input[type=search],input[type=password],input[type=number],input[type=url],input[type=time],select{
  width:100%;padding:9px 10px;background:#0b0e13;border:1px solid var(--bd);border-radius:8px;color:var(--fg);font-size:15px}
 input[type=range]{width:100%}
 .row{display:flex;gap:10px}.row>*{flex:1}
@@ -51,127 +51,107 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
 .chip{display:inline-block;margin-left:8px;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;letter-spacing:.03em;background:var(--acc2);color:#fff;vertical-align:middle}
 </style></head>
 <body>
-<header><svg class="logo" viewBox="0 0 64 64" aria-hidden="true"><g fill="none" stroke="var(--acc)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="13" width="50" height="38" rx="6"/><polyline points="15,38 23,30 30,34 37,22 44,28 50,20"/><path d="M24 51v6M40 51v6M20 57h8M36 57h8"/></g></svg><span id="dot" class="dot"></span><h1>SmallTV</h1><span id="chip" class="chip" style="display:none"></span><span id="hi" class="muted"></span></header>
+<header><svg class="logo" viewBox="0 0 64 64" aria-hidden="true"><g fill="none" stroke="var(--acc)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="13" width="50" height="38" rx="6"/><polyline points="15,38 23,30 30,34 37,22 44,28 50,20"/><path d="M24 51v6M40 51v6M20 57h8M36 57h8"/></g></svg><span id="dot" class="dot"></span><h1>NMMiner SmallTV Pro</h1><span id="chip" class="chip" style="display:none"></span><span id="hi" class="muted"></span><select id="uiLang" aria-label="Language" onchange="setLanguage(this.value)" style="width:auto;min-width:100px;margin-left:auto;padding:6px 8px"><option value="en">English</option><option value="zh">中文</option></select></header>
 <nav>
  <button data-t="status" class="active">Status</button>
  <button data-t="general">General</button>
- <button data-t="ticker">Stock 1 (Domestic)</button>
- <button data-t="ticker2">Stock 2 (Overseas)</button>
+ <button data-t="ticker">Stock 1</button>
+ <button data-t="ticker2">Stock 2</button>
+ <button data-t="crypto">Crypto</button>
  <button data-t="weather">Weather</button>
+ <button data-t="radar">Plane Radar</button>
  <button data-t="display">Display</button>
+ <button data-t="pictures">Pictures</button>
  <button data-t="wifi">WiFi</button>
  <button data-t="update">System</button>
 </nav>
 <main>
  <!-- STATUS -->
  <section id="status" class="tab active">
+  <div class="req" id="recoveryBox" style="display:none" role="status"><b>Safe mode after a crash</b><small class="hint">Display apps are paused. Record Last reset and Last crash below, then try System → Reboot. If it happens again, capture the serial log and install a compatible fix. An OTA update is not always required.</small></div>
   <div class="card"><h2>Device</h2><div id="statusBox" class="muted">Loading...</div></div>
  </section>
 
  <!-- GENERAL (Mode & Carousel) -->
  <section id="general" class="tab">
-  <div class="card"><h2>Mode (작동 모드)</h2>
-   <label>What this device shows (화면 표시 모드)</label>
+  <div class="card"><h2>Start here</h2>
+   <small class="hint">1. Connect WiFi. 2. Choose your city in Weather and check the timezone in Display. 3. Select a mode below and save. Configure optional services before adding them to Carousel.</small>
+   <small class="hint">Save settings saves edits across all tabs. Show picture, Use theme and Save and show radar also switch the active app.</small>
+  </div>
+  <div class="card"><h2>Mode</h2>
+   <label>What this device shows</label>
    <select id="mode" onchange="modeChanged()">
-    <option value="timer">Timer (Schedule by time / 시간대별 설정)</option>
-    <option value="carousel">Carousel (rotate modes / 자동 순환)</option>
+    <option value="timer">Timer (schedule by time)</option>
+    <option value="carousel">Carousel (rotate modes)</option>
    </select>
    <div id="timerRow" style="display:none">
-    <label style="margin-top:12px;margin-bottom:6px">App Timers (시간대별 앱 실행 타이머, 총 4개)</label>
-    <small class="hint" style="margin-bottom:12px">지정된 시각(시:분)이 되면 해당 앱이 자동으로 실행되어 다음 타이머 시각까지 유지됩니다.</small>
+    <label style="margin-top:12px;margin-bottom:6px">App Timers (4)</label>
+    <small class="hint" style="margin-bottom:12px">At each set time (HH:MM), the selected app runs until the next timer.</small>
     <div class="row" style="align-items:center;margin-bottom:8px">
      <div style="flex:0 0 75px"><label style="margin:0;font-weight:600">Timer 1</label></div>
      <div style="flex:1"><input id="timerTime0" type="time" value="06:00"></div>
-     <div style="flex:1.5">
-      <select id="timerApp0">
-       <option value="weather">Weather (날씨)</option>
-       <option value="stocks">Stock 1 (국내주식)</option>
-       <option value="stocks2">Stock 2 (해외주식)</option>
-      </select>
-     </div>
+     <div style="flex:1.5"><select id="timerApp0"></select></div>
      <div style="flex:0 0 40px;text-align:right" class="chk"><input id="timerEn0" type="checkbox" checked><label></label></div>
     </div>
     <div class="row" style="align-items:center;margin-bottom:8px">
      <div style="flex:0 0 75px"><label style="margin:0;font-weight:600">Timer 2</label></div>
      <div style="flex:1"><input id="timerTime1" type="time" value="09:00"></div>
-     <div style="flex:1.5">
-      <select id="timerApp1">
-       <option value="stocks">Stock 1 (국내주식)</option>
-       <option value="stocks2">Stock 2 (해외주식)</option>
-       <option value="weather">Weather (날씨)</option>
-      </select>
-     </div>
+     <div style="flex:1.5"><select id="timerApp1"></select></div>
      <div style="flex:0 0 40px;text-align:right" class="chk"><input id="timerEn1" type="checkbox" checked><label></label></div>
     </div>
     <div class="row" style="align-items:center;margin-bottom:8px">
      <div style="flex:0 0 75px"><label style="margin:0;font-weight:600">Timer 3</label></div>
      <div style="flex:1"><input id="timerTime2" type="time" value="15:30"></div>
-     <div style="flex:1.5">
-      <select id="timerApp2">
-       <option value="weather">Weather (날씨)</option>
-       <option value="stocks">Stock 1 (국내주식)</option>
-       <option value="stocks2">Stock 2 (해외주식)</option>
-      </select>
-     </div>
+     <div style="flex:1.5"><select id="timerApp2"></select></div>
      <div style="flex:0 0 40px;text-align:right" class="chk"><input id="timerEn2" type="checkbox" checked><label></label></div>
     </div>
     <div class="row" style="align-items:center;margin-bottom:8px">
      <div style="flex:0 0 75px"><label style="margin:0;font-weight:600">Timer 4</label></div>
      <div style="flex:1"><input id="timerTime3" type="time" value="23:30"></div>
-     <div style="flex:1.5">
-      <select id="timerApp3">
-       <option value="stocks2">Stock 2 (해외주식)</option>
-       <option value="stocks">Stock 1 (국내주식)</option>
-       <option value="weather">Weather (날씨)</option>
-      </select>
-     </div>
+     <div style="flex:1.5"><select id="timerApp3"></select></div>
      <div style="flex:0 0 40px;text-align:right" class="chk"><input id="timerEn3" type="checkbox" checked><label></label></div>
     </div>
    </div>
    <div id="carouselRow">
-    <label>Switch mode every (순환 주기, 분)</label><input id="carouselMin" type="number" min="0.5" max="120" step="0.5" placeholder="예: 1 또는 3">
-    <label style="margin-top:12px;margin-bottom:6px">Rotate through apps (순환에 포함할 앱 선택)</label>
-    <div class="chk"><input id="carouselTicker" type="checkbox"><label>Stock 1 (국내주식)</label></div>
-    <div class="chk"><input id="carouselTicker2" type="checkbox"><label>Stock 2 (해외주식)</label></div>
-    <div class="chk"><input id="carouselWeather" type="checkbox"><label>Weather (날씨)</label></div>
+    <label>Switch mode every (minutes)</label><input id="carouselMin" type="number" min="0.0833333" max="60" step="any" placeholder="e.g. 1 or 3">
+    <label style="margin-top:12px;margin-bottom:6px">Rotate through apps</label>
+    <div id="carouselApps"></div>
    </div>
-   <small class="hint">Timer(시간대별 설정)를 선택하면 지정된 시각부터 해당 앱이 실행되고, Carousel(자동 순환)을 선택하면 체크된 앱들이 설정한 순환 주기(분)마다 번갈아가며 자동으로 화면에 표시됩니다.</small>
+   <small class="hint">Timer runs the app selected for each time. Carousel automatically rotates through the checked apps at the interval above.</small>
   </div>
-  <div class="card" id="burninCard"><h2>Screen Refresh &amp; Burn-in Prevention (화면 번인 방지)</h2>
-   <div class="chk"><input id="burninEnabled" type="checkbox" onchange="burninToggled()"><label>Enable screen refresh (화면 번인 방지 화면 전환 사용)</label></div>
+  <div class="card" id="burninCard"><h2>Screen Refresh &amp; Burn-in Prevention</h2>
+   <div class="chk"><input id="burninEnabled" type="checkbox" onchange="burninToggled()"><label>Enable screen refresh</label></div>
    <div id="burninSettings">
-    <label>Trigger mode (실행 방식)</label>
+    <label>Trigger mode</label>
     <select id="burninTriggerType" onchange="burninTriggerChanged()">
-     <option value="interval">Every N minutes (정해진 주기마다)</option>
-     <option value="time">Daily at set time (매일 지정 시각에)</option>
+     <option value="interval">Every N minutes</option>
+     <option value="time">Daily at set time</option>
     </select>
     <div id="burninIntervalRow">
-     <label>Run every (실행 주기, 분)</label>
-     <input id="burninIntervalMin" type="number" min="1" max="1440" step="1" placeholder="예: 60 (1시간마다) 또는 30 (30분마다)">
-     <small class="hint">시계가 동기화되어 있을 때는 매 정각(00분) 및 지정 분 간격에 맞춰 깔끔하게 자동 실행됩니다.</small>
+     <label>Run every (minutes)</label>
+     <input id="burninIntervalMin" type="number" min="1" max="1440" step="1" placeholder="e.g. 60 or 30">
+     <small class="hint">When the clock is synchronized, interval refreshes align to the hour and the selected minute interval.</small>
     </div>
     <div id="burninTimeRow" style="display:none">
-     <label>Run daily at (실행 시각, HH:MM)</label>
-     <input id="burninTimeStr" type="text" placeholder="예: 12:00 또는 15:30" maxlength="5">
-     <small class="hint">하루에 한 번 지정된 시각(24시간 형식)에 화면 전환 효과를 실행합니다.</small>
+     <label>Run daily at (HH:MM)</label>
+     <input id="burninTimeStr" type="text" placeholder="e.g. 12:00 or 15:30" maxlength="5">
+     <small class="hint">Runs the transition effect once a day at the specified 24-hour time.</small>
     </div>
-    <label style="margin-top:12px">Display duration (화면 유지 시간, 초)</label>
-    <input id="burninDurationSec" type="number" min="1" max="300" step="1" placeholder="예: 10 (초)">
-    <label style="margin-top:12px">Transition effect (화면 전환 효과)</label>
+    <label style="margin-top:12px">Display duration (seconds)</label>
+    <input id="burninDurationSec" type="number" min="1" max="300" step="1" placeholder="e.g. 10">
+    <label style="margin-top:12px">Transition effect</label>
     <select id="burninEffect">
-     <option value="matrix">Matrix Rain (매트릭스 레인 - 레트로 감성 디지털 코드 비)</option>
-     <option value="rainbow">Rainbow Bars (레인보우 컬러 바 - RGB 서브픽셀 균등 에이징)</option>
-     <option value="starfield">3D Starfield (3D 별빛 우주 - 3차원 공간 비행 워프)</option>
-     <option value="black">Deep Black (완전 블랙 - 액정 전하 방전 및 완전 휴식)</option>
-     <option value="white">Pure White (화이트 클리어 - LCD 잔상 복원 표준, 서브픽셀 100% 활성화)</option>
-     <option value="snow">TV Snow (아날로그 노이즈 - 레트로 TV 지지직 노이즈)</option>
-     <option value="mascot">Animated Mascot (마스코트 애니메이션 - 귀여운 닭/캐릭터)</option>
+     <option value="matrix">Matrix Rain</option>
+     <option value="rainbow">Rainbow Bars</option>
+     <option value="starfield">3D Starfield</option>
+     <option value="black">Deep Black</option>
+     <option value="white">Pure White</option>
+     <option value="snow">TV Snow</option>
+     <option value="mascot">Animated Mascot</option>
     </select>
-    <div style="margin-top:14px">
-     <button class="btn sec" type="button" onclick="previewBurnin()">Preview now (지금 바로 미리보기, 5초)</button>
-    </div>
+    <div style="margin-top:14px"><button class="btn sec" type="button" onclick="previewBurnin()">Preview now (5 seconds)</button></div>
    </div>
-   <small class="hint">주식 차트나 고정된 UI가 장시간 표시될 때 발생하는 IPS LCD 액정의 잔상(Image Retention) 및 번인 현상을 방지하기 위해, 앱 자동 순환과는 별개로 주기적으로 화면을 전환하여 액정 소자를 리프레시합니다. 화면 전환 중 기기 상단 터치 버튼을 누르면 즉시 원래 화면으로 복귀합니다.</small>
+   <small class="hint">Periodic transitions refresh the LCD independently of app rotation, reducing image retention from charts and fixed interfaces. Touch the top button during a refresh to return immediately.</small>
   </div>
   <button class="btn" onclick="saveAll()">Save settings</button>
  </section>
@@ -262,7 +242,7 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
     <option value="0">Nothing</option>
     <option value="1">Screen off (~1s)</option>
     <option value="2">Home (first page)</option>
-    <option value="3">Next page (pause carousel)</option>
+    <option value="3">Next page</option>
     <option value="4">Show network / IP</option>
     <option value="5">Wake screen</option>
     <option value="6">Acknowledge notification</option>
@@ -272,28 +252,32 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
     <option value="0">Nothing</option>
     <option value="1">Screen off (~1s)</option>
     <option value="2">Home (first page)</option>
-    <option value="3">Next page (pause carousel)</option>
+    <option value="3">Next page</option>
     <option value="4">Show network / IP</option>
     <option value="5">Wake screen</option>
     <option value="6">Acknowledge notification</option>
    </select>
    <label>Touch sensitivity: <span id="btnSensVal"></span>%</label>
    <input id="btnSens" type="range" min="50" max="99" oninput="btnSensVal.textContent=this.value">
-   <small class="hint">The capacitive button reads pressed when its touch value drops below this percent of the idle baseline. Lower = firmer touch needed; higher = more sensitive. Next page freezes the carousel on the current page; Home resumes it.</small>
+   <small class="hint">Next page advances to the next selected app in Carousel. Timer previews another app for 15 seconds. Home returns to the configured mode.</small>
   </div>
   <div class="card"><h2>Clock &amp; night mode</h2>
    <label>Timezone</label>
+   <input id="tzQuery" type="search" placeholder="Filter timezones / 搜索时区" aria-label="Filter timezones">
    <select id="tz"></select>
+   <small id="timezoneMsg" class="hint" role="status">Search by city, country, or IANA timezone. Daylight saving follows the device rule.</small>
    <label>Language <span class="muted">(month and weekday names on spec 2 themes)</span></label>
    <select id="lang"><option value="en">English</option><option value="pt">Portugu&ecirc;s</option><option value="es">Espa&ntilde;ol</option><option value="fr">Fran&ccedil;ais</option><option value="de">Deutsch</option><option value="it">Italiano</option></select>
+   <label>Custom NTP server (optional)</label><input id="ntpServer" type="text" maxlength="63" placeholder="pool.ntp.org">
+   <small class="hint">Leave blank for the built-in servers. A custom server is tried first, with pool.ntp.org and time.nist.gov as fallbacks.</small>
    <div class="muted" id="clockNow" style="margin:8px 0">Clock: -</div>
-   <label>Device location</label>
+   <label>Device location</label><input id="locName" type="hidden">
    <div class="row">
-    <div><input id="locLat" type="number" step="0.0001" placeholder="latitude, e.g. 52.3676"></div>
-    <div><input id="locLon" type="number" step="0.0001" placeholder="longitude, e.g. 4.9041"></div>
+    <div><input id="locLat" type="number" step="0.0001" placeholder="latitude, e.g. 52.3676" onchange="weatherCoordEdited(false)"></div>
+    <div><input id="locLon" type="number" step="0.0001" placeholder="longitude, e.g. 4.9041" onchange="weatherCoordEdited(false)"></div>
    </div>
    <div class="row">
-    <div><input id="locQ" type="text" placeholder="Search a place" onkeydown="if(event.key==='Enter')placeSearch()"></div>
+    <div><input id="locQ" type="search" placeholder="Search a place / 城市名称" aria-label="Device city"></div>
     <div><button class="btn sec" onclick="placeSearch()">Search</button></div>
    </div>
    <select id="locRes" style="display:none" onchange="placePick()"></select>
@@ -321,7 +305,8 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
 
  <!-- TICKER (feature) -->
  <section id="ticker" class="tab">
-  <div class="card"><h2>Live data (Stock 1 - Domestic / 국내주식)</h2><div id="tickBox" class="muted">-</div>
+  <small class="hint">Defaults: Samsung (Naver), NVIDIA and Apple (Yahoo). No API key needed; 1-month line charts.</small>
+  <div class="card"><h2>Live data (Stock 1)</h2><div id="tickBox" class="muted">-</div>
    <button class="btn sec" style="margin-top:10px" onclick="refreshNow()">Refresh data now</button>
    <small class="hint">What the device holds right now for each ticker. Green is a good fetch, red means the last fetch failed and the device is retrying it on its own.</small></div>
   <div class="card"><h2>Rotation &amp; data</h2>
@@ -331,19 +316,19 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
    </div>
    <div class="row">
     <div class="row">
-     <div><label>Chart style (차트 종류)</label>
+     <div><label>Chart style</label>
       <select id="chartStyle">
-       <option value="candle">Candlestick (봉차트)</option>
-       <option value="line">Line chart (선차트)</option>
+       <option value="candle">Candlestick</option>
+       <option value="line">Line chart</option>
       </select></div>
     </div>
     <div><label>Chart timeframe</label>
      <select id="range">
-      <option value="1m">1 min (1분)</option><option value="5m">5 min (5분)</option>
-      <option value="30m">30 min (30분)</option><option value="60m">60 min (60분)</option>
-      <option value="1d">1 day (1일)</option><option value="5d">5 days (5일)</option>
-      <option value="1mo">1 month (1달)</option><option value="3mo">3 months (3달)</option>
-      <option value="6mo">6 months (6달)</option><option value="1y">1 year (1년)</option>
+      <option value="1m">1 min</option><option value="5m">5 min</option>
+      <option value="30m">30 min</option><option value="60m">60 min</option>
+      <option value="1d">1 day</option><option value="5d">5 days</option>
+      <option value="1mo">1 month</option><option value="3mo">3 months</option>
+      <option value="6mo">6 months</option><option value="1y">1 year</option>
       <option value="ytd">Year to date</option><option value="max">Max</option>
      </select></div>
     <div><label>Chart points</label><input id="points" type="number" min="0" max="60"></div>
@@ -355,7 +340,7 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
       <option value="false">1 day</option>
      </select></div>
    </div>
-   <small class="hint">Chart timeframe: the change, arrow, colors, and chart cover the same span, so they agree. Needs chart data (2+ points); without it the device falls back to the 1-day change. At 1 day it measures from the session's first data point, so overnight gaps are not counted. 1 day: the classic change vs the previous close, which can point the other way than a longer chart.</small>
+   <small class="hint">Chart timeframe: the change, arrow, colors, and chart cover the same span. 1 day: classic change vs previous close.</small>
    <label>Webhook URL <span class="muted">(only for tickers set to Webhook)</span></label>
    <input id="webhookUrl" type="url" placeholder="http://n8n.local:5678/webhook/stock">
   </div>
@@ -378,6 +363,16 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
    <button class="btn sec" style="margin-top:10px" onclick="addSym()">+ Add ticker</button>
    <small class="hint" id="symHint"></small>
   </div>
+  <div class="card"><h2>Market presets (Yahoo Finance)</h2>
+   <div class="row"><select id="marketPreset_1">
+    <option value="AAPL|Apple">US: Apple (AAPL)</option><option value="NVDA|NVIDIA">US: NVIDIA (NVDA)</option><option value="MSFT|Microsoft">US: Microsoft (MSFT)</option>
+    <option value="005930.KS|Samsung Elec">Korea: Samsung (005930.KS)</option><option value="000660.KS|SK hynix">Korea: SK hynix (000660.KS)</option><option value="035420.KS|NAVER">Korea: NAVER (035420.KS)</option>
+    <option value="7203.T|Toyota">Japan: Toyota (7203.T)</option><option value="6758.T|Sony">Japan: Sony (6758.T)</option><option value="9984.T|SoftBank">Japan: SoftBank (9984.T)</option>
+    <option value="0700.HK|Tencent">Hong Kong: Tencent (0700.HK)</option><option value="9988.HK|Alibaba">Hong Kong: Alibaba (9988.HK)</option><option value="0005.HK|HSBC">Hong Kong: HSBC (0005.HK)</option>
+    <option value="600519.SS|Moutai">China A: Moutai (600519.SS)</option><option value="000001.SZ|Ping An Bank">China A: Ping An Bank (000001.SZ)</option><option value="300750.SZ|CATL">China A: CATL (300750.SZ)</option>
+   </select><button class="btn sec" style="flex:0 0 auto" onclick="addMarketPreset(1)">Add market ticker</button></div>
+   <small class="hint">Yahoo Finance public chart data needs no API key. Public endpoints may be rate-limited or change; the device retries automatically.</small>
+  </div>
   <div class="card"><h2>cash.ch symbol finder</h2>
    <label>Instrument <span class="muted">(paste a cash.ch link, ISIN, valor, or a name)</span></label>
    <div class="row">
@@ -389,11 +384,9 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
   </div>
  </section>
 
- <!-- USAGE
-
-  <!-- TICKER 2 (feature) -->
+ <!-- TICKER 2 (feature) -->
   <section id="ticker2" class="tab">
-   <div class="card"><h2>Live data (Stock 2 - Overseas / 해외주식)</h2><div id="tickBox2" class="muted">-</div>
+   <div class="card"><h2>Live data (Stock 2)</h2><div id="tickBox2" class="muted">-</div>
     <button class="btn sec" style="margin-top:10px" onclick="refreshNow()">Refresh data now</button>
     <small class="hint">What the device holds right now for Stock 2 tickers.</small></div>
    <div class="card"><h2>Rotation &amp; data</h2>
@@ -402,19 +395,19 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
      <div><label>Refresh data (s)</label><input id="pollSec_2" type="number" min="10" max="3600"></div>
     </div>
     <div class="row">
-     <div><label>Chart style (차트 종류)</label>
+     <div><label>Chart style</label>
       <select id="chartStyle_2">
-       <option value="candle">Candlestick (봉차트)</option>
-       <option value="line">Line chart (선차트)</option>
+       <option value="candle">Candlestick</option>
+       <option value="line">Line chart</option>
       </select></div>
     </div>
     <div class="row">
      <div><label>Chart timeframe</label>
       <select id="range_2">
-       <option value="1m">1 min (1분)</option><option value="5m">5 min (5분)</option>
-       <option value="30m">30 min (30분)</option><option value="60m">60 min (60분)</option>
-       <option value="1d">1 day (1일봉)</option><option value="1w">1 week (주봉)</option>
-       <option value="1mo">1 month (월봉)</option><option value="1y">1 year (연봉)</option>
+       <option value="1m">1 min</option><option value="5m">5 min</option>
+       <option value="30m">30 min</option><option value="60m">60 min</option>
+       <option value="1d">1 day</option><option value="1w">1 week</option>
+       <option value="1mo">1 month</option><option value="1y">1 year</option>
       </select></div>
      <div><label>Chart points</label><input id="points_2" type="number" min="0" max="60"></div>
     </div>
@@ -448,44 +441,164 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
     <button class="btn sec" style="margin-top:10px" onclick="addSym(2)">+ Add ticker</button>
     <small class="hint" id="symHint2"></small>
    </div>
-  </section>
- (feature) -->
-  <!-- WEATHER (feature) -->
-  <section id="weather" class="tab">
-   <div class="card"><h2>Weather Data Refresh (날씨 데이터 갱신 주기)</h2>
-    <label>Refresh weather every (날씨 데이터 갱신 주기, 분)</label>
-    <input id="weatherPollMin" type="number" min="1" max="1440" step="1" placeholder="10">
-    <small class="hint">wttr.in에서 실시간 날씨 데이터를 가져오는 주기(분 단위, 기본 10분)입니다.</small>
+   <div class="card"><h2>Market presets (Yahoo Finance)</h2>
+    <div class="row"><select id="marketPreset_2">
+     <option value="AAPL|Apple">US: Apple (AAPL)</option><option value="NVDA|NVIDIA">US: NVIDIA (NVDA)</option><option value="MSFT|Microsoft">US: Microsoft (MSFT)</option>
+     <option value="005930.KS|Samsung Elec">Korea: Samsung (005930.KS)</option><option value="000660.KS|SK hynix">Korea: SK hynix (000660.KS)</option><option value="035420.KS|NAVER">Korea: NAVER (035420.KS)</option>
+     <option value="7203.T|Toyota">Japan: Toyota (7203.T)</option><option value="6758.T|Sony">Japan: Sony (6758.T)</option><option value="9984.T|SoftBank">Japan: SoftBank (9984.T)</option>
+     <option value="0700.HK|Tencent">Hong Kong: Tencent (0700.HK)</option><option value="9988.HK|Alibaba">Hong Kong: Alibaba (9988.HK)</option><option value="0005.HK|HSBC">Hong Kong: HSBC (0005.HK)</option>
+     <option value="600519.SS|Moutai">China A: Moutai (600519.SS)</option><option value="000001.SZ|Ping An Bank">China A: Ping An Bank (000001.SZ)</option><option value="300750.SZ|CATL">China A: CATL (300750.SZ)</option>
+    </select><button class="btn sec" style="flex:0 0 auto" onclick="addMarketPreset(2)">Add market ticker</button></div>
+    <small class="hint">Yahoo Finance public chart data needs no API key. Public endpoints may be rate-limited or change; the device retries automatically.</small>
    </div>
-   <div class="card"><h2>Weather Location (날씨 위치 설정)</h2>
-    <label>Location coordinates</label>
+  </section>
+
+  <!-- CRYPTO (independent Binance feature) -->
+  <section id="crypto" class="tab">
+   <div class="card"><h2>Live data (Crypto)</h2><div id="tickBox3" class="muted">-</div>
+    <button class="btn sec" style="margin-top:10px" onclick="refreshNow()">Refresh data now</button>
+    <small class="hint">Binance Spot public K-lines supply the current price and chart. No API key is required.</small></div>
+   <div class="card"><h2>Rotation &amp; data</h2>
     <div class="row">
-     <div><label>Latitude (위도)</label><input id="wLat" type="number" step="0.0001" placeholder="37.5665"></div>
-     <div><label>Longitude (경도)</label><input id="wLon" type="number" step="0.0001" placeholder="126.9780"></div>
+     <div><label>Show each crypto (s)</label><input id="rotateSec_3" type="number" min="2" max="300"></div>
+     <div><label>Refresh data (s)</label><input id="pollSec_3" type="number" min="10" max="3600"></div>
     </div>
     <div class="row">
-     <div><input id="wLocQ" type="text" placeholder="Search a city (e.g. Seoul, Busan, Tokyo)" onkeydown="if(event.key==='Enter')wPlaceSearch()"></div>
+     <div><label>Chart style</label><select id="chartStyle_3"><option value="line">Line chart</option><option value="candle">Candlestick</option></select></div>
+     <div><label>Chart timeframe</label><select id="range_3">
+      <option value="1m">1 min</option><option value="5m">5 min</option><option value="30m">30 min</option><option value="60m">60 min</option>
+      <option value="1d">1 day</option><option value="5d">5 days</option><option value="1w">1 week</option><option value="1mo">1 month</option>
+      <option value="3mo">3 months</option><option value="6mo">6 months</option><option value="1y">1 year</option>
+     </select></div>
+     <div><label>Chart points</label><input id="points_3" type="number" min="0" max="60"></div>
+    </div>
+    <small class="hint">Change and chart color cover the selected timeframe. Each pair rotates for the configured number of seconds.</small>
+   </div>
+   <div class="card"><h2>Color scheme</h2><select id="colorInverted_3"><option value="false">Green up / Red down</option><option value="true">Red up / Green down</option></select></div>
+   <div class="card"><h2>What to show</h2>
+    <div class="chk"><input id="showName_3" type="checkbox"><label>Name / symbol</label></div>
+    <div class="chk"><input id="showPrice_3" type="checkbox"><label>Price</label></div>
+    <div class="chk"><input id="showChange_3" type="checkbox"><label>Change &amp; % change</label></div>
+    <div class="chk"><input id="showChart_3" type="checkbox"><label>Sparkline chart</label></div>
+    <div class="chk"><input id="showRangeLabel_3" type="checkbox"><label>Timeframe label</label></div>
+    <div class="chk"><input id="showUpdatedAgo_3" type="checkbox"><label>"Updated N s ago"</label></div>
+    <div class="chk"><input id="showPageDots_3" type="checkbox"><label>Rotation dots</label></div>
+    <div class="chk"><input id="showPortfolio_3" type="checkbox"><label>Position P/L &amp; portfolio page</label></div>
+   </div>
+   <div class="card"><h2>Crypto pairs (rotate on screen)</h2>
+    <table id="symTable3"></table>
+    <button class="btn sec" style="margin-top:10px" onclick="addSym(3)">+ Add crypto pair</button>
+    <small class="hint" id="symHint3">Use Binance Spot pairs such as BTCUSDT. Letters and numbers only; lowercase is converted to uppercase. Service availability depends on your network and region.</small>
+   </div>
+   <div class="card"><h2>Common crypto pairs</h2>
+    <div class="row"><select id="cryptoPreset">
+     <option value="BTCUSDT|Bitcoin">Bitcoin (BTCUSDT)</option><option value="ETHUSDT|Ethereum">Ethereum (ETHUSDT)</option>
+     <option value="SOLUSDT|Solana">Solana (SOLUSDT)</option><option value="BNBUSDT|BNB">BNB (BNBUSDT)</option>
+     <option value="XRPUSDT|XRP">XRP (XRPUSDT)</option><option value="DOGEUSDT|Dogecoin">Dogecoin (DOGEUSDT)</option>
+     <option value="ADAUSDT|Cardano">Cardano (ADAUSDT)</option><option value="LINKUSDT|Chainlink">Chainlink (LINKUSDT)</option>
+    </select><button class="btn sec" style="flex:0 0 auto" onclick="addCryptoPreset()">Add crypto pair</button></div>
+   </div>
+  </section>
+  <!-- WEATHER (feature) -->
+  <section id="weather" class="tab">
+   <div class="card"><h2>Weather clocks</h2>
+    <label>Clock layout</label><select id="weatherStyle"><option value="simple">Simple weather clock</option><option value="dashboard">Detailed weather clock</option><option value="forecast">Three-day forecast</option><option value="stacked">Large two-tone clock</option></select>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px">
+     <button class="btn sec" onclick="useWeatherStyle('simple')">Simple weather clock</button><button class="btn sec" onclick="useWeatherStyle('dashboard')">Detailed weather clock</button><button class="btn sec" onclick="useWeatherStyle('forecast')">Three-day forecast</button><button class="btn sec" onclick="useWeatherStyle('stacked')">Large two-tone clock</button>
+    </div>
+    <div class="chk"><input id="weatherAuto" type="checkbox"><label>Auto-rotate clock layouts</label></div>
+    <label>Switch clock every (seconds)</label><input id="weatherRotateSec" type="number" min="10" max="3600" value="20">
+    <small class="hint">Clocks use the configured timezone. Sunrise and forecast dates use the weather location. A red dot marks a failed refresh; cached weather stays visible.</small>
+    <small class="hint">Weather data by Open-Meteo (CC BY 4.0). No API key is needed for its free non-commercial service.</small>
+   </div>
+   <div class="card"><h2>Weather Data Refresh</h2>
+    <label>Refresh weather every (minutes)</label>
+    <input id="weatherPollMin" type="number" min="1" max="1440" step="1" placeholder="10">
+    <small class="hint">How often the device fetches live weather data, in minutes (default: 10).</small>
+   </div>
+   <div class="card"><h2>Weather Display Units</h2>
+    <div class="row">
+     <div><label>Temperature unit</label><select id="weatherTempUnit"><option value="c">°C</option><option value="f">°F</option></select></div>
+     <div><label>Wind speed unit</label><select id="weatherWindUnit"><option value="kmh">km/h</option><option value="ms">m/s</option><option value="mph">mph</option></select></div>
+    </div>
+   </div>
+   <div class="card"><h2>Weather Location</h2>
+    <label>Location name</label><input id="wLocName" type="text" maxlength="96" placeholder="e.g. Seoul">
+    <small class="hint">Shown on the device when it contains only ASCII characters; otherwise the title is Weather.</small>
+    <label>Location coordinates</label>
+    <div class="row">
+     <div><label>Latitude</label><input id="wLat" type="number" step="0.0001" placeholder="37.5665" onchange="weatherCoordEdited(true)"></div>
+     <div><label>Longitude</label><input id="wLon" type="number" step="0.0001" placeholder="126.9780" onchange="weatherCoordEdited(true)"></div>
+    </div>
+    <div class="row">
+     <div><input id="wLocQ" type="search" placeholder="Search a city / 城市名称" aria-label="Weather city"></div>
      <div><button class="btn sec" onclick="wPlaceSearch()">Search</button></div>
     </div>
     <select id="wLocRes" style="display:none" onchange="wPlacePick()"></select>
-    <div style="margin-top:10px">
-     <button class="btn sec" onclick="applyWeatherLoc()">Apply to Clock &amp; Weather</button>
-    </div>
-    <small class="hint">Open-Meteo API를 사용하여 실시간 날씨 및 일일 최저/최고 기온, 습도, 풍속을 가져옵니다. 기본값은 서울(37.566, 126.9784)입니다.</small>
+    <small id="wLocMsg" class="hint" role="status"></small>
+    <div style="margin-top:10px"><button class="btn sec" onclick="applyWeatherLoc()">Apply to Clock &amp; Weather</button></div>
+    <small class="hint">Choose a city before using weather. Both location forms stay synchronized. City search sets a supported timezone automatically; check it in Display. 0/0 means no location.</small>
    </div>
-   <div class="card"><h2>Quick Presets (빠른 지역 선택)</h2>
+   <div class="card"><h2>Quick Presets</h2>
     <div class="row">
-     <button class="btn sec" onclick="setLoc(37.5665, 126.9780, 'Seoul')">서울 (Seoul)</button>
-     <button class="btn sec" onclick="setLoc(35.1796, 129.0756, 'Busan')">부산 (Busan)</button>
-     <button class="btn sec" onclick="setLoc(37.4563, 126.7052, 'Incheon')">인천 (Incheon)</button>
+     <button class="btn sec" onclick="setLoc(31.2304,121.4737,'Shanghai','Asia/Shanghai')">Shanghai</button>
+     <button class="btn sec" onclick="setLoc(37.5665,126.9780,'Seoul','Asia/Seoul')">Seoul</button>
+     <button class="btn sec" onclick="setLoc(35.6762,139.6503,'Tokyo','Asia/Tokyo')">Tokyo</button>
     </div>
     <div class="row" style="margin-top:8px">
-     <button class="btn sec" onclick="setLoc(35.8714, 128.6014, 'Daegu')">대구 (Daegu)</button>
-     <button class="btn sec" onclick="setLoc(36.3504, 127.3845, 'Daejeon')">대전 (Daejeon)</button>
-     <button class="btn sec" onclick="setLoc(33.4996, 126.5312, 'Jeju')">제주 (Jeju)</button>
+     <button class="btn sec" onclick="setLoc(51.5074,-0.1278,'London','Europe/London')">London</button>
+     <button class="btn sec" onclick="setLoc(40.7128,-74.0060,'New York','America/New_York')">New York</button>
+     <button class="btn sec" onclick="setLoc(33.4996, 126.5312, 'Jeju')">Jeju</button>
     </div>
    </div>
    <button class="btn" onclick="saveAll()">Save settings</button>
+  </section>
+
+  <section id="radar" class="tab">
+   <div class="card"><h2>Plane Radar</h2>
+    <p>Home location is the center of the radar map and the aircraft search radius.</p>
+    <div class="chk"><input id="radarUseDevice" type="checkbox" onchange="radarLocChanged()"><label>Use weather / device location</label></div>
+    <small class="hint">Turn this off to set an independent radar center. This does not change the weather location.</small>
+    <label>City presets (offline)</label><select id="radarPreset" onchange="radarPresetPick()">
+     <option value="">Choose a city...</option><option value="39.9042,116.4074">Beijing 北京</option><option value="31.2304,121.4737">Shanghai 上海</option><option value="22.5431,114.0579">Shenzhen 深圳</option><option value="30.5728,104.0668">Chengdu 成都</option><option value="35.6762,139.6503">Tokyo</option><option value="37.5665,126.9780">Seoul</option><option value="1.3521,103.8198">Singapore</option><option value="51.5074,-0.1278">London</option><option value="52.3676,4.9041">Amsterdam</option><option value="48.8566,2.3522">Paris</option><option value="40.7128,-74.0060">New York</option><option value="34.0522,-118.2437">Los Angeles</option><option value="-33.8688,151.2093">Sydney</option>
+    </select>
+    <label>Search another city</label><div class="row"><div><input id="radarCityQ" type="search" placeholder="City name / 城市名称" aria-label="Radar city"></div><div><button class="btn sec" onclick="radarCitySearch()">Search</button></div></div>
+    <select id="radarCityRes" style="display:none" onchange="radarCityPick()"></select><small class="hint" id="radarSearchMsg">Open-Meteo city search runs in your browser.</small>
+    <div class="row"><div><label>Radar latitude (−90 to 90)</label><input id="radarLat" type="number" min="-90" max="90" step="0.000001" oninput="radarLocChanged()"></div><div><label>Radar longitude (−180 to 180)</label><input id="radarLon" type="number" min="-180" max="180" step="0.000001" oninput="radarLocChanged()"></div></div>
+    <small class="hint" id="radarCenter" aria-live="polite"></small>
+   </div>
+   <div class="card"><h2>Aircraft feed and display</h2>
+    <div class="row"><div><label>Search radius (km)</label><select id="rangeKm"><option>10</option><option>20</option><option>50</option><option>100</option><option>200</option><option>500</option></select></div><div><label>Refresh every (seconds)</label><input id="radarPollSec" type="number" min="3" max="3600"></div></div>
+    <label>Aircraft source</label><select id="radarSource" onchange="radarSrcChanged()"><option value="adsblol">adsb.lol</option><option value="adsbfi">adsb.fi</option><option value="webhook">LAN webhook</option></select><small class="hint" id="radarSrcHint"></small>
+    <div id="radarWebhookRow"><label>Webhook URL</label><input id="radarWebhookUrl" type="url" placeholder="http://192.168.1.10/aircraft"></div>
+    <div class="row"><div><label>Distance units</label><select id="unitsMi"><option value="false">Kilometers</option><option value="true">Miles</option></select></div><div><label>Minimum altitude (feet)</label><input id="radarMinAlt" type="number" min="0" max="60000"></div></div>
+    <label>Label size</label><select id="radarUiScale"><option value="0">Small</option><option value="1">Normal</option><option value="2">Large</option></select>
+    <div class="chk"><input id="showLabels" type="checkbox"><label>Aircraft labels</label></div><div class="chk"><input id="showVectors" type="checkbox"><label>Heading vectors</label></div><div class="chk"><input id="showRimDots" type="checkbox"><label>Aircraft at the edge</label></div>
+    <label>Airport markers (ICAO, latitude, longitude)</label><table><tbody id="apTable"></tbody></table><button class="btn sec" onclick="addAp()">+ Add airport</button>
+    <div style="margin-top:16px"><button class="btn" onclick="saveRadar(false)">Save radar settings</button> <button class="btn sec" onclick="saveRadar(true)">Save and show radar</button></div>
+   </div>
+  </section>
+
+  <!-- PICTURES (NM-TV-154 fullscreen screensaver) -->
+  <section id="pictures" class="tab">
+   <div class="card"><h2>Pictures (240 × 240)</h2>
+    <label>Picture / animation</label><select id="pictureSelect" onchange="pictureChoiceChanged()"></select>
+    <div style="margin-top:12px"><button class="btn" id="pictureUseBtn" onclick="selectPicture()">Show picture</button></div>
+    <small class="hint" id="pictureDetails"></small>
+    <div class="chk" style="margin-top:14px"><input id="pictureAuto" type="checkbox"><label>Auto-rotate pictures</label></div>
+    <label>Switch picture every (seconds)</label><input id="pictureRotateSec" type="number" min="2" max="3600" step="1" value="10">
+    <small class="hint" id="pictureStatus">Loading pictures…</small>
+    <small class="hint">Show picture saves this selection and switches to Pictures. Touch actions follow Display settings; Next page switches apps.</small>
+    <small class="hint">To keep one picture on screen, turn off Auto-rotate pictures before choosing Show.</small>
+   </div>
+   <div class="card"><h2>Picture management</h2>
+    <button class="btn sec" onclick="loadThemes()">Refresh pictures</button>
+    <table><thead><tr><th align="left">Name</th><th align="left">Size</th><th align="left">Actions</th></tr></thead><tbody id="pictureList"></tbody></table>
+    <label>Install a picture package</label><input id="pictureFile" type="file" accept=".stheme">
+    <button class="btn" id="pictureUploadBtn" onclick="installPicture()">Install .stheme</button>
+    <small class="hint">Install a 240 × 240 .stheme package. Custom package IDs must begin with picture-. Convert JPG/GIF files on a computer first; direct photo upload is not supported.</small>
+    <small class="hint">Factory animations are compact two-frame versions. Pictures and clock packages share storage and the 16-package limit.</small>
+   </div>
   </section>
 
   <!-- UPDATE -->
@@ -497,14 +610,14 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
     <button class="btn" style="margin-left:8px" onclick="selfUpdate()" id="ghUpBtn" disabled>Update now</button>
    </div>
    <div id="ghMsg" class="muted" style="margin-top:8px"></div>
-   <small class="hint">Pulls the newest release straight from <a id="repoLink" href="https://github.com/twoarchi/smalltv-pro-mod/releases" target="_blank">the GitHub repo</a>. HTTPS OTA is tight on the ESP8266; if it fails, use the manual upload below.</small>
+   <small class="hint">Pulls the newest release straight from <a id="repoLink" href="https://github.com/RockBase-lab/NM-SmallTV-Pro/releases" target="_blank">the GitHub repo</a>. HTTPS OTA is tight on the ESP8266; if it fails, use the manual upload below.</small>
   </div>
   <div class="card"><h2>Manual update (OTA)</h2>
    <input id="fw" type="file" accept=".bin">
    <div style="margin-top:12px"><button class="btn" onclick="upload()" id="upBtn">Upload &amp; flash</button></div>
    <div class="bar"><div id="upBar"></div></div>
    <div id="upMsg" class="muted" style="margin-top:8px"></div>
-   <small class="hint">Upload a firmware.bin from the <a id="relLink" href="https://github.com/twoarchi/smalltv-pro-mod/releases" target="_blank">releases page</a> or a local build. The device reboots when done.</small>
+   <small class="hint">Upload a firmware.bin from the <a id="relLink" href="https://github.com/RockBase-lab/NM-SmallTV-Pro/releases" target="_blank">releases page</a> or a local build. The device reboots when done.</small>
   </div>
   <div class="card"><h2>Settings backup</h2>
    <button class="btn sec" onclick="location.href='/api/export'">Export settings</button>
@@ -513,6 +626,7 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
    <small class="hint">The export is the device's <code>config.json</code>, including WiFi passwords and the WireGuard private key in clear text; treat the file accordingly. Import applies everything and reboots.</small>
   </div>
   <div class="card"><h2>Password</h2>
+   <small class="hint">Default username: admin. No default web password; access is open until you save one. The setup WiFi hotspot password on NM-TV-154 defaults to 12345678 and is separate.</small>
    <div id="authState" class="muted"></div>
    <label>Username</label><input id="authUser" type="text" autocomplete="off" placeholder="admin">
    <label>Password</label><input id="authPass" type="password" autocomplete="new-password" placeholder="(unchanged)">
@@ -529,13 +643,131 @@ small.hint{display:block;color:var(--mut);margin-top:4px;font-size:12px}
 
 <div style="text-align:center;padding:0 0 16px"><button class="btn" onclick="saveAll()">Save settings</button></div>
 <div style="text-align:center;padding:0 0 24px;font-size:12px">
- <a id="footRepo" href="https://github.com/twoarchi/smalltv-pro-mod" target="_blank" style="color:var(--acc2);text-decoration:none">GitHub: twoarchi/smalltv-pro-mod</a>
+ <a id="footRepo" href="https://github.com/RockBase-lab/NM-SmallTV-Pro" target="_blank" style="color:var(--acc2);text-decoration:none">GitHub: RockBase-lab/NM-SmallTV-Pro</a>
  <span id="footVer" class="muted"></span>
 </div>
 <div id="toast" class="toast"></div>
 
+<script src="webui-search.js"></script>
 <script>
 var C={};
+// Browser UI language. The firmware and API stay in English; only visible text changes.
+var UI_LANG='en';
+try{if(localStorage.getItem('smalltv-ui-lang')==='zh')UI_LANG='zh'}catch(e){}
+var ZH={
+'Safe mode after a crash':'崩溃后的安全模式',
+'Display apps are paused. Record Last reset and Last crash below, then try System → Reboot. If it happens again, capture the serial log and install a compatible fix. An OTA update is not always required.':'显示应用已暂停。请先记录下方的重启原因和上次崩溃，再尝试系统 → 重启。如再次发生，请采集串口日志并安装对应修复；不一定需要重新刷机。',
+'Default username: admin. No default web password; access is open until you save one. The setup WiFi hotspot password on NM-TV-154 defaults to 12345678 and is separate.':'默认用户名：admin。网页默认不设密码，保存密码后才启用保护。NM-TV-154 配网热点的默认 WiFi 密码为 12345678，两者分别设置。',
+'Find a stock or ETF':'检索股票或 ETF','Find a Spot pair':'检索现货交易对',
+'This ticker is already in the list.':'该来源和代码已在列表中。','Added. Click "Save settings" to apply.':'已添加，点击“保存设置”后生效。',
+'Search by city, country, or IANA timezone. Daylight saving follows the device rule.':'可按城市、国家或 IANA 标识检索时区。夏令时遵循设备规则。',
+'Status':'状态','General':'常规','Stock 1 (Domestic)':'行情 1','Stock 2 (Overseas)':'行情 2','Weather':'天气','Display':'显示','System':'系统',
+'Start here':'从这里开始','Network mode':'网络模式',
+'Choose a city before using weather. Both location forms stay synchronized. City search sets a supported timezone automatically; check it in Display. 0/0 means no location.':'使用天气前请先选择城市。两处位置输入同步；城市搜索会自动设置已支持的时区，请到显示页核对。0/0 表示未设置位置。',
+'1. Connect WiFi. 2. Choose your city in Weather and check the timezone in Display. 3. Select a mode below and save. Configure optional services before adding them to Carousel.':'1. 连接 WiFi；2. 在天气中选择城市，并在显示中核对时区；3. 在下方选择模式并保存。可选服务请先配置，再加入轮播。',
+'Save settings saves edits across all tabs. Show picture, Use theme and Save and show radar also switch the active app.':'“保存设置”会保存所有页签的修改。“显示图片”“使用主题”“保存并显示雷达”还会切换当前应用。',
+'Show picture saves this selection and switches to Pictures. Touch actions follow Display settings; Next page switches apps.':'“显示图片”会保存选择并切换到图片模式。触摸操作以显示设置为准；“下一屏”切换应用。',
+'Location synced. Click "Save settings" to apply.':'位置已同步，点击“保存设置”后生效。',
+'Device':'设备','Loading...':'加载中...','Mode':'显示模式','What this device shows':'设备显示内容','Timer (schedule by time)':'定时模式（按时间切换）','Carousel (rotate modes)':'轮播模式（自动切换）',
+'App Timers (4)':'应用定时器（4 组）','At each set time (HH:MM)':'到达设定时间（时:分）后运行所选应用，直到下一组定时器。','Timer 1':'定时器 1','Timer 2':'定时器 2','Timer 3':'定时器 3','Timer 4':'定时器 4',
+'Stock 1':'行情 1','Stock 2':'行情 2','Switch mode every (minutes)':'切换间隔（分钟）','Rotate through apps':'参与轮播的应用','Timer runs the app selected for each time. Carousel automatically rotates through the checked apps at the interval above.':'定时模式按各组时间运行所选应用；轮播模式按上述间隔自动切换已勾选的应用。',
+'Screen Refresh & Burn-in Prevention':'屏幕刷新与防烧屏','Enable screen refresh':'启用屏幕刷新','Trigger mode':'触发方式','Every N minutes':'每隔 N 分钟','Daily at set time':'每天定时','Run every (minutes)':'运行间隔（分钟）',
+'When the clock is synchronized, interval refreshes align to the hour and the selected minute interval.':'时钟同步后，将按整点和所选分钟间隔自动刷新。','Run daily at (HH:MM)':'每日运行时间（时:分）','Runs the transition effect once a day at the specified 24-hour time.':'每天在指定的 24 小时制时间运行一次切换效果。',
+'Display duration (seconds)':'显示时长（秒）','Transition effect':'切换效果','Matrix Rain':'矩阵代码雨','Rainbow Bars':'彩虹条','3D Starfield':'3D 星空','Deep Black':'纯黑','Pure White':'纯白','TV Snow':'电视雪花','Animated Mascot':'动态吉祥物','Preview now (5 seconds)':'立即预览（5 秒）',
+'Periodic transitions refresh the LCD independently of app rotation, reducing image retention from charts and fixed interfaces. Touch the top button during a refresh to return immediately.':'独立于应用轮播的定期切换可刷新 LCD，减少图表和固定界面造成的残影。刷新期间触摸顶部按键可立即返回。',
+'Save settings':'保存设置','Saved networks':'已保存的网络','Scan networks':'扫描网络','+ Add network':'+ 添加网络','Save & connect (reboots)':'保存并连接（重启）',
+'2.4 GHz only. Up to 4 networks; at boot the device joins the strongest one it can see. Tap a scan result to fill a row. Leave a password blank to keep the stored one.':'仅支持 2.4 GHz，最多保存 4 个网络；启动时连接信号最强的可用网络。点击扫描结果填入一行；密码留空则保留原密码。',
+'Device name':'设备名称','Hostname':'主机名','Reachable as':'访问地址：','via mDNS. Running several SmallTVs? Give each its own name (':'通过 mDNS 访问。使用多台 SmallTV 时，请分别命名（',' ) so browsers and the clawdmeter daemon\'s':'），以便浏览器和 clawdmeter 守护进程的','reach the right device. Saving a new name reboots the device.':'连接到正确设备。保存新名称后设备将重启。',
+'WireGuard VPN':'WireGuard VPN','Enable the tunnel':'启用隧道','This device\'s private key':'本设备私钥','Peer public key':'对端公钥','Endpoint host':'端点地址','Port':'端口','Tunnel address':'隧道地址','Allowed IPs':'允许的 IP','Keepalive (s, 0 = off)':'保活间隔（秒，0 为关闭）',
+'Setup hotspot (AP)':'配置热点（AP）','AP name':'热点名称','AP password':'热点密码','(min 8 chars)':'（至少 8 位）','No password (open hotspot)':'无密码（开放热点）','The AP appears when no WiFi is configured or the connection fails. Like the WiFi passwords above, leaving the field blank keeps the stored one; tick the box to clear it and leave the hotspot open.':'未配置 WiFi 或连接失败时开启热点。密码留空会保留原密码；勾选此项则清除密码并开放热点。',
+'Theme clocks':'主题时钟','Installed theme':'已安装主题','Use theme':'使用主题','Remove':'删除','Install a theme':'安装主题','Install .stheme':'安装 .stheme','Loading themes…':'正在加载主题…','Theme clocks use the timezone below. Install a package, then choose Use theme. Notifications continue to appear above it.':'主题时钟使用下方时区。安装包后选择“使用主题”，通知仍会覆盖显示。',
+'Screen':'屏幕','Brightness:':'亮度：','Auto-brightness (light sensor on A0)':'自动亮度（A0 光线传感器）','Orientation':'显示方向','Backlight is active-low (try if screen stays dark)':'背光低电平有效（屏幕不亮时可尝试）',
+'Colour':'颜色','Colour order':'颜色顺序','Panel default':'面板默认','BGR (swap red and blue)':'BGR（交换红蓝）','Invert the panel':'反转面板颜色','Red:':'红色：','Green:':'绿色：','Blue:':'蓝色：','Reset to 100%':'重置为 100%',
+'The panels shipped in these devices are not the same part, so the same firmware can look warm on one unit and green on another. Turn a channel down to pull that cast out. If red and blue come out swapped, switch the colour order; if the whole screen looks like a negative, tick Invert. Saving applies it immediately, so you can watch the screen while you adjust.':'不同设备的面板可能存在色偏。降低对应通道可减轻偏色；红蓝互换时切换颜色顺序；全屏反色时勾选反转。保存后立即生效，便于边调整边查看。',
+'Button':'触摸按键','Short press':'短按','Nothing':'无操作','Screen off (~1s)':'熄屏（约 1 秒）','Home (first page)':'返回首页','Next page':'下一屏','Show network / IP':'显示网络 / IP','Wake screen':'唤醒屏幕','Acknowledge notification':'确认通知','Long press':'长按','Touch sensitivity:':'触摸灵敏度：',
+'Next page advances to the next selected app in Carousel. Timer previews another app for 15 seconds. Home returns to the configured mode.':'轮播中“下一屏”只切换已勾选的应用；定时模式临时预览其他应用 15 秒；“返回首页”恢复配置的模式。',
+'Select at least one app for Carousel':'请至少勾选一个轮播应用',
+'Outdated animation package. Install the full-color picture library.':'动画包版本过旧，请安装新版全彩图片库。',
+'Picture package cannot be loaded. Reinstall it.':'图片包无法加载，请重新安装。',
+'Clock & night mode':'时钟与夜间模式','Timezone':'时区','Language':'语言','(month and weekday names on spec 2 themes)':'（spec 2 主题的月份和星期名称）','Clock: -':'时钟：-','Device location':'设备位置','Search':'搜索',
+'Used by the sunrise and sunset schedule below, and by the radar unless it has its own. The search runs in your browser (open-meteo.com); the device never sends the name anywhere. Leave 0/0 for none.':'用于下方日出日落计划，以及未单独设置位置的雷达。搜索在浏览器中运行（open-meteo.com），设备不会发送地名。0/0 表示未设置。',
+'Dim or blank the screen on a nightly schedule':'按计划调暗或关闭屏幕','From':'开始','To':'结束','Night brightness:':'夜间亮度：','(0 = screen off)':'（0 为熄屏）',
+'Needs internet once to set the clock over NTP. The timezone also applies to theme clocks. While the window is active it overrides the brightness and auto-brightness above, except when the sun schedule below is on: then its "When night mode is also on" choice decides. Times are local to the selected timezone; DST is handled automatically. After a reboot the schedule resumes once the clock re-syncs, so the screen may show normal brightness for a few seconds.':'需要联网通过 NTP 校时，时区也用于主题时钟。夜间时段会覆盖上方亮度设置；若启用日出日落计划，则由“夜间模式同时开启时”决定优先级。时间使用所选时区并自动处理夏令时；重启后待时钟重新同步再恢复计划。',
+'Follow sunrise and sunset (needs the device location)':'跟随日出日落（需要设备位置）','Lowest brightness:':'最低亮度：','Sunrise fade (minutes)':'日出渐变（分钟）','Sunset fade (minutes)':'日落渐变（分钟）','When night mode is also on':'夜间模式同时开启时','Night mode first':'夜间模式优先','Sun schedule first':'日出日落优先','The darker of the two':'采用较暗者',
+'The screen rises from the lowest to the normal brightness (the slider above) over the sunrise fade, and falls back over the sunset fade. Sunrise and sunset are worked out on the device. Replaces auto-brightness.':'日出时在渐变时间内从最低亮度升至正常亮度，日落时反向渐变。设备自行计算日出日落时间，并替代自动亮度。',
+'Live data (Stock 1)':'实时数据（行情 1）','Live data (Stock 2)':'实时数据（行情 2）','Refresh data now':'立即刷新数据','What the device holds right now for each ticker. Green is a good fetch, red means the last fetch failed and the device is retrying it on its own.':'显示设备当前保存的各标的数据。绿色表示获取成功，红色表示上次失败且正在自动重试。','What the device holds right now for Stock 2 tickers.':'显示设备当前保存的行情 2 标的数据。',
+'Rotation & data':'轮播与数据','Show each ticker (s)':'每个标的显示（秒）','Refresh data (s)':'数据刷新间隔（秒）','Chart style':'图表样式','Candlestick':'K 线图','Line chart':'折线图','Chart timeframe':'图表周期','1 min':'1 分钟','5 min':'5 分钟','30 min':'30 分钟','60 min':'60 分钟','1 day':'1 天','5 days':'5 天','1 week':'1 周','1 month':'1 个月','3 months':'3 个月','6 months':'6 个月','1 year':'1 年','Year to date':'年初至今','Max':'最大','Chart points':'图表点数','Change & % basis':'涨跌额与涨跌幅基准',
+'Chart timeframe: the change, arrow, colors, and chart cover the same span. 1 day: classic change vs previous close.':'图表周期：涨跌、箭头、颜色和图表使用相同时间范围；单日涨跌相对前收盘价计算。','(only for tickers set to Webhook)':'（仅用于 Webhook 数据源）','Color scheme':'配色方案','Green up / Red down':'绿涨 / 红跌','Red up / Green down':'红涨 / 绿跌','What to show':'显示内容','Name / symbol':'名称 / 代码','Price':'价格','Change & % change':'涨跌额与涨跌幅','Sparkline chart':'迷你走势图','Timeframe label':'周期标签','"Updated N s ago"':'“N 秒前更新”','Rotation dots':'轮播圆点','Position P/L & portfolio page':'持仓盈亏与组合页','Tickers (rotate on screen)':'标的（屏幕轮播）','Tickers (Stock 2 - rotate on screen)':'行情 2 标的（屏幕轮播）','+ Add ticker':'+ 添加标的',
+'cash.ch symbol finder':'cash.ch 代码查询','Instrument':'金融工具','(paste a cash.ch link, ISIN, valor, or a name)':'（粘贴 cash.ch 链接、ISIN、valor 或名称）','Find':'查询','Searches cash.ch from your browser and turns the result into the listing key the ticker needs. Click a match to add it as a ticker.':'在浏览器中搜索 cash.ch 并转换为标的使用的内容键，点击结果即可添加。',
+'Weather Data Refresh':'天气数据刷新','Refresh weather every (minutes)':'天气刷新间隔（分钟）','How often the device fetches live weather data, in minutes (default: 10).':'设备获取实时天气的间隔，单位为分钟（默认 10）。','Weather Location':'天气位置','Location coordinates':'位置坐标','Latitude':'纬度','Longitude':'经度','Apply to Clock & Weather':'应用到时钟与天气','Open-Meteo provides current weather, daily low/high temperatures, humidity, and wind speed. Default: Seoul (37.566, 126.9784).':'通过 Open-Meteo 获取实时天气、每日最低/最高气温、湿度和风速。默认位置为首尔（37.566, 126.9784）。','Quick Presets':'快速位置','Seoul':'首尔','Busan':'釜山','Incheon':'仁川','Daegu':'大邱','Daejeon':'大田','Jeju':'济州',
+'Update from GitHub':'从 GitHub 更新','Installed:':'当前版本：','Check for latest':'检查最新版本','Update now':'立即更新','Pulls the newest release straight from':'直接从以下位置获取最新版本：','the GitHub repo':'GitHub 仓库','. HTTPS OTA is tight on the ESP8266; if it fails, use the manual upload below.':'。ESP8266 的 HTTPS OTA 空间紧张，失败时请使用下方手动上传。',
+'Manual update (OTA)':'手动更新（OTA）','Upload & flash':'上传并刷写','Upload a firmware.bin from the':'从以下来源上传 firmware.bin：','releases page':'发布页面','or a local build. The device reboots when done.':'或本地构建。完成后设备重启。','Settings backup':'设置备份','Export settings':'导出设置','Import & reboot':'导入并重启',
+"The export is the device's":'导出文件是设备的',', including WiFi passwords and the WireGuard private key in clear text; treat the file accordingly. Import applies everything and reboots.':'，其中 WiFi 密码和 WireGuard 私钥为明文，请妥善保管。导入会应用全部设置并重启。',
+'Password':'密码','Username':'用户名','Password again':'再次输入密码','Remove password':'删除密码','Off by default, which leaves the page open to anyone on your network. A saved password locks it: the settings page, the API, and the firmware upload then sit behind HTTP digest auth, so the password itself is never sent over the wire. Type the new password twice; if the two fields differ, nothing is saved. Leave both blank to keep the stored password. "Remove password" opens the page again. The clawdmeter daemon\'s push endpoint stays open, because it has no way to send a password and it only writes the numbers on the screen.':'默认关闭密码，局域网内任何人都能打开页面。保存密码后，设置页、API 和固件上传均使用 HTTP 摘要认证，密码不会直接传输。需两次输入相同新密码；留空保留原密码。“删除密码”会重新开放页面。clawdmeter 推送接口保持开放，因为它无法提供密码，且只写入屏幕数值。',
+'There is no password recovery.':'密码无法找回。','Forget it and the only way back in is to reflash the device over USB or the UART header, so write it down before you save.':'忘记密码只能通过 USB 或 UART 重新刷机，请在保存前妥善记录。','Maintenance':'维护','Reboot':'重启','Factory reset':'恢复出厂设置',
+'At each set time (HH:MM), the selected app runs until the next timer.':'到达设定时间（时:分）后运行所选应用，直到下一组定时器。',
+') so browsers and the clawdmeter daemon\'s':'），以便浏览器和 clawdmeter 守护进程的',
+'Reaches the device from outside your LAN without forwarding port 80 to the internet. Generate the key pair on your computer (':'无需将 80 端口暴露到互联网，即可从局域网外访问设备。在电脑上生成密钥对（',
+"), put the private key here and the public one on the server as this device's peer; most VPN servers and providers hand you both.":'），将私钥填入此处，并把公钥配置到服务器的本设备对端；多数 VPN 服务商都会提供这两项。',
+'decides what the device routes into the tunnel, and it also sets the tunnel netmask, so a lone':'决定设备经隧道访问的地址，同时设置隧道掩码；单独使用',
+'address reaches nothing: list the subnet the peer is on (':'将无法访问其他地址，请填写对端所在子网（',
+'sends everything through the VPN. The private key stays on the device and in its settings export; the page never reads it back. The tunnel needs the clock, so NTP starts whenever it is enabled.':'会将全部流量经 VPN 发送。私钥仅保存在设备和设置导出文件中，网页不会读回。隧道依赖时钟，启用后会启动 NTP。',
+'Naver Finance (US / international real time)':'Naver Finance（美国/国际实时行情）','Naver Finance (Korean market real time)':'Naver Finance（韩国实时行情）',
+': enter Naver US symbols such as':'：输入 Naver 美股代码，例如','Regular, pre-market, and after-hours prices and candle charts are supported.':'支持常规时段、盘前和盘后价格及 K 线图。',': enter a 6-digit symbol such as':'：输入 6 位代码，例如','for live prices, intraday candles, and the previous close.':'，可显示实时价格、分钟 K 线和前收盘价。',
+' Name is optional; if set it overrides the source\'s name. Qty and per-unit cost are optional too.':' 名称可选，填写后覆盖数据源名称；数量和单位成本也可选填。',
+'(unchanged)':'（保持不变）','(open)':'（开放）','(optional)':'（可选）','password':'密码','qty':'数量','cost':'成本','Search a place':'搜索地点','latitude, e.g. 52.3676':'纬度，例如 52.3676','longitude, e.g. 4.9041':'经度，例如 4.9041','Search a city (e.g. Seoul, Busan, Tokyo)':'搜索城市（如首尔、釜山、东京）','Select a place...':'选择地点...','Searching...':'搜索中...','Scanning...':'扫描中...','No networks found':'未发现网络','No place found. Try another spelling, or type the numbers.':'未找到地点，请尝试其他拼写或直接输入坐标。','Location search failed':'位置搜索失败',
+'setup mode':'配置模式','Firmware':'固件','Network':'网络','Signal':'信号','Last join failure':'上次连接失败','Free heap':'可用堆内存','Uptime':'运行时间','Last reset':'上次复位','Home Assistant':'Home Assistant','Last crash':'上次崩溃','clear':'清除','No tickers configured':'未配置标的','error':'错误',
+'Saved':'已保存','Saved — rebooting...':'已保存，正在重启...','Save failed':'保存失败','Saved, rebooting to connect...':'已保存，正在重启并连接...','Refreshing...':'正在刷新...','Rebooting...':'正在重启...','Reset, rebooting...':'已重置，正在重启...','Upload error':'上传错误','Done. Rebooting...':'完成，正在重启...','Checking GitHub...':'正在检查 GitHub...','Check failed':'检查失败','Up to date':'已是最新版本','Theme installed':'主题已安装','Theme removed':'主题已删除','Installing…':'正在安装…','No theme selected':'未选择主题',
+'Weather Display Units':'天气显示单位','Temperature unit':'温度单位','Wind speed unit':'风速单位','Location name':'地点名称','e.g. Seoul':'例如 Seoul','Shown on the device when it contains only ASCII characters; otherwise the title is Weather.':'地点名称仅含 ASCII 字符时显示在设备上，否则标题显示为 Weather。',
+'Custom NTP server (optional)':'自定义 NTP 服务器（可选）','Leave blank for the built-in servers. A custom server is tried first, with pool.ntp.org and time.nist.gov as fallbacks.':'留空使用内置服务器。自定义服务器优先连接，pool.ntp.org 和 time.nist.gov 作为兜底。',
+'Strong':'强','Medium':'中','Weak':'弱',
+'Defaults: Samsung (Naver), NVIDIA and Apple (Yahoo). No API key needed; 1-month line charts.':'默认：三星（Naver）、英伟达和苹果（Yahoo），无需 API Key，显示一个月折线图。',
+'Crypto':'虚拟货币','Market presets (Yahoo Finance)':'市场快捷代码（Yahoo Finance）','Add market ticker':'添加市场标的','Yahoo Finance public chart data needs no API key. Public endpoints may be rate-limited or change; the device retries automatically.':'Yahoo Finance 公共图表数据无需 API Key。公共接口可能限流或调整，设备会自动重试。',
+'Live data (Crypto)':'实时数据（虚拟货币）','Binance Spot public K-lines supply the current price and chart. No API key is required.':'币安现货公共 K 线提供最新价格与曲线，无需 API Key。','Show each crypto (s)':'每个币种显示（秒）','Change and chart color cover the selected timeframe. Each pair rotates for the configured number of seconds.':'涨跌与图表颜色基于所选周期，每个交易对按设定秒数轮播。','Crypto pairs (rotate on screen)':'虚拟货币交易对（屏幕轮播）','+ Add crypto pair':'+ 添加交易对','Add crypto pair':'添加交易对','Common crypto pairs':'常见虚拟货币交易对','Use Binance Spot pairs such as BTCUSDT. Letters and numbers only; lowercase is converted to uppercase. Service availability depends on your network and region.':'使用币安现货交易对，例如 BTCUSDT。仅限字母和数字，小写会自动转为大写。服务可用性取决于所在网络与地区。',
+'US: Apple (AAPL)':'美股：苹果（AAPL）','US: NVIDIA (NVDA)':'美股：英伟达（NVDA）','US: Microsoft (MSFT)':'美股：微软（MSFT）','Korea: Samsung (005930.KS)':'韩国：三星电子（005930.KS）','Korea: SK hynix (000660.KS)':'韩国：SK 海力士（000660.KS）','Korea: NAVER (035420.KS)':'韩国：NAVER（035420.KS）','Japan: Toyota (7203.T)':'日本：丰田（7203.T）','Japan: Sony (6758.T)':'日本：索尼（6758.T）','Japan: SoftBank (9984.T)':'日本：软银（9984.T）','Hong Kong: Tencent (0700.HK)':'港股：腾讯（0700.HK）','Hong Kong: Alibaba (9988.HK)':'港股：阿里巴巴（9988.HK）','Hong Kong: HSBC (0005.HK)':'港股：汇丰（0005.HK）','China A: Moutai (600519.SS)':'A 股：贵州茅台（600519.SS）','China A: Ping An Bank (000001.SZ)':'A 股：平安银行（000001.SZ）','China A: CATL (300750.SZ)':'A 股：宁德时代（300750.SZ）',
+'Bitcoin (BTCUSDT)':'比特币（BTCUSDT）','Ethereum (ETHUSDT)':'以太坊（ETHUSDT）','Solana (SOLUSDT)':'Solana（SOLUSDT）','Dogecoin (DOGEUSDT)':'狗狗币（DOGEUSDT）','Cardano (ADAUSDT)':'卡尔达诺（ADAUSDT）',
+'Pictures':'图片屏保','Pictures (240 × 240)':'图片屏保（240 × 240）','Theme clock':'主题时钟','Picture / animation':'图片／动画','Show picture':'显示图片','Auto-rotate pictures':'自动轮播图片','Switch picture every (seconds)':'图片切换间隔（秒）','Loading pictures…':'正在加载图片…','No picture selected':'未选择图片','Picture selected':'已选择图片','Choose a valid installed picture first':'请先选择有效的已安装图片',
+'Fullscreen 240 × 240 pictures and animations. Choose a package and show it, or enable automatic rotation. Short touch: next screen; long touch: resume automatic mode.':'全屏显示 240 × 240 图片和动画。选择素材并立即显示，或开启自动轮播。短按触摸键切换下一屏，长按恢复自动模式。',
+'Weather clocks':'天气时钟','Clock layout':'时钟布局','Simple weather clock':'简洁天气时钟','Detailed weather clock':'详细天气时钟','Three-day forecast':'三日天气预报','Large two-tone clock':'大字双色时钟','Auto-rotate clock layouts':'自动轮换时钟布局','Switch clock every (seconds)':'时钟切换间隔（秒）','Refresh pictures':'刷新相册','Picture management':'相册管理','Install a picture package':'安装图片包','Picture installed':'图片已安装','Picture removed':'图片已删除','No pictures installed':'尚未安装图片','Choose a .stheme package':'请选择 .stheme 文件','Invalid picture package ID':'图片包 ID 必须以 picture- 开头',
+'Clocks use the configured timezone. Sunrise and forecast dates use the weather location. A red dot marks a failed refresh; cached weather stays visible.':'时钟使用已配置时区，日出和预报日期使用天气地点时区。红点表示刷新失败，继续显示缓存天气。',
+'Weather data by Open-Meteo (CC BY 4.0). No API key is needed for its free non-commercial service.':'天气数据来自 Open-Meteo（CC BY 4.0），免费非商业服务无需 API Key。',
+'Open-Meteo provides current weather, humidity, wind speed, sunrise/sunset, and a three-day forecast. Place search uses Open-Meteo Geocoding. Default coordinates: Seoul (37.566, 126.9784).':'Open-Meteo 提供实时天气、湿度、风速、日出日落与三日预报；地点搜索也使用 Open-Meteo。默认坐标为首尔（37.566，126.9784）。',
+'Factory animations are compact two-frame versions. Pictures and clock packages share storage and the 16-package limit.':'出厂动画为两帧精简版本。图片和时钟包共享存储，总数最多 16 个。',
+'Install a 240 × 240 .stheme package. Custom package IDs must begin with picture-. Convert JPG/GIF files on a computer first; direct photo upload is not supported.':'安装 240 × 240 的 .stheme 包，自定义图片 ID 必须以 picture- 开头。JPG/GIF 需先在电脑打包，暂不支持直接上传照片。',
+'Remove this picture package?':'删除这个图片包？',
+'Plane Radar':'飞机雷达','Home location is the center of the radar map and the aircraft search radius.':'雷达位置（Home location）就是地图中心，也是搜索周边飞机的圆心。',
+'Use weather / device location':'使用天气／设备位置','Turn this off to set an independent radar center. This does not change the weather location.':'关闭后可单独设置雷达中心，不会改变天气位置。',
+'City presets (offline)':'常用城市（离线）','Choose a city...':'选择城市…','Search another city':'搜索其他城市','City name':'城市名称','Open-Meteo city search runs in your browser.':'城市搜索由浏览器调用 Open-Meteo，设备无需额外联网搜索。',
+'Radar latitude (−90 to 90)':'雷达纬度（−90 至 90）','Radar longitude (−180 to 180)':'雷达经度（−180 至 180）',
+'Aircraft feed and display':'飞机数据与显示','Search radius (km)':'搜索半径（千米）','Refresh every (seconds)':'刷新间隔（秒）','Aircraft source':'飞机数据源','Webhook URL':'Webhook 地址',
+'Distance units':'距离单位','Kilometers':'千米','Miles':'英里','Minimum altitude (feet)':'最低高度（英尺）','Label size':'标签大小','Small':'小','Normal':'标准','Large':'大',
+'Aircraft labels':'飞机标签','Heading vectors':'航向线','Aircraft at the edge':'边缘飞机提示','Airport markers (ICAO, latitude, longitude)':'机场标记（ICAO 代码、纬度、经度）','+ Add airport':'+ 添加机场',
+'Save radar settings':'保存雷达设置','Save and show radar':'保存并显示雷达'
+};
+function zhText(s){
+ if(ZH[s])return ZH[s];var m=s.match(/^(\s*)([\s\S]*?)(\s*)$/);
+ return m&&ZH[m[2]]?m[1]+ZH[m[2]]+m[3]:s;
+}
+function i18n(s){return UI_LANG==='zh'?zhText(s):s}
+function i18nValue(cur,en){
+ var zh=zhText(en);if(cur!==en&&cur!==zh){en=cur;zh=zhText(en)}
+ return [en,UI_LANG==='zh'?zh:en];
+}
+function translateDom(root){
+ var nodes=[],n,w=document.createTreeWalker(root,4);
+ while((n=w.nextNode()))nodes.push(n);
+ nodes.forEach(function(n){var p=n.parentNode;if(p&&(p.nodeName==='SCRIPT'||p.nodeName==='STYLE'))return;var v=i18nValue(n.nodeValue,n._i18nEn==null?n.nodeValue:n._i18nEn);n._i18nEn=v[0];if(n.nodeValue!==v[1])n.nodeValue=v[1]});
+ var els=[];if(root.nodeType===1&&root.hasAttribute('placeholder'))els.push(root);
+ if(root.querySelectorAll)root.querySelectorAll('[placeholder]').forEach(function(e){els.push(e)});
+ els.forEach(function(e){var v=i18nValue(e.placeholder,e._i18nEnPlaceholder==null?e.placeholder:e._i18nEnPlaceholder);e._i18nEnPlaceholder=v[0];if(e.placeholder!==v[1])e.placeholder=v[1]});
+}
+var I18N_TIMER=0;
+function queueTranslation(){if(UI_LANG!=='zh'||I18N_TIMER)return;I18N_TIMER=setTimeout(function(){I18N_TIMER=0;translateDom(document)},0)}
+function setLanguage(lang,remember){
+ UI_LANG=lang==='zh'?'zh':'en';if(remember){try{localStorage.setItem('smalltv-ui-lang',UI_LANG)}catch(e){}}
+ document.documentElement.lang=UI_LANG==='zh'?'zh-CN':'en';var sel=$('uiLang');if(sel)sel.value=UI_LANG;translateDom(document);
+ if(I18N_TIMER){clearTimeout(I18N_TIMER);I18N_TIMER=0}queueTranslation();
+}
 function $(id){return document.getElementById(id)}
 // null-safe field helpers: a lean build removes some feature tabs entirely
 function sv(id,v){var e=$(id);if(e)e.value=(v!=null?v:'')}
@@ -543,59 +775,37 @@ function sc(id,v){var e=$(id);if(e)e.checked=!!v}
 function gv(id){var e=$(id);return e?e.value:''}
 function gc(id){var e=$(id);return e?e.checked:false}
 // sun begin (device location, sun schedule; tested by tests/sun/test_webui.js)
-var PLACES=[];
 function placeLabel(p){return [p.name,p.admin1,p.country].filter(Boolean).join(', ')}
 
-function setLoc(lat, lon, name) {
+function setLoc(lat, lon, name, timezone) {
  if($('wLat')) $('wLat').value = lat;
  if($('wLon')) $('wLon').value = lon;
  if($('locLat')) $('locLat').value = lat;
  if($('locLon')) $('locLon').value = lon;
+ sv('wLocName',name);sv('locName',name);
+ if(timezone&&typeof SearchUI!=='undefined')SearchUI.selectTimezone(timezone);
+ else if(timezone&&typeof TZMAP!=='undefined'&&timezone in TZMAP)sv('tz',timezone);
+ radarLocChanged();
  toast('Selected ' + name + ' (' + lat + ', ' + lon + '). Click "Save settings" to save.');
+}
+function weatherCoordEdited(weather){
+ if(weather===true){sv('locLat',gv('wLat'));sv('locLon',gv('wLon'))}
+ if(weather===false){sv('wLat',gv('locLat'));sv('wLon',gv('locLon'))}
+ sv('wLocName','');sv('locName','');radarLocChanged()
 }
 function applyWeatherLoc() {
  var lat = parseFloat(gv('wLat')) || 0;
  var lon = parseFloat(gv('wLon')) || 0;
  if($('locLat')) $('locLat').value = lat;
  if($('locLon')) $('locLon').value = lon;
- toast('Location synced. Click "Save settings" below to apply and reboot.');
+ sv('locName',gv('wLocName'));
+ radarLocChanged();
+ toast('Location synced. Click "Save settings" to apply.');
 }
-function wPlaceSearch() {
- var q = gv('wLocQ').trim(); if(!q) return;
- fetch('https://geocoding-api.open-meteo.com/v1/search?name=' + encodeURIComponent(q) + '&count=5&language=en&format=json')
- .then(function(r){return r.json()})
- .then(function(d){
-  var res = $('wLocRes'); if(!res) return;
-  res.innerHTML = '<option value="">Select a place...</option>';
-  ((d&&d.results)||[]).forEach(function(it){
-   var o = document.createElement('option');
-   o.value = it.latitude + ',' + it.longitude;
-   o.textContent = it.name + (it.admin1 ? ', ' + it.admin1 : '') + ' (' + it.country_code + ')';
-   res.appendChild(o);
-  });
-  res.style.display = 'block';
- }).catch(function(){toast('Location search failed');});
-}
-function wPlacePick() {
- var v = gv('wLocRes'); if(!v) return;
- var parts = v.split(',');
- if(parts.length === 2) {
-  setLoc(parseFloat(parts[0]), parseFloat(parts[1]), 'Chosen location');
- }
-}
-
-function placeSearch(){var q=gv('locQ').trim(); if(!q)return Promise.resolve();
- $('locMsg').textContent='Searching...';
- return fetch('https://geocoding-api.open-meteo.com/v1/search?name='+encodeURIComponent(q)+'&count=5&language=en&format=json')
- .then(function(r){return r.json()}).then(function(d){
-  PLACES=d.results||[]; var sel=$('locRes'); sel.innerHTML='';
-  if(!PLACES.length){sel.style.display='none';$('locMsg').textContent='No place found. Try another spelling, or type the numbers.';return}
-  PLACES.forEach(function(p,i){var o=document.createElement('option');o.value=i;o.textContent=placeLabel(p);sel.appendChild(o)});
-  sel.style.display='';sel.value='0';placePick();
-  $('locMsg').textContent='Pick the right place. The numbers are filled in and can still be edited. Save to keep them.';
- }).catch(function(){$('locMsg').textContent='Search failed (no internet in this browser?). Type the numbers instead.'})}
-function placePick(){var p=PLACES[parseInt(gv('locRes'))]; if(!p)return;
- sv('locLat',p.latitude.toFixed(4)); sv('locLon',p.longitude.toFixed(4))}
+function wPlaceSearch(){return SearchUI.searchCity('wLocQ')}
+function wPlacePick(){}
+function placeSearch(){return SearchUI.searchCity('locQ')}
+function placePick(){}
 function sunToggled(){if(gc('sunEnabled'))sc('autoBrightness',false)}
 function autoToggled(){if(gc('autoBrightness'))sc('sunEnabled',false)}
 function burninToggled(){
@@ -618,7 +828,26 @@ function previewBurnin(){
   body: JSON.stringify({effect: eff, durationSec: 5})
  }).catch(function(e){ toast('Preview failed: ' + e.message); });
 }
-function radarLocChanged(){var d=gc('radarUseDevice'); $('radarLat').disabled=d; $('radarLon').disabled=d}
+// radar location begin
+function radarCoordinate(value, limit){return String(value).trim()!==''&&Number.isFinite(Number(value))&&Math.abs(Number(value))<=limit}
+function radarProblem(){
+ var shared=gc('radarUseDevice'),lat=gv(shared?'locLat':'radarLat'),lon=gv(shared?'locLon':'radarLon');
+ if(!radarCoordinate(lat,90))return 'Radar latitude must be a number from -90 to 90.';
+ if(!radarCoordinate(lon,180))return 'Radar longitude must be a number from -180 to 180.';
+ if(Number(lat)===0&&Number(lon)===0)return 'Choose a radar center. 0/0 is reserved for an unset location.';
+ return '';
+}
+function radarLocChanged(){
+ var shared=gc('radarUseDevice');if(!$('radarLat'))return;
+ $('radarLat').disabled=shared;$('radarLon').disabled=shared;
+ var lat=gv(shared?'locLat':'radarLat'),lon=gv(shared?'locLon':'radarLon'),bad=radarProblem();
+ if($('radarCenter'))$('radarCenter').textContent=bad||('Radar center: '+Number(lat).toFixed(6)+', '+Number(lon).toFixed(6)+(shared?' (weather / device location)':' (independent)'));
+}
+function radarSetCenter(lat,lon){sc('radarUseDevice',false);sv('radarLat',Number(lat).toFixed(6));sv('radarLon',Number(lon).toFixed(6));radarLocChanged()}
+function radarPresetPick(){var coordinates=gv('radarPreset').split(',');if(coordinates.length===2)radarSetCenter(coordinates[0],coordinates[1])}
+function radarCitySearch(){return SearchUI.searchCity('radarCityQ')}
+function radarCityPick(){}
+// radar location end
 // The line under the schedule, from the settings (c) and the status reply (s).
 // null: the schedule is off, leave the hint alone. s.bl is the backlight level
 // 0..255; it reads -1 until the first write after boot (and is missing on an
@@ -677,12 +906,27 @@ var TZMAP={
 function fillTz(){var s=$('tz');if(!s)return;var keys=Object.keys(TZMAP).filter(function(k){return k!==''});
  keys.sort();s.innerHTML='<option value="">UTC</option>'+keys.map(function(k){return '<option value="'+k+'">'+k+'</option>'}).join('');}
 
-var MODEOPT={ticker:'stocks',ticker2:'stocks2',weather:'weather',usage:'usage',radar:'radar',ha:'ha',theme:'theme'};
-var CAROPT={ticker:'carouselTicker',ticker2:'carouselTicker2',weather:'carouselWeather',usage:'carouselUsage',radar:'carouselRadar',ha:'carouselHa',theme:'carouselTheme'};
+var MODEOPT={ticker:'stocks',ticker2:'stocks2',crypto:'crypto',weather:'weather',usage:'usage',radar:'radar',ha:'ha',theme:'theme',pictures:'pictures'};
+var CAROPT={ticker:'carouselTicker',ticker2:'carouselTicker2',crypto:'carouselCrypto',weather:'carouselWeather',usage:'carouselUsage',radar:'carouselRadar',ha:'carouselHa',theme:'carouselTheme',pictures:'carouselPictures'};
+var APP_LABELS={ticker:'Stock 1',ticker2:'Stock 2',crypto:'Crypto',weather:'Weather',usage:'Usage',radar:'Plane Radar',ha:'Home Assistant',theme:'Theme clock',pictures:'Pictures'};
+function renderModeChoices(features){
+ var keys=Object.keys(MODEOPT).filter(function(key){return features[key==='ticker2'?'ticker':key]!==false&&(!(key==='ticker2'||key==='crypto')||features.ticker!==false)&&(!(key==='theme'||key==='pictures')||features[key]===true)});
+ function option(select,value,label){var entry=document.createElement('option');entry.value=value;entry.textContent=label;select.appendChild(entry)}
+ for(var index=-1;index<4;index++){
+  var select=$(index<0?'mode':'timerApp'+index);if(!select)continue;select.replaceChildren();
+  if(index<0){option(select,'timer','Timer (schedule by time)');option(select,'carousel','Carousel (rotate modes)')}
+  keys.forEach(function(key){option(select,MODEOPT[key],APP_LABELS[key])});
+ }
+ var container=$('carouselApps');if(!container)return;container.replaceChildren();
+ keys.forEach(function(key){var row=document.createElement('div'),input=document.createElement('input'),label=document.createElement('label');
+  row.className='chk';input.type='checkbox';input.id=CAROPT[key];label.htmlFor=input.id;label.textContent=APP_LABELS[key];row.appendChild(input);row.appendChild(label);container.appendChild(row)});
+}
 function hideFeat(name){
+ if(name==='ticker'){hideFeat('ticker2');hideFeat('crypto')}
  var b=document.querySelector('nav button[data-t="'+name+'"]'); if(b)b.remove();
  var sec=$(name); if(sec)sec.remove();
  var o=document.querySelector('#mode option[value="'+MODEOPT[name]+'"]'); if(o)o.remove();
+ document.querySelectorAll('#timerRow option[value="'+MODEOPT[name]+'"]').forEach(function(x){x.remove()});
  var c=$(CAROPT[name]); if(c)c.closest('.chk').remove();
 }
 function modeChanged(){if(!$('mode'))return;
@@ -703,9 +947,10 @@ function setGain(id,lab,v){var n=(v!=null?v:100);sv(id,n);var e=$(lab);if(e)e.te
 function resetColors(){setGain('rGain','rgVal',100);setGain('gGain','ggVal',100);setGain('bGain','bgVal',100);
  toast('Gains reset — press Save settings to apply')}
 function loadConfig(){return j('/api/config').then(function(c){C=c;
- var f=c.features||{}; ['ticker','usage','radar','ha'].forEach(function(k){if(f[k]===false)hideFeat(k)});
- // WireGuard is only built for the chips with room for it; drop the card otherwise
- if(f.theme!==true){hideFeat('theme');var tc=$('themeCard');if(tc)tc.remove()}else{loadThemes()}
+ var f=c.features||{};renderModeChoices(f); ['ticker','crypto','usage','radar','ha'].forEach(function(k){if(f[k]===false)hideFeat(k)});
+ if(f.theme!==true){hideFeat('theme');var tc=$('themeCard');if(tc)tc.remove()}
+ if(f.pictures!==true)hideFeat('pictures');
+ if(f.theme===true||f.pictures===true)loadThemes();
  if(f.wireguard===false){var wc=$('wgCard'); if(wc)wc.remove()}
  // Physical button card: only on boards that wire one
  if(f.button===true){var bc=$('buttonCard'); if(bc)bc.style.display='block';
@@ -739,18 +984,21 @@ function loadConfig(){return j('/api/config').then(function(c){C=c;
  // clock slice
  fillTz(); var ck=c.clock||{};
  if(ck.tz && !(ck.tz in TZMAP)){var _ts=$('tz'); if(_ts){var _o=document.createElement('option');_o.value=ck.tz;_o.textContent=ck.tz;_ts.appendChild(_o);}}
- sv('tz',ck.tz||''); sv('lang',ck.lang||'en'); sc('nightEnabled',!!ck.nightEnabled);
+ sv('tz',ck.tz||''); sv('lang',ck.lang||'en'); sv('ntpServer',ck.ntpServer||''); sc('nightEnabled',!!ck.nightEnabled);
  sv('nightStart',ck.nightStart||'22:00'); sv('nightEnd',ck.nightEnd||'07:00');
  sv('nightLevel',ck.nightLevel!=null?ck.nightLevel:0); $('nlVal')&&($('nlVal').textContent=(ck.nightLevel!=null?ck.nightLevel:0));
- sv('locLat',ck.lat||''); sv('locLon',ck.lon||''); sv('wLat',ck.lat||37.566); sv('wLon',ck.lon||126.9784);
+ sv('locLat',ck.lat!=null?ck.lat:0); sv('locLon',ck.lon!=null?ck.lon:0); sv('wLat',ck.lat!=null?ck.lat:0); sv('wLon',ck.lon!=null?ck.lon:0);
+ sv('locName',ck.locationName||''); sv('wLocName',ck.locationName||'');
  sc('sunEnabled',!!ck.sunEnabled); sv('sunLow',ck.sunLow!=null?ck.sunLow:5); $('slVal')&&($('slVal').textContent=(ck.sunLow!=null?ck.sunLow:5));
  sv('sunRise',ck.sunRise!=null?ck.sunRise:60); sv('sunSet',ck.sunSet!=null?ck.sunSet:60); sv('sunOverlap',ck.sunOverlap||0);
- var m=c.mode||'timer'; if(m!=='carousel') m='timer';
+ var m=c.mode||'weather';
  $('mode').value=m; modeChanged();
- var cSec = c.carouselSec || 60; sv('carouselMin', Math.round((cSec / 60) * 10) / 10);
- sv('weatherPollMin', c.weatherPollMin || 10);
- sc('carouselTicker',c.carouselTicker!==false); sc('carouselTicker2',c.carouselTicker2!==false); sc('carouselWeather',c.carouselWeather!==false); sc('carouselUsage',c.carouselUsage!==false); sc('carouselRadar',c.carouselRadar!==false);
- sc('carouselHa',c.carouselHa!==false); sc('carouselTheme',c.carouselTheme===true);
+ sc('pictureAuto',c.pictureAuto!==false); sv('pictureRotateSec',c.pictureRotateSec||10);
+ var cSec = c.carouselSec || 60; sv('carouselMin', cSec / 60);
+ sv('weatherPollMin', c.weatherPollMin || 10); sv('weatherTempUnit',c.weatherTempUnit||'c'); sv('weatherWindUnit',c.weatherWindUnit||'kmh');
+ sv('weatherStyle',c.weatherStyle||'simple');sc('weatherAuto',c.weatherAuto===true);sv('weatherRotateSec',c.weatherRotateSec||20);
+ sc('carouselTicker',c.carouselTicker!==false); sc('carouselTicker2',c.carouselTicker2===true); sc('carouselCrypto',c.carouselCrypto===true); sc('carouselWeather',c.carouselWeather!==false); sc('carouselUsage',c.carouselUsage===true); sc('carouselRadar',c.carouselRadar===true);
+ sc('carouselHa',c.carouselHa===true); sc('carouselTheme',c.carouselTheme===true); sc('carouselPictures',c.carouselPictures===true);
  var tms=c.timers||[
   {enabled:true,time:'06:00',app:'weather'},
   {enabled:true,time:'09:00',app:'stocks'},
@@ -786,7 +1034,6 @@ function loadConfig(){return j('/api/config').then(function(c){C=c;
  sv('changeOnRange',t.changeOnRange===false?'false':'true');
  renderSyms(t.symbols||[], 1); symHintFor('naver', 1);
  // ticker 2 slice
- sc('carouselTicker2',c.carouselTicker2!==false);
  var t2=c.ticker2||{};
  T_TEXT.forEach(function(k){sv(k+'_2',t2[k])});
  T_NUM.forEach(function(k){sv(k+'_2',t2[k])});
@@ -794,6 +1041,13 @@ function loadConfig(){return j('/api/config').then(function(c){C=c;
  sv('colorInverted_2',t2.colorInverted?'true':'false');
  sv('changeOnRange_2',t2.changeOnRange===false?'false':'true');
  renderSyms(t2.symbols||[], 2); symHintFor('naver', 2);
+ // independent Binance crypto slice
+ var t3=c.crypto||{};
+ T_TEXT.forEach(function(k){sv(k+'_3',t3[k])});
+ T_NUM.forEach(function(k){sv(k+'_3',t3[k])});
+ T_BOOL.forEach(function(k){sc(k+'_3',t3[k])});
+ sv('colorInverted_3',t3.colorInverted?'true':'false');
+ renderSyms(t3.symbols||[], 3); symHintFor('binance', 3);
  // usage slice
  sv('usageUrl',u.usageUrl);
  sv('usagePollSec',u.pollSec);
@@ -823,11 +1077,13 @@ function loadConfig(){return j('/api/config').then(function(c){C=c;
 })}
 
 function esc(s){return (''+(s==null?'':s)).replace(/[<>&"]/g,function(c){return {'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]})}
-function symHintFor(v, which){which=which||1;var h=$(which===2?'symHint2':'symHint');if(!h)return;
+function symHintFor(v, which){which=which||1;var h=$(which===3?'symHint3':(which===2?'symHint2':'symHint'));if(!h)return;
  h.innerHTML=(v==='naver'
   ?(which===2
-    ?'<b>Naver Finance (미국/해외 주식 실시간)</b>: 네이버 미국 종목코드(예: <code>NVDA.O</code> 엔비디아, <code>SOXX.O</code> 필라델피아반도체, <code>SPY</code> S&amp;P500, <code>TSM</code>, <code>AAPL.O</code>)를 입력하세요. 정규장은 물론 <b>프리마켓/애프터마켓</b> 실시간 거래가 및 캔들 차트가 반영됩니다.'
-    :'<b>Naver Finance (한국 국내주식 실시간)</b>: 6자리 종목코드(예: <code>005930</code> 삼성전자, <code>000660</code> SK하이닉스, <code>122630</code> KODEX레버리지)를 입력하면 실시간 주가, 분봉 캔들 차트, 어제 종가선이 표시됩니다.')
+    ?'<b>Naver Finance (US / international real time)</b>: enter Naver US symbols such as <code>NVDA.O</code>, <code>SOXX.O</code>, <code>SPY</code>, <code>TSM</code>, or <code>AAPL.O</code>. Regular, pre-market, and after-hours prices and candle charts are supported.'
+    :'<b>Naver Finance (Korean market real time)</b>: enter a 6-digit symbol such as <code>005930</code>, <code>000660</code>, or <code>122630</code> for live prices, intraday candles, and the previous close.')
+  :v==='binance'
+  ?'<b>Binance Spot</b>: public K-lines, no API key. Use pairs such as <code>BTCUSDT</code>, <code>ETHUSDT</code>, or another alphanumeric Spot pair.'
   :v==='cash'
   ?'<b>cash.ch</b>: fetched directly by the device. The symbol is a listing key like <code>123456789-246-333</code>; the finder below turns a cash.ch link, ISIN, or name into one.'
    +(C.chip==='esp8266'?' <b>On this ESP8266</b>, cash.ch\'s TLS is tight on this chip &mdash; if it proves unstable, use the <b>GitHub</b> source for the same listing key instead. The ESP32 boards fetch cash.ch directly.':'')
@@ -891,8 +1147,10 @@ function authRemove(){
 // password end
 function collect(){
  var o={
-  carouselSec:Math.max(5, Math.round((parseFloat(gv('carouselMin')) || 1) * 60)),
+  carouselSec:Math.min(3600,Math.max(5, Math.round((parseFloat(gv('carouselMin')) || 1) * 60))),
   weatherPollMin:parseInt(gv('weatherPollMin')) || 10,
+  weatherStyle:gv('weatherStyle')||'simple',weatherAuto:gc('weatherAuto'),weatherRotateSec:numIn(gv('weatherRotateSec'),20,10,3600),
+  weatherTempUnit:gv('weatherTempUnit')||'c',weatherWindUnit:gv('weatherWindUnit')||'kmh',
   brightness:parseInt(gv('brightness'))||0,
   rotation:parseInt(gv('rotation')),
   autoBrightness:gc('autoBrightness'),
@@ -907,10 +1165,10 @@ function collect(){
    effect:gv('burninEffect')||'matrix'
   },
   timers:[
-   {enabled:gc('timerEn0'), time:gv('timerTime0')||'06:00', app:gv('timerApp0')||'weather'},
-   {enabled:gc('timerEn1'), time:gv('timerTime1')||'09:00', app:gv('timerApp1')||'stocks'},
-   {enabled:gc('timerEn2'), time:gv('timerTime2')||'15:30', app:gv('timerApp2')||'weather'},
-   {enabled:gc('timerEn3'), time:gv('timerTime3')||'23:30', app:gv('timerApp3')||'stocks2'}
+   {enabled:gc('timerEn0'), time:gv('timerTime0')||'06:00', app:gv('timerApp0')||(C.timers&&C.timers[0]&&C.timers[0].app)||'weather'},
+   {enabled:gc('timerEn1'), time:gv('timerTime1')||'09:00', app:gv('timerApp1')||(C.timers&&C.timers[1]&&C.timers[1].app)||'stocks'},
+   {enabled:gc('timerEn2'), time:gv('timerTime2')||'15:30', app:gv('timerApp2')||(C.timers&&C.timers[2]&&C.timers[2].app)||'weather'},
+   {enabled:gc('timerEn3'), time:gv('timerTime3')||'23:30', app:gv('timerApp3')||(C.timers&&C.timers[3]&&C.timers[3].app)||'stocks2'}
   ],
   display:{colorOrder:gv('colorOrder')||'auto', invert:gc('colorInvert'),
    rGain:parseInt(gv('rGain'))||100, gGain:parseInt(gv('gGain'))||100, bGain:parseInt(gv('bGain'))||100},
@@ -923,6 +1181,7 @@ function collect(){
  // device stored that mode, the list shows nothing and gv() answers ''. Send
  // a mode only when the list offers one, so the save keeps the stored mode.
  var md=gv('mode'); if(md)o.mode=md;
+ if($('pictures')){o.pictureId=gv('pictureSelect');o.pictureAuto=gc('pictureAuto');o.pictureRotateSec=numIn(gv('pictureRotateSec'),10,2,3600)}
  // Web UI password: same blank-keeps-stored rule as everywhere else. A saved
  // password is the lock, so there is no "enabled" to send; removing it is its
  // own request (authRemove). saveAll() checks the two fields match first.
@@ -975,6 +1234,19 @@ function collect(){
   });
   o.ticker2=t2;
  }
+ if($('crypto')){
+  var t3={colorInverted:gv('colorInverted_3')==='true',changeOnRange:true};
+  T_TEXT.forEach(function(k){t3[k]=gv(k+'_3')});
+  T_NUM.forEach(function(k){t3[k]=parseInt(gv(k+'_3'))||0});
+  T_BOOL.forEach(function(k){t3[k]=gc(k+'_3')});
+  t3.symbols=[];
+  document.querySelectorAll('#symTable3 tr').forEach(function(tr){
+   var s=tr.querySelector('.s').value.trim().toUpperCase();
+   if(s)t3.symbols.push({symbol:s,name:tr.querySelector('.n').value.trim(),source:'binance',
+    qty:parseFloat(tr.querySelector('.q').value)||0,cost:parseFloat(tr.querySelector('.c').value)||0});
+  });
+  o.crypto=t3;
+ }
  // usage slice
  if($('usage')) o.usage={usageUrl:gv('usageUrl'), pollSec:parseInt(gv('usagePollSec'))||0, hide5h:gc('usageHide5h')};
  // HA / MQTT slice (blank password keeps the stored one, so only send what was typed)
@@ -983,7 +1255,8 @@ function collect(){
   var _hp=gv('haBrokerPass'); if(_hp)_h.brokerPass=_hp; o.ha=_h;}
  // clock slice
  if($('tz')){var _tzn=gv('tz'); var _tzp=(_tzn in TZMAP)?TZMAP[_tzn]:((C.clock&&C.clock.tz===_tzn&&C.clock.tzPosix)?C.clock.tzPosix:'UTC0');
-  o.clock={tz:_tzn,tzPosix:_tzp,lang:gv('lang')||'en',
+  o.clock={tz:_tzn,tzPosix:_tzp,lang:gv('lang')||'en',ntpServer:gv('ntpServer').trim(),
+  locationName:gv('wLocName'),
   nightEnabled:gc('nightEnabled'),nightStart:gv('nightStart')||'22:00',
   nightEnd:gv('nightEnd')||'07:00',nightLevel:parseInt(gv('nightLevel'))||0,
   lat:parseFloat(gv('locLat'))||0,lon:parseFloat(gv('locLon'))||0,
@@ -991,7 +1264,7 @@ function collect(){
   sunSet:numIn(gv('sunSet'),60,0,120),sunOverlap:numIn(gv('sunOverlap'),0,0,2)};}
  // radar slice
  if($('radar')){
-  var r={useDevice:gc('radarUseDevice'), lat:parseFloat(gv('radarLat'))||0, lon:parseFloat(gv('radarLon'))||0,
+  var r={useDevice:gc('radarUseDevice'), lat:Number(gv('radarLat')), lon:Number(gv('radarLon')),
    rangeKm:parseInt(gv('rangeKm'))||20, unitsMi:gv('unitsMi')==='true',
    pollSec:parseInt(gv('radarPollSec'))||0, source:gv('radarSource'),
    webhookUrl:gv('radarWebhookUrl'),
@@ -1007,10 +1280,27 @@ function collect(){
  return o;
 }
 function saveAll(){var bad=authProblem();if(bad){toast(bad);return}
+ if(gv('mode')==='carousel'&&!Object.keys(CAROPT).some(function(key){return gc(CAROPT[key])})){toast('Select at least one app for Carousel');return}
+ if($('radar')&&!gc('radarUseDevice')&&(gv('radarLat')!==''||gv('radarLon')!=='')){
+  bad=radarProblem();if(bad){toast(bad);return}
+ }
  var typed=!!gv('authPass');
  j('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(collect())})
  .then(function(r){if(!r.ok){toast(r.error||'Save failed');return}if(typed)authShow(true);toast(r.reboot?'Saved — rebooting...':(haNote(r.ha)?'Saved. '+haNote(r.ha):'Saved'));if(r.reboot)setTimeout(function(){location.reload()},6000);loadStatus()})
  .catch(function(e){toast('Save failed: '+e.message)})}
+function saveRadar(show){
+ var bad=radarProblem();if(bad){toast(bad);return}
+ var body={radar:collect().radar};if(show)body.mode='radar';
+ if(body.radar.useDevice)body.clock={lat:Number(gv('locLat')),lon:Number(gv('locLon')),locationName:gv('wLocName')};
+ return j('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+ .then(function(result){
+  if(!result.ok){toast(result.error||'Save failed');return}
+  if(body.clock)C.clock=Object.assign({},C.clock||{},body.clock);
+  if(show){C.mode='radar';sv('mode','radar');modeChanged()}
+  toast('Saved');radarLocChanged();loadStatus();
+ })
+ .catch(function(error){toast('Save failed: '+error.message)});
+}
 
 function saveWifi(){
  var o={wifi:collectWifi()};
@@ -1037,21 +1327,32 @@ function scanPick(ssid){var rows=document.querySelectorAll('#wifiTable tr');var 
  tr.querySelector('.ws').value=ssid;tr.querySelector('.wp').focus();}
 
 // symbols
-function renderSyms(arr, which){which=which||1;var tid=which===2?'symTable2':'symTable';var t=$(tid);if(!t)return;t.innerHTML='';arr.forEach(function(o){addRow(o,which)});if(!arr.length)addRow({},which)}
-function addRow(o, which){which=which||1;var tid=which===2?'symTable2':'symTable';var t=$(tid);var tr=document.createElement('tr');tr.className='symrow';
- var phSymbol = (which===2) ? "NVDA.O" : "005930";
- var phName = (which===2) ? "NVIDIA" : "SAMSUNG";
+function symTableId(which){return which===3?'symTable3':(which===2?'symTable2':'symTable')}
+function renderSyms(arr, which){which=which||1;var t=$(symTableId(which));if(!t)return;t.innerHTML='';arr.forEach(function(o){addRow(o,which)});if(!arr.length)addRow({},which)}
+function addRow(o, which){which=which||1;var t=$(symTableId(which));if(!t)return;var tr=document.createElement('tr');tr.className='symrow';
+ var phSymbol = which===3 ? "BTCUSDT" : (which===2 ? "NVDA.O" : "005930");
+ var phName = which===3 ? "Bitcoin" : (which===2 ? "NVIDIA" : "SAMSUNG");
+ var sources = which===3 ? '<option value="binance">Binance Spot</option>' : '<option value="naver">Naver Finance</option><option value="yahoo">Yahoo Finance</option><option value="cash">cash.ch</option><option value="github">GitHub</option><option value="webhook">Webhook</option>';
  tr.innerHTML='<td style="width:24%"><input class="s" type="text" placeholder="'+phSymbol+'" value="'+esc(o.symbol||'')+'"></td>'+
   '<td><input class="n" type="text" placeholder="'+phName+'" value="'+esc(o.name||'')+'"></td>'+
-  '<td style="width:118px"><select class="src" onchange="symHintFor(this.value,'+which+')">'+
-   '<option value="naver">Naver '+(which===2?'(해외)':'(국내)')+'</option><option value="yahoo">Yahoo Finance</option><option value="cash">cash.ch</option><option value="github">GitHub</option><option value="webhook">Webhook</option></select></td>'+
+  '<td style="width:118px"><select class="src" onchange="symHintFor(this.value,'+which+')">'+sources+'</select></td>'+
   '<td style="width:58px"><input class="q" type="number" step="any" min="0" placeholder="qty" value="'+(o.qty>0?o.qty:'')+'"></td>'+
   '<td style="width:70px"><input class="c" type="number" step="any" min="0" placeholder="cost" value="'+(o.cost>0?o.cost:'')+'"></td>'+
   '<td style="width:34px"><button class="btn sec" style="padding:6px 10px" onclick="this.closest(\'tr\').remove()">&times;</button></td>';
- var defSrc = (o.symbol && /^[0-9]{6}(\.KS|\.KQ)?$/i.test(o.symbol)) ? 'naver' : (o.source||'naver');
+ var defSrc = which===3 ? 'binance' : ((o.symbol && /^[0-9]{6}(\.KS|\.KQ)?$/i.test(o.symbol)) ? 'naver' : (o.source||'naver'));
  tr.querySelector('.src').value=o.source||defSrc;
  t.appendChild(tr);}
-function addSym(which){which=which||1;var sel=which===2?'#symTable2 tr':'#symTable tr';if(document.querySelectorAll(sel).length>=8){toast('Max 8');return}addRow({},which)}
+function addSym(which){which=which||1;var sel='#'+symTableId(which)+' tr';if(document.querySelectorAll(sel).length>=8){toast('Max 8');return}addRow({},which)}
+function presetAdd(which,symbol,name,source){
+ var rows=document.querySelectorAll('#'+symTableId(which)+' tr'),tr=null;
+ for(var existing=0;existing<rows.length;existing++)if(rows[existing].querySelector('.s').value.trim().toUpperCase()===symbol.toUpperCase()&&rows[existing].querySelector('.src').value===source){toast('This ticker is already in the list.');return}
+ for(var i=0;i<rows.length;i++){if(!rows[i].querySelector('.s').value.trim()){tr=rows[i];break}}
+ if(!tr){if(rows.length>=8){toast('Max 8');return}addRow({symbol:symbol,name:name,source:source},which);toast('Added. Click "Save settings" to apply.');return}
+ tr.querySelector('.s').value=symbol;tr.querySelector('.n').value=name;tr.querySelector('.src').value=source;symHintFor(source,which);
+ toast('Added. Click "Save settings" to apply.');
+}
+function addMarketPreset(which){var v=gv('marketPreset_'+which).split('|');if(v.length===2)presetAdd(which,v[0],v[1],'yahoo')}
+function addCryptoPreset(){var v=gv('cryptoPreset').split('|');if(v.length===2)presetAdd(3,v[0],v[1],'binance')}
 
 // airports
 function renderAps(arr){var t=$('apTable');if(!t)return;t.innerHTML='';arr.forEach(addApRow);if(!arr.length)addApRow({})}
@@ -1063,11 +1364,13 @@ function addApRow(o){var t=$('apTable');var tr=document.createElement('tr');tr.c
  t.appendChild(tr);}
 function addAp(){if(document.querySelectorAll('#apTable tr').length>=6){toast('Max 6');return}addApRow({})}
 
-// wifi scan
+// wifi scan: retain the measured dBm and add a readable signal class.
+var WIFI_RSSI_STRONG=-60,WIFI_RSSI_MEDIUM=-75;
+function signalLevel(rssi){return rssi>=WIFI_RSSI_STRONG?'Strong':(rssi>=WIFI_RSSI_MEDIUM?'Medium':'Weak')}
 function scan(){$('scanList').innerHTML='<div class="muted">Scanning...</div>';
  j('/api/scan').then(function(l){var h='';l.sort(function(a,b){return b.rssi-a.rssi});
   l.forEach(function(n){h+='<div class="net" onclick="scanPick(this.dataset.s)" data-s="'+
-   esc(n.ssid)+'"><span>'+(n.enc?'🔒 ':'')+esc(n.ssid)+'</span><span class="muted">'+n.rssi+' dBm</span></div>'});
+   esc(n.ssid)+'"><span>'+(n.enc?'🔒 ':'')+esc(n.ssid)+'</span><span class="muted">'+i18n(signalLevel(n.rssi))+' · '+n.rssi+' dBm</span></div>'});
   $('scanList').innerHTML=h||'<div class="muted">No networks found</div>';})}
 
 // status
@@ -1098,6 +1401,7 @@ function haNote(c){
  return '';
 }
 function showStatus(s){
+ var recovery=$('recoveryBox');if(recovery)recovery.style.display=s.safeMode?'block':'none';
  $('dot').className='dot'+(s.connected?' ok':'');
  $('hi').textContent=s.mode==='ap'?'setup mode':(s.ip||'');
  var cn=$('clockNow'); if(cn){var ne=!!(C.clock&&(C.clock.nightEnabled||C.clock.sunEnabled))||C.mode==='theme'||C.mode==='timer'||!!(C.wg&&C.wg.enabled)||(C.burnin&&C.burnin.enabled&&C.burnin.triggerType==='time');var ns=s.night?'  · night mode active':(s.nightHeld?'  · night mode waiting for NTP':'');cn.textContent=!ne?'Clock: enable night mode, the sun schedule, a theme clock, or WireGuard to start NTP':('Clock: '+(s.synced?(s.time||'synced')+(s.tz?' ('+s.tz+')':''):'waiting for NTP...')+ns);}
@@ -1110,7 +1414,7 @@ function showStatus(s){
  var fv=$('footVer'); if(fv)fv.textContent=' v'+s.version;
  if(s.repo){var rl=$('repoLink'); if(rl)rl.href=s.repo+'/releases'; var rp=$('relLink'); if(rp)rp.href=s.repo+'/releases'; var fr=$('footRepo'); if(fr){fr.href=s.repo; fr.textContent='GitHub: '+s.repo.replace(/^https?:\/\/github\.com\//,'');}}
  $('statusBox').innerHTML=
-  kv('Firmware',s.fw+' '+s.version+(s.variant?' ('+s.variant+')':''))+kv('Mode',s.mode.toUpperCase())+
+  kv('Firmware',s.fw+' '+s.version+(s.variant?' ('+s.variant+')':''))+kv('Network mode',s.mode.toUpperCase())+
   kv('Network',s.ssid||'-')+kv('IP',s.ip||'-')+kv('mDNS','http://'+(C.hostname||'smalltv')+'.local')+
   kv('Signal',s.rssi?s.rssi+' dBm':'-')+
   (s.wifiFail?kv('Last join failure',s.wifiFail):'')+
@@ -1121,24 +1425,25 @@ function showStatus(s){
   ((s.wg&&s.wg.compiledIn)?kv('VPN',s.wg.held?'held':(s.wg.up?'up':(s.wg.enabled?'connecting':'off'))):'')+
   (s.radar?kv('Radar',radarLine(s.radar)):'');
  var wgs=$('wgStatus'); if(wgs)wgs.textContent=wgLine(s.wg);
- var tb=$('tickBox'), tb2=$('tickBox2');
- if(tb||tb2){
-  var h1='', h2='';
+ var tb=$('tickBox'), tb2=$('tickBox2'), tb3=$('tickBox3');
+ if(tb||tb2||tb3){
+  var hs=['','',''];
   var s1Syms = Array.from(document.querySelectorAll('#symTable .s')).map(function(e){return e.value.trim()});
   (s.tickers||[]).forEach(function(t){
    var c=t.error?'var(--red)':(t.valid?'var(--acc)':'var(--mut)');
    var pc=t.changePct!=null?(t.changePct>=0?'+':'')+t.changePct.toFixed(2)+'%':'';
    var st=t.valid?(t.price+'  '+pc):(t.error?'error':'...');
    if(t.error&&t.retryIn!=null)st+=' <span class="muted">(retry '+t.retryIn+'s)</span>';
-   var line='<div class="kv"><b style="color:'+c+'">'+t.symbol+'</b><span>'+st+'</span></div>';
-   if(s1Syms.indexOf(t.symbol)>=0) h1+=line;
-   else h2+=line;
+   var line='<div class="kv"><b style="color:'+c+'">'+esc(t.symbol)+'</b><span>'+st+'</span></div>';
+   var set=t.set>=0&&t.set<=2?t.set:(s1Syms.indexOf(t.symbol)>=0?0:1);
+   hs[set]+=line;
   });
-  if(tb) tb.innerHTML=(h1||h2)||'<span class="muted">No tickers configured</span>';
-  if(tb2) tb2.innerHTML=(h2||h1)||'<span class="muted">No tickers configured</span>';
+  if(tb) tb.innerHTML=hs[0]||'<span class="muted">No tickers configured</span>';
+  if(tb2) tb2.innerHTML=hs[1]||'<span class="muted">No tickers configured</span>';
+  if(tb3) tb3.innerHTML=hs[2]||'<span class="muted">No tickers configured</span>';
  }
 }
-function crashLine(x){return x.reason+(x.epc?', cause '+x.exccause+', epc '+x.epc+', addr '+x.addr:'')+', fw '+x.fw+(x.uptime!=null?', up '+fmtUp(x.uptime):'')}
+function crashLine(x){return esc(x.reason+(x.exccause?', cause '+x.exccause:'')+(x.epc?', epc '+x.epc:'')+(x.addr?', addr '+x.addr:'')+', fw '+x.fw+(x.uptime!=null?', up '+fmtUp(x.uptime):'')+(x.operation?', during '+x.operation:'')+(x.backtrace?', backtrace '+x.backtrace:''))}
 function clearCrash(){j('/api/crash/clear',{method:'POST'}).then(function(){toast('Crash record cleared');loadStatus()}).catch(function(e){toast(e.message)})}
 function kv(k,v){return '<div class="kv"><span class="muted">'+k+'</span><b>'+v+'</b></div>'}
 // WireGuard: one line that names the failure rather than just saying "down".
@@ -1220,29 +1525,62 @@ function importCfg(){var f=$('cfgFile').files[0];if(!f){toast('Pick a config .js
 function reboot(){if(confirm('Reboot device?'))j('/api/reboot',{method:'POST'}).then(function(){toast('Rebooting...')})}
 function factory(){if(confirm('Erase ALL settings and reboot?'))j('/api/factory',{method:'POST'}).then(function(){toast('Reset, rebooting...')})}
 
-// OTA
+// Theme and picture package selection
+function useWeatherStyle(style){sv('weatherStyle',style);sc('weatherAuto',false);sv('mode','weather');modeChanged();return saveAll()}
 function themeRequest(path,body){return fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(function(r){return r.json().then(function(d){if(!r.ok)throw new Error(d.error||'Theme request failed');return d})})}
-var themeEntries=[];
+var themeEntries=[],pictureEntries=[],clockEntries=[];
+function isPicturePackage(id){return id==='pixel-motion'||/^(ultra-|picture-)/.test(id)}
+function renderPictureList(){var list=$('pictureList');if(!list)return;list.textContent='';if(list.replaceChildren)list.replaceChildren();
+ pictureEntries.forEach(function(picture){var row=document.createElement('tr'),name=document.createElement('td'),size=document.createElement('td'),actions=document.createElement('td');name.textContent=(picture.name||picture.id)+(picture.valid===false?' — invalid package':'');size.textContent=Math.ceil(picture.bytes/1024)+' KiB';
+  var show=document.createElement('button');show.type='button';show.className='btn sec';show.textContent='Show picture';show.disabled=picture.valid===false;show.onclick=function(){sv('pictureSelect',picture.id);pictureChoiceChanged();selectPicture()};actions.appendChild(show);
+  var remove=document.createElement('button');remove.type='button';remove.className='btn sec';remove.textContent='Remove';remove.onclick=function(){deletePicture(picture.id)};actions.appendChild(remove);
+  row.appendChild(name);row.appendChild(size);row.appendChild(actions);list.appendChild(row)});
+ if(!pictureEntries.length){var row=document.createElement('tr'),cell=document.createElement('td');cell.colSpan=3;cell.textContent='No pictures installed';row.appendChild(cell);list.appendChild(row)}
+}
 function themeChoiceChanged(){var select=$('themeSelect');if(!select)return;
  var theme=themeEntries.find(function(t){return t.id===select.value});
  $('themeUseBtn').disabled=!theme||theme.valid===false;
  $('themeDetails').textContent=!theme?'No theme selected':(theme.valid===false?'Invalid package: '+(theme.error||'Could not read theme')+' — remove it and install a corrected package.':theme.name+(theme.version?' · '+theme.version:'')+' · '+Math.ceil(theme.bytes/1024)+' KiB');
 }
-function loadThemes(){return j('/api/themes').then(function(d){
- var select=$('themeSelect');if(!select)return;select.textContent='';themeEntries=d.themes||[];
- themeEntries.forEach(function(t){var o=document.createElement('option');o.value=t.id;o.textContent=t.valid===false?t.id+' — invalid package':t.name+' — '+t.version;select.appendChild(o)});
- if(d.selected)select.value=d.selected;
- $('themeStatus').textContent=themeEntries.length+' installed · '+Math.floor(d.freeBytes/1024)+' KiB free'+(d.error?' · '+d.error:'');
- themeChoiceChanged();
- }).catch(function(e){toast(e.message)})}
+function pictureChoiceChanged(){var select=$('pictureSelect');if(!select)return;
+ var picture=pictureEntries.find(function(t){return t.id===select.value});
+ $('pictureUseBtn').disabled=!picture||picture.valid===false;
+ $('pictureDetails').textContent=!picture?'No picture selected':(picture.valid===false?pictureError(picture.error):picture.name+' · '+(picture.version||'')+' · '+Math.ceil(picture.bytes/1024)+' KiB');
+}
+function pictureError(error){return /layers\[\d+\]\.loop/.test(error||'')?'Outdated animation package. Install the full-color picture library.':'Picture package cannot be loaded. Reinstall it.'}
+function loadThemes(strict){return j('/api/themes').then(function(d){
+ themeEntries=d.themes||[];var select=$('themeSelect'),pictures=$('pictureSelect');
+ clockEntries=themeEntries.filter(function(t){return !isPicturePackage(t.id)});
+ if(select){select.textContent='';clockEntries.forEach(function(t){var o=document.createElement('option');o.value=t.id;o.textContent=t.valid===false?t.id+' — invalid package':t.name+' — '+t.version;select.appendChild(o)});if(d.selected&&clockEntries.some(function(t){return t.id===d.selected}))select.value=d.selected;themeChoiceChanged()}
+ if(pictures){pictures.textContent='';pictureEntries=themeEntries.filter(function(t){return isPicturePackage(t.id)});pictureEntries.forEach(function(t){var o=document.createElement('option');o.value=t.id;o.textContent=t.valid===false?t.id+' — invalid package':t.name;pictures.appendChild(o)});if(C.pictureId)pictures.value=C.pictureId;if(!pictures.value&&pictureEntries.length)pictures.value=pictureEntries[0].id;pictureChoiceChanged()}
+ renderPictureList();
+ var storage=themeEntries.length+' installed · '+Math.floor(d.freeBytes/1024)+' KiB free'+(d.error?' · '+d.error:'');
+ if($('themeStatus'))$('themeStatus').textContent=storage;
+ if($('pictureStatus'))$('pictureStatus').textContent=pictureEntries.length+' pictures · '+Math.floor(d.freeBytes/1024)+' KiB free';
+ }).catch(function(e){toast(e.message);if(strict===true)throw e})}
 function selectTheme(){var id=$('themeSelect').value;var theme=themeEntries.find(function(t){return t.id===id});
  if(!theme||theme.valid===false){toast('Choose a valid installed theme first');return}
  themeRequest('/api/themes/select',{id:id}).then(function(){C.mode='theme';C.themeId=id;sv('mode','theme');modeChanged();toast('Theme selected');loadThemes()}).catch(function(e){toast(e.message)})}
+function selectPicture(){var id=gv('pictureSelect');var picture=pictureEntries.find(function(t){return t.id===id});
+ if(!picture||picture.valid===false){toast('Choose a valid installed picture first');return}
+ var auto=gc('pictureAuto'),sec=numIn(gv('pictureRotateSec'),10,2,3600);
+ return themeRequest('/api/pictures/select',{id:id,pictureAuto:auto,pictureRotateSec:sec}).then(function(){C.mode='pictures';C.pictureId=id;C.pictureAuto=auto;C.pictureRotateSec=sec;sv('mode','pictures');modeChanged();toast('Picture selected')}).catch(function(e){toast(e.message)})}
 function deleteTheme(){var id=$('themeSelect').value;if(!id)return;
  themeRequest('/api/themes/delete',{id:id}).then(function(){toast('Theme removed');loadThemes()}).catch(function(e){toast(e.message)})}
 function installTheme(){var f=$('themeFile').files[0];if(!f){toast('Choose a .stheme package');return}
  var data=new FormData();data.append('theme',f);$('themeUploadBtn').disabled=true;$('themeStatus').textContent='Installing…';
  fetch('/api/themes/install',{method:'POST',body:data}).then(function(r){return r.json().then(function(d){if(!r.ok)throw new Error(d.error||'Install failed');return d})}).then(function(d){toast('Theme installed');return loadThemes().then(function(){$('themeSelect').value=d.id;themeChoiceChanged()})}).catch(function(e){$('themeStatus').textContent=e.message;toast(e.message)}).finally(function(){$('themeUploadBtn').disabled=false})}
+function installPicture(){var file=$('pictureFile').files[0];if(!file||!file.name.toLowerCase().endsWith('.stheme')){toast('Choose a .stheme package');return Promise.resolve()}
+ var data=new FormData();data.append('theme',file);$('pictureUploadBtn').disabled=true;$('pictureStatus').textContent='Installing…';
+ return fetch('/api/themes/install?category=picture',{method:'POST',body:data}).then(function(response){return response.json().then(function(result){if(!response.ok)throw new Error(result.error||'Install failed');return result})}).then(function(result){
+  if(!isPicturePackage(result.id))throw new Error('Invalid picture package ID');
+  return loadThemes(true).then(function(){sv('pictureSelect',result.id);pictureChoiceChanged();toast('Picture installed')})
+ }).catch(function(error){$('pictureStatus').textContent=error.message;toast(error.message)}).finally(function(){$('pictureUploadBtn').disabled=false})
+}
+function deletePicture(id){if(!pictureEntries.some(function(picture){return picture.id===id}))return Promise.resolve();
+ if(!confirm(typeof i18n==='function'?i18n('Remove this picture package?'):'Remove this picture package?'))return Promise.resolve();
+ return themeRequest('/api/themes/delete',{id:id}).then(function(){if(C.pictureId===id)C.pictureId='';toast('Picture removed');return loadThemes()}).catch(function(error){toast(error.message)})
+}
 
 function upload(){var f=$('fw').files[0];if(!f){toast('Pick a .bin first');return}
  var fd=new FormData();fd.append('firmware',f,f.name);
@@ -1254,6 +1592,11 @@ function upload(){var f=$('fw').files[0];if(!f){toast('Pick a .bin first');retur
  x.send(fd);
 }
 
+if(typeof setLanguage==='function')setLanguage(UI_LANG,false); // English unless Chinese was chosen
+if(typeof MutationObserver!=='undefined'){
+ new MutationObserver(queueTranslation).observe(document.body,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:['placeholder']});
+}
 loadConfig().then(loadStatus,loadStatus);   // the status polls on, whatever the config did
+SearchUI.init();
 </script>
 </body></html>

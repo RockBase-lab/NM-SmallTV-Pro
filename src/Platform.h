@@ -29,8 +29,8 @@ using SecureClient   = WiFiClientSecure;
 using NetClient      = NetworkClient;
 
 static inline void platformSetHostname(const char* h) { WiFi.setHostname(h); }
-static inline void platformTimeBegin(const char* tz, const char* s1, const char* s2) {
-  configTzTime(tz, s1, s2);   // ESP32 core: sets TZ + starts SNTP
+static inline void platformTimeBegin(const char* tz, const char* s1, const char* s2, const char* s3 = nullptr) {
+  configTzTime(tz, s1, s2, s3);   // ESP32 core: sets TZ + starts SNTP
 }
 static inline void platformMdnsUpdate() { /* ESP32 mDNS answers from a background task */ }
 static inline void platformAnalogWriteInit(uint8_t pin) { (void)pin; /* analogWrite defaults to 8-bit (0..255) */ }
@@ -94,8 +94,8 @@ using SecureClient   = BearSSL::WiFiClientSecure;
 using NetClient      = WiFiClient;
 
 static inline void platformSetHostname(const char* h) { WiFi.hostname(h); }
-static inline void platformTimeBegin(const char* tz, const char* s1, const char* s2) {
-  configTime(tz, s1, s2);     // ESP8266 core: TZ-string overload, sets TZ + starts SNTP
+static inline void platformTimeBegin(const char* tz, const char* s1, const char* s2, const char* s3 = nullptr) {
+  configTime(tz, s1, s2, s3);  // ESP8266 core: TZ-string overload, sets TZ + starts SNTP
 }
 static inline void platformMdnsUpdate() { MDNS.update(); }
 static inline void platformAnalogWriteInit(uint8_t pin) { (void)pin; analogWriteRange(255); }
@@ -164,10 +164,9 @@ void platformOnTimeSync(void (*cb)());
 // survives a normal restart, and also a power-on reset as long as the RTC
 // contents are still valid (a brief dip in power). It is kept until
 // platformCrashRecordClear() or until power is really lost; no flash is
-// written. The ESP32 targets keep no record: platformCrashRecordGet() returns
-// false.
+// written. NM-TV-154 captures panic registers and the last operation in RTC RAM.
 struct PlatformCrashRecord {
-  char     reason[24];     // see crashReasonLabel() in CrashRecord.h
+  char     reason[48];     // see crashReasonLabel() in CrashRecord.h
   char     fw[16];         // FW_VERSION of the image that crashed
   bool     hasRegisters;   // false for abort and stack overflow: the three below are not known
   uint32_t exccause;       // Xtensa EXCCAUSE
@@ -175,11 +174,20 @@ struct PlatformCrashRecord {
   uint32_t excvaddr;       // faulting address
   uint32_t uptimeS;        // seconds up before the crash, valid iff uptimeKnown
   bool     uptimeKnown;    // false for the hardware watchdog (no callback runs)
+  char     operation[24];
+  bool     current;
+  bool     hasPc;
+  uint32_t backtrace[12], backtraceCount;
 };
 // Call once at boot, before anything can reset the chip again.
 void platformCrashRecordBegin();
 bool platformCrashRecordGet(PlatformCrashRecord& out);
 void platformCrashRecordClear();
+#if defined(SMALLTV_ESP32) && !defined(SMALLTV_ESP32_PRO)
+void platformCrashTrace(const char* operation);
+#else
+inline void platformCrashTrace(const char*) {}
+#endif
 
 // Global button responsiveness & fetch abort controls
 extern volatile bool g_abortFetch;

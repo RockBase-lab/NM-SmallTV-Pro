@@ -198,7 +198,7 @@ void RadarMode::invalidate(const Settings& s) {
 
 void RadarMode::render(const Settings& s) {
   if (radarLat(s) == 0.0f && radarLon(s) == 0.0f) {
-    gfxMessage("Plane radar", "Set home location", C_YELLOW);
+    gfxMessage("Plane Radar settings", "Set radar center in web UI", C_YELLOW);
     return;
   }
   drawRadar(s);

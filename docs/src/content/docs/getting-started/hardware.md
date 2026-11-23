@@ -18,19 +18,19 @@ Look at the board through the case vents, or open it (four clips, no glue).
 
 The two chips on the ESP32-C2 board are the giveaway. The main SoC is marked `ESP8684`, and the small 16-pin chip by the USB-C port is the `CH340C`.
 
-![The ESP8684 (ESP32-C2) main chip on the ESP32-C2 board](/smalltv-mod/assets/board-c2-esp8684.jpg)
+![The ESP8684 (ESP32-C2) main chip on the ESP32-C2 board](/NM-SmallTV-Pro/assets/board-c2-esp8684.jpg)
 
-![The CH340C USB-serial chip next to the USB-C port](/smalltv-mod/assets/board-c2-ch340c.jpg)
+![The CH340C USB-serial chip next to the USB-C port](/NM-SmallTV-Pro/assets/board-c2-ch340c.jpg)
 
 ## SmallTV (ESP8266)
 
-![The SmallTV (ESP8266)](/smalltv-mod/assets/product-8266.png)
+![The SmallTV (ESP8266)](/NM-SmallTV-Pro/assets/product-8266.png)
 
-The "Ultra" units (branded Ultra-Vx.x.x) are this same ESP-12F board, just with different stock firmware and a different flash layout. They run this firmware fine, but the first install needs the loader step in [Flashing](/smalltv-mod/getting-started/flashing/#smalltv-ultra-stock-updater-says-not-enough-space).
+The "Ultra" units (branded Ultra-Vx.x.x) are this same ESP-12F board, just with different stock firmware and a different flash layout. They run this firmware fine, but the first install needs the loader step in [Flashing](/NM-SmallTV-Pro/getting-started/flashing/#smalltv-ultra-stock-updater-says-not-enough-space).
 
-![The SDPro Smart Weather Clock running its stock firmware](/smalltv-mod/assets/product-sdpro.png)
+![The SDPro Smart Weather Clock running its stock firmware](/NM-SmallTV-Pro/assets/product-sdpro.png)
 
-The SDPro Smart Weather Clock, an unbranded SmallTV-ultra clone sold on AliExpress and Temu with `SDPro_V1.x` firmware, is the same board again according to a [teardown](https://github.com/michaeldale/smartclock-oss/blob/main/docs/specifications/hardware.md): an ESP-12 with 4 MB flash, the same ST7789 panel, and the pin map below unchanged. Its USB-C port is power only and it has no button. A community tester installed and ran this firmware on one ([issue #76](https://github.com/giovi321/smalltv-mod/issues/76)). The install is in [Flashing](/smalltv-mod/getting-started/flashing/#sdpro-smart-weather-clock).
+The SDPro Smart Weather Clock, an unbranded SmallTV-ultra clone sold on AliExpress and Temu with `SDPro_V1.x` firmware, is the same board again according to a [teardown](https://github.com/michaeldale/smartclock-oss/blob/main/docs/specifications/hardware.md): an ESP-12 with 4 MB flash, the same ST7789 panel, and the pin map below unchanged. Its USB-C port is power only and it has no button. A community tester installed and ran this firmware on one ([issue #76](https://github.com/RockBase-lab/NM-SmallTV-Pro/issues/76)). The install is in [Flashing](/NM-SmallTV-Pro/getting-started/flashing/#sdpro-smart-weather-clock).
 
 Product photos show each unit running its stock firmware, not this one, and the on-screen style varies by model and firmware version (a weather clock, a ticker, and so on). Match your device's screen and the tell-tale signs to identify the model before picking a binary.
 
@@ -43,7 +43,7 @@ Product photos show each unit running its stock firmware, not this one, and the 
 | WireGuard VPN | not available on this chip |
 | Build env | `smalltv`, or `smalltv_lean` |
 
-Two images are published for this board. `smalltv-mod-firmware.bin` carries every feature. `smalltv-mod-firmware-lean.bin` is the same code with Home Assistant screens, the usage meter and theme clocks compiled out, which leaves about 8 KB more heap. That matters here and on no other board, because the ESP8266 shares one 80 KB arena between static allocations and the heap, and the radar and cash.ch fetches both refuse to start a TLS handshake when it runs short. [Which release file to download](/smalltv-mod/reference/release-assets/) covers when to pick which.
+Two images are published for this board. `nm-smalltv-pro-firmware.bin` carries every feature. `nm-smalltv-pro-firmware-lean.bin` is the same code with Home Assistant screens, the usage meter and theme clocks compiled out, which leaves about 8 KB more heap. That matters here and on no other board, because the ESP8266 shares one 80 KB arena between static allocations and the heap, and the radar and cash.ch fetches both refuse to start a TLS handshake when it runs short. [Which release file to download](/NM-SmallTV-Pro/reference/release-assets/) covers when to pick which.
 
 ### Pin map
 
@@ -60,7 +60,7 @@ Hardware SPI on the ESP8266 uses fixed clock and data pins. The rest are the Sma
 
 ## SmallTV (ESP32-C2 / ESP8684)
 
-![The SmallTV (ESP32-C2)](/smalltv-mod/assets/product-c2.png)
+![The SmallTV (ESP32-C2)](/NM-SmallTV-Pro/assets/product-c2.png)
 
 | | |
 |---|---|
@@ -90,23 +90,23 @@ The pins are set in `src/board_esp32c2.h`. Two panel quirks are worth knowing: t
 
 ## NM-TV-154 (classic ESP32)
 
-![The NM-TV-154 running its stock NMMiner firmware](/smalltv-mod/assets/product-esp32.png)
+![The NM-TV-154 running its stock NMMiner firmware](/NM-SmallTV-Pro/assets/product-esp32.png)
 
 | | |
 |---|---|
 | MCU | ESP32-WROOM-32E (ESP32-D0WD-V3), 40 MHz crystal, 4 MB flash |
 | Display | 1.54" 240×240 IPS ST7789, SPI, RGB colour order |
 | Sold as | NMMiner NM-TV-154 BTC lottery miner, PCB marked "NM-TV-Miner" |
-| WireGuard VPN | in the second image only, `-esp32-wg` |
+| WireGuard VPN | in the full-feature `-esp32-wg` image |
 | Build env | `smalltv_esp32`, or `smalltv_esp32_wg` |
 
-Two images are published for this board, and the only difference is the WireGuard client. `smalltv-mod-firmware-esp32.bin` leaves it out; `smalltv-mod-firmware-esp32-wg.bin` compiles it in. Both carry every other feature, run the same code and use the same partition table.
+The full-feature `smalltv_esp32_wg` image includes dual tickers, weather, timers, carousel, themes, notifications, burn-in prevention, the usage meter, radar, Home Assistant and WireGuard. It is published as `nm-smalltv-pro-firmware-esp32-wg.bin`, with a matching `.factory.bin` for USB installation. The directly built `smalltv_esp32` variant is identical except that it omits WireGuard.
 
-The split exists because of flash. The 4 MB layout gives each OTA slot 1,572,864 bytes, and the classic ESP32's own framework libraries cost about 100 KB more than the ESP32-C2's. The v3.0.0 images measure 1,434,192 bytes (91.2%) without the client and 1,479,984 bytes (94.1%) with it, so the tunnel costs 45,792 bytes and leaves 92,880 free. Both fit comfortably. It is still a choice because the slot cannot be grown without a new partition table, and a device in the field cannot install one over the air, so the room the plain image keeps is the only room this board will ever have for whatever the firmware grows into next, and the tunnel spends about a third of it.
+To fit the full feature set into 4 MB of flash, this board uses a dedicated partition table with two 1,966,080-byte OTA slots and 192 KiB of LittleFS. The Galmuri ASCII glyphs and all text sizes, wrapping, animation and scrolling remain, but the large Hangul bitmap tables are omitted; unsupported UTF-8 characters render as `?`. The 8 MB SmallTV Pro retains the full Korean font.
 
-Take `-esp32-wg` if you want to reach the device from outside your LAN. Take the plain one otherwise. Swapping later is a manual upload in the System tab and needs no cable, because the two images share a partition table; [Which release file to download](/smalltv-mod/reference/release-assets/#switch-a-device-from-one-variant-to-the-other) walks through it.
+An app-only OTA update cannot change partition tables. The first install, and migration from an older NM-TV-154 layout, therefore require the merged `.factory.bin` over USB. Once the new layout is installed, later app updates and switches between the two variants work over OTA.
 
-The pin map comes from [NMMiner's own custom-firmware guide](https://www.nmminer.com/2026/03/02/how-to-develop-nm-tv-custom-firmware/) for the device and is confirmed working on hardware by a community tester in [issue #1](https://github.com/giovi321/smalltv-mod/issues/1): display, colours, backlight PWM, and the 4 MB flash layout all check out.
+The pin map comes from [NMMiner's own custom-firmware guide](https://www.nmminer.com/2026/03/02/how-to-develop-nm-tv-custom-firmware/) for the device and is confirmed working on hardware by a community tester in [issue #1](https://github.com/RockBase-lab/NM-SmallTV-Pro/issues/1): display, colours, backlight PWM, and the 4 MB flash layout all check out.
 
 ### Pin map
 
@@ -124,7 +124,7 @@ The pins are set in `src/board_esp32.h`.
 
 ## SmallTV Pro (classic ESP32)
 
-![The GeekMagic SmallTV Pro running its stock firmware](/smalltv-mod/assets/product-pro.png)
+![The GeekMagic SmallTV Pro running its stock firmware](/NM-SmallTV-Pro/assets/product-pro.png)
 
 | | |
 |---|---|
@@ -136,7 +136,7 @@ The pins are set in `src/board_esp32.h`.
 
 GeekMagic's own higher-end model. Same cube and panel, but a classic ESP32 with 8 MB flash, which doubles the OTA app slots (2.125 MB each) and leaves about 3.7 MB for LittleFS. The partition layout matches the stock firmware's, verified from a live device.
 
-Unlike the ESP32-C2 board there is **no USB-serial chip**: the USB-C port is power only. The first install goes over the air from the stock web UI, and serial access means opening the case and wiring a 3.3 V USB-UART adapter to the internal header (see [Flashing](/smalltv-mod/getting-started/flashing/#smalltv-pro-classic-esp32-8-mb)).
+Unlike the ESP32-C2 board there is **no USB-serial chip**: the USB-C port is power only. The first install goes over the air from the stock web UI, and serial access means opening the case and wiring a 3.3 V USB-UART adapter to the internal header (see [Flashing](/NM-SmallTV-Pro/getting-started/flashing/#smalltv-pro-classic-esp32-8-mb)).
 
 The pin map comes from the ESPHome SmallTV Pro community config and matches what the stock firmware uses. Confirmed working on a real device: display, colours, backlight PWM, and the 8 MB flash layout.
 

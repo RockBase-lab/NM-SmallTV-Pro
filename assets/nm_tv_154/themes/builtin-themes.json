@@ -1,0 +1,120 @@
+{
+  "imageSize": 240,
+  "maxFrames": 2,
+  "encoding": "JPEG RGB",
+  "packageBytes": 117488,
+  "themes": [
+    {
+      "id": "classic-24",
+      "name": "Classic 24",
+      "bytes": 416,
+      "source": null
+    },
+    {
+      "id": "classic-12",
+      "name": "Classic 12",
+      "bytes": 422,
+      "source": null
+    },
+    {
+      "id": "ultra-01",
+      "name": "Ultra Picture 01",
+      "bytes": 12925,
+      "source": "ezgif-1-795e37b516.jpg",
+      "sourceFrames": 1,
+      "width": 240,
+      "height": 240,
+      "encoding": "JPEG RGB"
+    },
+    {
+      "id": "ultra-02",
+      "name": "Ultra Picture 02",
+      "bytes": 11334,
+      "source": "ezgif-2-05016cc8ce.jpg",
+      "sourceFrames": 1,
+      "width": 240,
+      "height": 240,
+      "encoding": "JPEG RGB"
+    },
+    {
+      "id": "ultra-03",
+      "name": "Ultra Picture 03",
+      "bytes": 13568,
+      "source": "ezgif-3-d2f3e68a3c.jpg",
+      "sourceFrames": 1,
+      "width": 240,
+      "height": 240,
+      "encoding": "JPEG RGB"
+    },
+    {
+      "id": "ultra-04",
+      "name": "Ultra Motion 04",
+      "bytes": 11470,
+      "source": "ezgif-3-de29a3740c.gif",
+      "sourceFrames": 2,
+      "width": 240,
+      "height": 240,
+      "encoding": "JPEG RGB"
+    },
+    {
+      "id": "ultra-05",
+      "name": "Ultra Picture 05",
+      "bytes": 8214,
+      "source": "ezgif-4-fe80648c36.jpg",
+      "sourceFrames": 1,
+      "width": 240,
+      "height": 240,
+      "encoding": "JPEG RGB"
+    },
+    {
+      "id": "ultra-06",
+      "name": "Ultra Picture 06",
+      "bytes": 14820,
+      "source": "ezgif-5-9ed6b4baec.jpg",
+      "sourceFrames": 1,
+      "width": 240,
+      "height": 240,
+      "encoding": "JPEG RGB"
+    },
+    {
+      "id": "pixel-motion",
+      "name": "Pixel Motion",
+      "bytes": 8489,
+      "source": "ezgif-5-acf59aa68c.gif",
+      "sourceFrames": 2,
+      "width": 240,
+      "height": 240,
+      "encoding": "JPEG RGB"
+    },
+    {
+      "id": "ultra-08",
+      "name": "Ultra Picture 08",
+      "bytes": 15397,
+      "source": "ezgif-5-b48d7832df.jpg",
+      "sourceFrames": 1,
+      "width": 240,
+      "height": 240,
+      "encoding": "JPEG RGB"
+    },
+    {
+      "id": "ultra-09",
+      "name": "Ultra Picture 09",
+      "bytes": 11160,
+      "source": "ezgif-6-7a462b453f.jpg",
+      "sourceFrames": 1,
+      "width": 240,
+      "height": 240,
+      "encoding": "JPEG RGB"
+    },
+    {
+      "id": "ultra-10",
+      "name": "Ultra Motion 10",
+      "bytes": 9273,
+      "source": "spaceman.gif",
+      "sourceFrames": 2,
+      "width": 240,
+      "height": 240,
+      "encoding": "JPEG RGB"
+    }
+  ]
+}

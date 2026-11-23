@@ -110,7 +110,7 @@ static size_t oldWay() {
   for (size_t i = 0; i < 3; i++) {
     const StatusTicker s = tickerAt(i);
     JsonObject t = arr.add<JsonObject>();
-    t["symbol"] = s.symbol; t["valid"] = s.valid; t["error"] = s.error;
+    t["symbol"] = s.symbol; t["set"] = s.set; t["valid"] = s.valid; t["error"] = s.error;
     if (s.error) t["retryIn"] = s.retryIn;
     if (s.valid) { t["price"] = s.price; if (s.hasChange) { t["changePct"] = s.changePct; t["basis"] = "day"; } }
   }

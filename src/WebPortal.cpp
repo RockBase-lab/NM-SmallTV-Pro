@@ -10,6 +10,10 @@
 #include "Gfx.h"
 #include "OtaUpdate.h"
 #include "StockClient.h"
+#if WITH_TICKER && defined(SMALLTV_FAMILY_ESP32)
+#include "features/ticker/StockSearch.h"
+#include <memory>
+#endif
 #include "UsageClient.h"
 #if WITH_RADAR
 #include "RadarClient.h"
@@ -35,6 +39,7 @@
 extern void appInvalidate();
 extern void appRelease();
 extern const char* appResetReason();   // last reset reason (diagnostics)
+extern bool appSafeMode();
 extern void appApplyBrightness();   // main.cpp: re-resolve effective brightness now
 extern int  appBacklightSteps();    // main.cpp: backlight level now, 0..255
 
@@ -133,10 +138,12 @@ static void handleGetConfig() {
   // Which features are compiled in (so a lean build hides the tabs it dropped).
   JsonObject feat = root["features"].to<JsonObject>();
   feat["ticker"] = (bool)WITH_TICKER;
+  feat["crypto"] = (bool)WITH_CRYPTO;
   feat["usage"]  = (bool)WITH_USAGE;
   feat["radar"]  = (bool)WITH_RADAR;
   feat["ha"]     = (bool)WITH_HA;
   feat["theme"]  = (bool)WITH_THEME;
+  feat["pictures"] = (bool)WITH_PICTURES;
   // WireGuard is a per-chip decision rather than a per-feature one: it is
   // compiled only where the image has room for it (the ESP32-C2 build).
 #if defined(SMALLTV_WIREGUARD)
@@ -173,12 +180,16 @@ struct StatusSink : smalltv::Sink {
 
 #if WITH_TICKER
 static smalltv::StatusTicker statusTicker(size_t i) {
-  uint8_t c0 = stocksCount(0);
-  uint8_t set = (i < c0) ? 0 : 1;
-  uint8_t idx = (i < c0) ? i : (i - c0);
-  const TickerSettings& ts = (set == 1) ? S->ticker2 : S->ticker;
+  uint8_t set = 0;
+  size_t idx = i;
+  while (set + 1 < NUM_STOCK_SETS && idx >= stocksCount(set)) {
+    idx -= stocksCount(set);
+    set++;
+  }
+  const TickerSettings& ts = tickerSettings(*S, set);
   const StockData& d = stockAt(idx, set);
   smalltv::StatusTicker t;
+  t.set = set;
   t.symbol = d.symbol;
   t.valid = d.valid;
   t.error = d.error;
@@ -223,6 +234,7 @@ static void handleStatus() {
   d.contstk = platformFreeContStack();   // primary stack headroom (ESP8266)
   d.uptime = millis() / 1000;
   d.reset = appResetReason();
+  d.safeMode = appSafeMode();
   d.synced = clockSynced();
   d.time = clockText.c_str();
   d.tz = S->clock.tz.c_str();
@@ -248,20 +260,29 @@ static void handleStatus() {
   smalltv::writeStatusHead(out, d);
   PlatformCrashRecord cr;   // last crash, kept in RTC memory until cleared or power-cycled
   if (platformCrashRecordGet(cr)) {
-    char cause[12], epc[12], addr[12];
+    char cause[12], epc[12], addr[12], backtrace[145] = "";
     snprintf(cause, sizeof cause, "0x%x", (unsigned)cr.exccause);
     snprintf(epc, sizeof epc, "0x%08x", (unsigned)cr.epc1);
     snprintf(addr, sizeof addr, "0x%08x", (unsigned)cr.excvaddr);
     smalltv::StatusCrash k;
     k.reason = cr.reason;
     k.fw = cr.fw;
+    k.operation = cr.operation;
+    for (unsigned index = 0; index < cr.backtraceCount && index < 12; ++index)
+      snprintf(backtrace + index * 11, sizeof(backtrace) - index * 11, "0x%08x ", (unsigned)cr.backtrace[index]);
+    k.backtrace = backtrace;
+    if (cr.hasPc) k.epc = epc;
     if (cr.hasRegisters) { k.exccause = cause; k.epc = epc; k.addr = addr; }
     k.hasUptime = cr.uptimeKnown;
     k.uptime = cr.uptimeS;
     smalltv::writeStatusCrash(out, k);
   }
 #if WITH_TICKER
-  smalltv::writeStatusTickers(out, stocksCount(0) + stocksCount(1), statusTicker);
+  size_t tickerCount = stocksCount(0) + stocksCount(1);
+#if WITH_CRYPTO
+  tickerCount += stocksCount(2);
+#endif
+  smalltv::writeStatusTickers(out, tickerCount, statusTicker);
 #endif
 #if WITH_RADAR
   // An empty scope has several possible causes and the screen shows the same
@@ -435,8 +456,12 @@ static void handleImport() {
     sendParseError(err);
     return;
   }
+  if (!doc["hostname"].is<const char*>() || !doc["mode"].is<const char*>()) {
+    server.send(400, "text/plain", "Expected settings export with hostname and mode");
+    return;
+  }
   if (!applyAndSaveSettings(*S,
-        [&](Settings& settings) { settingsApplyJson(settings, doc.as<JsonObjectConst>()); doc.clear(); },
+        [&](Settings& settings) { settings.setDefaults(); settingsApplyJson(settings, doc.as<JsonObjectConst>(), true); doc.clear(); },
         [](const Settings& settings) { return saveSettings(settings); })) {
     server.send(500, "application/json", "{\"ok\":false,\"error\":\"could not save settings\"}");
     return;
@@ -560,7 +585,8 @@ static void handleNotify() {
   if (!type) type = doc["state"];
   if (doc["size"].is<int>()) {
     int sz = doc["size"].as<int>();
-    if (sz == 10 || sz == 12 || sz == 16 || sz == 20 || sz == 24 || sz == 32) g_koreanFontSize = (uint8_t)sz;
+    if (sz == 10 || sz == 11 || sz == 12 || sz == 16 ||
+        sz == 20 || sz == 22 || sz == 24 || sz == 32) g_koreanFontSize = (uint8_t)sz;
   }
 
   NotifyRequest r;
@@ -606,16 +632,22 @@ static void handleTestKoreanNotify() {
   uint8_t sz = 24;
   if (server.hasArg("size")) {
     int s = server.arg("size").toInt();
-    if (s == 10 || s == 12 || s == 16 || s == 20 || s == 24 || s == 32) sz = (uint8_t)s;
+    if (s == 10 || s == 11 || s == 12 || s == 16 ||
+        s == 20 || s == 22 || s == 24 || s == 32) sz = (uint8_t)s;
   }
   g_koreanFontSize = sz;
 
   NotifyRequest r;
   r.type = "sms";
   char tbuf[32];
+#if WITH_KOREAN_FONT
   snprintf(tbuf, sizeof(tbuf), "문자 알림 [%upx]", (unsigned)sz);
-  r.title = tbuf;
   r.label = "[Web발신] 국민카드 15,000원 승인 스타벅스코리아";
+#else
+  snprintf(tbuf, sizeof(tbuf), "SMS alert [%upx]", (unsigned)sz);
+  r.label = "[WEB] Card approved: USD 15.00 at Example Store";
+#endif
+  r.title = tbuf;
   r.anim = "sms";
   r.ttlSec = 30;
   r.prio = NOTIFY_PRIO_HIGH;
@@ -625,7 +657,11 @@ static void handleTestKoreanNotify() {
   g_notifyMode.request(r);
 
   char resp[128];
+#if WITH_KOREAN_FONT
   snprintf(resp, sizeof(resp), "OK: 한글 %upx 알림 테스트가 화면에 실행되었습니다!", (unsigned)sz);
+#else
+  snprintf(resp, sizeof(resp), "OK: ASCII %upx notification test started", (unsigned)sz);
+#endif
   server.send(200, "text/plain; charset=utf-8", resp);
 }
 #endif
@@ -734,6 +770,41 @@ static void handleNotFound() {
   }
 }
 
+static void handleStockSearch() {
+  if (!requireAuth()) return;
+  server.sendHeader("Cache-Control", "no-store");
+#if WITH_TICKER && defined(SMALLTV_FAMILY_ESP32)
+  String query=server.arg("q");query.trim();
+  if (!stocksearch::validQuery(query.c_str())) { server.send(400,"application/json","{\"error\":\"Query must be 1-80 bytes without control characters\"}");return; }
+  static uint32_t last=0;
+  if (last && millis()-last<750) { server.send(429,"application/json","{\"error\":\"Wait before searching again\"}");return; }
+  last=millis();
+  if (WiFi.status()!=WL_CONNECTED || platformMaxFreeBlock()<28000) { server.send(503,"application/json","{\"error\":\"Search unavailable; use local presets\"}");return; }
+  std::unique_ptr<SecureClient> client(platformMakeSecureClient(2048));
+  if (!client) { server.send(503,"application/json","{\"error\":\"Search unavailable\"}");return; }
+  client->setHandshakeTimeout(3);
+  HTTPClient http;
+  http.setConnectTimeout(2500);http.setTimeout(2500);http.setReuse(false);http.useHTTP10(true);
+  String url=String("https://query1.finance.yahoo.com/v1/finance/search?q=")+stocksearch::encode(query.c_str())+"&quotesCount=8&newsCount=0&listsCount=0";
+  if (!http.begin(*client,url)) { server.send(502,"application/json","{\"error\":\"Search connection failed\"}");return; }
+  http.setUserAgent("Mozilla/5.0");
+  int status=http.GET();
+  if (status!=200 || http.getSize()>16384) { http.end();server.send(502,"application/json","{\"error\":\"Search provider unavailable\"}");return; }
+  JsonDocument filter,upstream,output;
+  JsonObject fields=filter["quotes"][0].to<JsonObject>();
+  for (const char* key : {"symbol","shortname","longname","quoteType","exchDisp","exchange"}) fields[key]=true;
+  client->setTimeout(1500);
+  stocksearch::BoundedReader<SecureClient> reader(*client,16384,4500);
+  auto error=deserializeJson(upstream,reader,DeserializationOption::Filter(filter),DeserializationOption::NestingLimit(8));
+  http.end();
+  if (error || !upstream["quotes"].is<JsonArray>()) { server.send(502,"application/json","{\"error\":\"Invalid search response\"}");return; }
+  stocksearch::normalize(upstream["quotes"].as<JsonArrayConst>(),output["results"].to<JsonArray>());
+  String body;serializeJson(output,body);server.send(200,"application/json",body);
+#else
+  server.send(501,"application/json","{\"error\":\"Use local presets or enter a symbol manually on this device\"}");
+#endif
+}
+
 // ---------------------------------------------------------------------------
 void webPortalBegin(Settings& settings) {
   S = &settings;
@@ -750,6 +821,7 @@ void webPortalBegin(Settings& settings) {
   server.on("/api/config", HTTP_POST, handlePostConfig);
   server.on("/api/status", HTTP_GET, handleStatus);
   server.on("/api/scan", HTTP_GET, handleScan);
+  server.on("/api/search/stocks", HTTP_GET, handleStockSearch);
   server.on("/api/reboot", HTTP_POST, handleReboot);
   server.on("/api/factory", HTTP_POST, handleFactory);
   server.on("/api/crash/clear", HTTP_POST, handleCrashClear);

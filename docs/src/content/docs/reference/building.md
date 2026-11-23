@@ -17,11 +17,17 @@ pio device monitor -e smalltv_c2   # serial logs @ 115200
 pio run -e smalltv_loader          # ESP8266 loader for the SmallTV-ultra
 ```
 
-Seven envs, six published images plus the loader. Two boards get two images each: the ESP8266 (`smalltv` and `smalltv_lean`) and the NM-TV-154 (`smalltv_esp32` and `smalltv_esp32_wg`). Which file each env becomes is in [Which release file to download](/smalltv-mod/reference/release-assets/).
+Seven firmware envs cover the four boards. This fork's default CI build publishes the SmallTV Pro and full-feature NM-TV-154 WireGuard images plus the loader; the other envs remain available for direct builds. The NM-TV-154 pair shares the same dedicated layout and full display/data feature set, with WireGuard as the only difference. Asset names are listed in [Which release file to download](/NM-SmallTV-Pro/reference/release-assets/).
+
+## Build the configuration page
+
+NMMiner SmallTV Pro bundles `src/webui-search.js` into `src/webui.html` and minifies generated JavaScript with a locked Terser version. Source files remain readable. Install build tools with `npm ci --prefix tools`, then run `python tools/gzip_webui.py` after editing either source. Use `--small` with Python's `zopfli` package for the tight NM-TV-154 OTA build. `python tools/gzip_webui.py --check` compares the decompressed header with a fresh canonical bundle. Both sources, the pinned tools and the regenerated header belong in the change.
+
+Weather font coverage is stored losslessly in `WeatherDigits.h`; `tools/build_weather_font.py` requires Pillow to regenerate it. The native decoder regression compares all 105 glyphs against the source raster samples. These optimizations retain existing OTA partitions and device features.
 
 ## The smalltv_lean env
 
-`smalltv_lean` builds the same ESP8266 code as `smalltv` with Home Assistant screens, the Claude usage meter and theme clocks compiled out. It exists to buy heap, and it is published as `smalltv-mod-firmware-lean.bin`.
+`smalltv_lean` builds the same ESP8266 code as `smalltv` with Home Assistant screens, the Claude usage meter and theme clocks compiled out. It exists to buy heap, and it is published as `nm-smalltv-pro-firmware-lean.bin`.
 
 ```bash
 pio run -e smalltv_lean
@@ -63,7 +69,7 @@ Two caveats if you publish your own combination. `UPDATE_ASSET` still points at 
 
 ## The smalltv_loader env
 
-`smalltv_loader` (source `src/loader.cpp`) builds a minimal ESP8266 image: WiFi plus a web OTA endpoint at `/update`, nothing else. Its only job is the two-step [SmallTV-ultra install](/smalltv-mod/getting-started/flashing/#smalltv-ultra-stock-updater-says-not-enough-space), where the stock Ultra layout rejects the full image. The loader is small enough to fit that stock slot, and it uses this firmware's own 4m1m flash layout (`eagle.flash.4m1m.ld`), so its own `/update` slot is large enough to then accept the full `smalltv-mod-firmware.bin`.
+`smalltv_loader` (source `src/loader.cpp`) builds a minimal ESP8266 image: WiFi plus a web OTA endpoint at `/update`, nothing else. Its only job is the two-step [SmallTV-ultra install](/NM-SmallTV-Pro/getting-started/flashing/#smalltv-ultra-stock-updater-says-not-enough-space), where the stock Ultra layout rejects the full image. The loader is small enough to fit that stock slot, and it uses this firmware's own 4m1m flash layout (`eagle.flash.4m1m.ld`), so its own `/update` slot is large enough to then accept the full `nm-smalltv-pro-firmware.bin`.
 
 ```bash
 pio run -e smalltv_loader
@@ -75,7 +81,7 @@ By default the loader opens an open access point named `SmallTV-Loader` at `192.
 -DLOADER_SSID='"MyNet"' -DLOADER_PASS='"secret"'
 ```
 
-Credentials are compile-time only and never live in the repo. The build output is published as the release asset `smalltv-mod-loader.bin`.
+Credentials are compile-time only and never live in the repo. The build output is published as the release asset `nm-smalltv-pro-loader.bin`.
 
 ## How one codebase builds for all four
 
@@ -120,7 +126,7 @@ src/                    shared core (device, net, web, settings)
     notify/             NotifyMode + its overlay frames (armed over HTTP, never persisted)
     ha/                 Home Assistant screens over MQTT
     theme/              the .stheme clock-face engine and its web API
-partitions/             ESP32 flash layouts (4 MB shared by C2 + NM-TV-154, 8 MB for the Pro)
+partitions/             Separate C2 and NM-TV-154 4 MB layouts; 8 MB for the Pro
 n8n/                    webhook contract and importable workflows
 extra_script.py         Windows-only SCons spawn workaround for the ESP8266 envs
 ```
@@ -138,8 +144,8 @@ The ESP32 targets have a few requirements the ESP8266 does not.
 - **Platform**: PlatformIO's official espressif32 does not support the C2 and is stuck on Arduino core 2.x. All ESP32 envs use the [pioarduino](https://github.com/pioarduino/platform-espressif32) fork, pinned to one release in `[esp32_base]`, which tracks Arduino core 3.x on ESP-IDF 5.x (`Platform.h`'s ESP32 branch needs core 3.x). The first build downloads a large toolchain and compiles the IDF from source, so it takes several minutes. Later builds are fast.
 - **Display driver**: both use `Arduino_HWSPI` with explicit pins. The register-level `Arduino_ESP32SPI` hangs on the C2, and the software-SPI path in the library does not cover it. `Arduino_HWSPI` uses the stock SPI driver and works.
 - **Flashing the C2**: uploads call the system esptool, not the one bundled with PlatformIO, which hangs entering download mode on that board. Install it with `pip install esptool`. The classic ESP32 flashes with either.
-- **Image size flags**: the ESP32 envs build with `-D CORE_DEBUG_LEVEL=0 -fno-exceptions -fno-asynchronous-unwind-tables -fno-unwind-tables`. Without them the C2 and WireGuard images do not fit their 1,572,864-byte slot. The first flag also silences the Arduino core's own debug messages on the serial console; the firmware's serial output is unchanged
-- **Partitions**: the 4 MB layout in `partitions/smalltv_4mb_ota.csv` gives two OTA app slots plus about 0.9 MB for LittleFS, and is shared by the C2 and the NM-TV-154. The SmallTV Pro's 8 MB layout in `partitions/smalltv_8mb_ota.csv` doubles the app slots (2.125 MB each) and gives about 3.7 MB of LittleFS, matching the stock firmware's table exactly.
+- **Image size flags**: the ESP32 envs build with `-D CORE_DEBUG_LEVEL=0 -fno-exceptions -fno-asynchronous-unwind-tables -fno-unwind-tables` to keep the images inside their OTA slots. The first flag also silences the Arduino core's own debug messages on the serial console; the firmware's serial output is unchanged.
+- **Partitions**: the C2 uses `partitions/smalltv_4mb_ota.csv` with two 1,572,864-byte app slots and about 0.9 MB of LittleFS. The NM-TV-154 has its own `partitions/nm_tv_154_4mb_ota.csv` with two 1,966,080-byte app slots and 192 KiB of LittleFS. The SmallTV Pro's 8 MB layout in `partitions/smalltv_8mb_ota.csv` has 2.125 MB app slots and about 3.7 MB of LittleFS, matching the stock table. Changing an installed device's partition table requires a merged factory image over USB, not app-only OTA.
 
 ## WireGuard
 
@@ -149,16 +155,11 @@ The two peer limits are compile-time because `esp_wireguard` allocates peers sta
 
 ### The smalltv_esp32_wg env
 
-`smalltv_esp32_wg` builds the same NM-TV-154 code as `smalltv_esp32` with the WireGuard client compiled in, and is published as `smalltv-mod-firmware-esp32-wg.bin`. It exists because this board's image is the tightest fit of the ESP32 boards, and the client is a meaningful slice of what is left:
+`smalltv_esp32_wg` is the full-feature NM-TV-154 image and is published as `nm-smalltv-pro-firmware-esp32-wg.bin`. It includes dual tickers, weather, timers, carousel, themes, notifications, burn-in prevention, usage, radar, Home Assistant and WireGuard. The directly built `smalltv_esp32` variant omits only WireGuard.
 
-| Build | `firmware.bin` | Of the 1,572,864 B slot | Free |
-|-------|---------------|-------------------------|------|
-| `smalltv_esp32` | 1,434,192 B | 91.2% | 138,672 B |
-| `smalltv_esp32_wg` | 1,479,984 B | 94.1% | 92,880 B |
+Both variants set `WITH_KOREAN_FONT=0`. The renderer keeps the Galmuri ASCII arrays and all font sizes, wrapping, animation and scrolling, but drops the Hangul glyph and codepoint tables; unsupported UTF-8 characters render as `?`. Other boards retain the full Korean font by default.
 
-Measured in CI on v3.0.0, which is what builds the published binaries. The client costs 45,792 bytes, about a third of the plain image's spare flash. Both fit with room left, so this is a headroom decision rather than a hard limit: the plain image keeps its spare bytes for whatever the firmware grows into next, and the WireGuard one spends a third of them on the tunnel.
-
-Growing the slot is the alternative to the split, and it is not one a field device can take: raising `app0` and `app1` in `partitions/smalltv_4mb_ota.csv` at the expense of `spiffs` (0xF0000 is generous for one `config.json`) is a partition-table change, and only `firmware.factory.bin` over USB can install that.
+The dedicated layout is what makes the full image fit. Its OTA slots are 1,966,080 bytes each, with 192 KiB left for LittleFS. The first installation, and migration from the old shared 4 MB layout, must write `firmware.factory.bin` over USB so the new partition table is installed. Later app updates and variant switches use ordinary OTA.
 
 The env inherits `smalltv_esp32` through `extends` and interpolates that env's `build_flags` and `lib_deps` rather than restating them, so anything added to the base env reaches both images. It adds `-D SMALLTV_ESP32_WG`, which selects the matching `UPDATE_ASSET` and `FW_VARIANT` in `src/config.h` so a tunnel device self-updates to the tunnel image and a plain one stays plain. Everything else, including the board pin map, still keys off `SMALLTV_ESP32`.
 
@@ -166,18 +167,17 @@ The env inherits `smalltv_esp32` through `extends` and interpolates that env's `
 
 ## Footprint
 
-Measured as the flashable `firmware.bin` in CI on v3.0.0, which is what an OTA slot has to hold:
+Measured as the flashable `firmware.bin`, which is what an OTA slot has to hold. The NM-TV-154 row is the current local full-feature build; the other rows are historical v3.0.0 reference figures.
 
 | Build | `firmware.bin` | Slot | Used | Free |
 |-------|---------------|------|------|------|
 | `smalltv` | 795,184 B | 1,044,464 B | 76.1% | 249,280 B |
 | `smalltv_lean` | 658,896 B | 1,044,464 B | 63.1% | 385,568 B |
 | `smalltv_c2` | 1,441,216 B | 1,572,864 B | 91.6% | 131,648 B |
-| `smalltv_esp32` | 1,434,192 B | 1,572,864 B | 91.2% | 138,672 B |
-| `smalltv_esp32_wg` | 1,479,984 B | 1,572,864 B | 94.1% | 92,880 B |
+| `smalltv_esp32_wg` | 1,895,120 B | 1,966,080 B | 96.4% | 70,960 B |
 | `smalltv_esp32_8mb` | 1,499,104 B | 2,228,224 B | 67.3% | 729,120 B |
 
-The ESP8266 slot comes from `eagle.flash.4m1m.ld`, the 4 MB ESP32 slot from `partitions/smalltv_4mb_ota.csv` and the Pro's from `partitions/smalltv_8mb_ota.csv`. The mascot frame data lives in flash, not the heap.
+The ESP8266 slot comes from `eagle.flash.4m1m.ld`, the C2's from `partitions/smalltv_4mb_ota.csv`, the NM-TV-154's from `partitions/nm_tv_154_4mb_ota.csv`, and the Pro's from `partitions/smalltv_8mb_ota.csv`. The mascot frame data lives in flash, not the heap.
 
 CI checks every image against its slot on each build (`tools/ci_checks.py size`) and fails the build when an image has less than 8,192 bytes free, so an image that cannot be installed over the air is never published. After a local `pio run`, `python tools/ci_checks.py size --min-free 8192 --allow-missing` runs the same check on the envs you built.
 

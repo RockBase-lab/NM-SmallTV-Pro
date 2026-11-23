@@ -43,6 +43,7 @@ struct StatusData {
   const char* sun = "";         // today's sunrise-sunset; left out when empty
   const char* ha = "";          // why Home Assistant is not as set: memory, safe or reboot; left out when empty
   bool connected = false, synced = false, night = false, nightHeld = false, clockFresh = false;
+  bool safeMode = false;
   int rssi = 0;
   int bl = 0;                   // backlight level now, 0..255
   uint32_t heap = 0, maxblk = 0, contstk = 0, uptime = 0;
@@ -53,11 +54,14 @@ struct StatusData {
 struct StatusCrash {
   const char *reason = "", *fw = "";
   const char *exccause = "", *epc = "", *addr = "";
+  const char* operation = "";
+  const char* backtrace = "";
   bool hasUptime = false;
   uint32_t uptime = 0;
 };
 struct StatusTicker {
   const char* symbol = "";
+  uint8_t set = 0;              // 0 = Stock 1, 1 = Stock 2, 2 = Crypto
   bool valid = false, error = false;
   uint32_t retryIn = 0;         // written when `error`
   float price = 0;              // written when `valid`
@@ -110,6 +114,7 @@ template <class Out> void writeStatusHead(Out& out, const StatusData& d) {
   member(out, PSTR(",\"contstk\":"), d.contstk);
   member(out, PSTR(",\"uptime\":"), d.uptime);
   member(out, PSTR(",\"reset\":"), d.reset);
+  if (d.safeMode) member(out, PSTR(",\"safeMode\":"), true);
   member(out, PSTR(",\"synced\":"), d.synced);
   if (d.time[0]) member(out, PSTR(",\"time\":"), d.time);
   member(out, PSTR(",\"tz\":"), d.tz);
@@ -143,6 +148,8 @@ template <class Out> void writeStatusCrash(Out& out, const StatusCrash& k) {
   if (k.epc[0]) member(out, PSTR(",\"epc\":"), k.epc);
   if (k.addr[0]) member(out, PSTR(",\"addr\":"), k.addr);
   if (k.hasUptime) member(out, PSTR(",\"uptime\":"), k.uptime);
+  if (k.operation[0]) member(out, PSTR(",\"operation\":"), k.operation);
+  if (k.backtrace[0]) member(out, PSTR(",\"backtrace\":"), k.backtrace);
   jsonout::raw(out, PSTR("}"));
 }
 
@@ -153,6 +160,7 @@ template <class Out, class Row> void writeStatusTickers(Out& out, size_t count, 
   for (size_t i = 0; i < count; i++) {
     const StatusTicker t = rowAt(i);
     member(out, i ? PSTR(",{\"symbol\":") : PSTR("{\"symbol\":"), t.symbol);
+    member(out, PSTR(",\"set\":"), t.set);
     member(out, PSTR(",\"valid\":"), t.valid);
     member(out, PSTR(",\"error\":"), t.error);
     if (t.error) member(out, PSTR(",\"retryIn\":"), t.retryIn);
